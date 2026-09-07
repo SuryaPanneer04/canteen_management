@@ -1,331 +1,354 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-$allowedRoles = ['Kitchen', 'Super Admin'];
-
-if (!in_array($_SESSION['role_name'] ?? '', $allowedRoles, true)) {
+if (
+    !in_array(
+        $_SESSION['role_name'] ?? '',
+        ['Kitchen', 'Super Admin'],
+        true
+    )
+) {
     header('Location: ../index.php');
     exit;
 }
 
-$pageTitle = 'Material Request';
+$pageTitle = 'Kitchen Material Request';
 
 $success = '';
 $error = '';
 
-/*
-|--------------------------------------------------------------------------
-| CREATE MATERIAL REQUEST
-|--------------------------------------------------------------------------
-*/
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_request'])) {
+// =========================================================
+// GENERATE KITCHEN REQUEST NUMBER
+// =========================================================
 
-    $materialIds = $_POST['material_id'] ?? [];
-    $quantities  = $_POST['quantity'] ?? [];
-    $remarks     = trim($_POST['remarks'] ?? '');
+function nextKitchenRequestNo(PDO $con): string
+{
+    $prefix = 'KR-' . date('Ymd') . '-';
 
-    if (!is_array($materialIds) || !is_array($quantities)) {
-        $error = 'Please add at least one material.';
+    $stmt = $con->prepare(
+        "SELECT request_no
+         FROM kitchen_requests
+         WHERE request_no LIKE ?
+         ORDER BY id DESC
+         LIMIT 1"
+    );
+
+    $stmt->execute([
+        $prefix . '%'
+    ]);
+
+    $last = $stmt->fetchColumn();
+
+    if ($last) {
+
+        $number = (int) substr(
+            (string) $last,
+            -4
+        );
+
+        $number++;
+
     } else {
 
-        $items = [];
+        $number = 1;
+    }
 
-        foreach ($materialIds as $index => $materialId) {
+    return $prefix .
+        str_pad(
+            (string) $number,
+            4,
+            '0',
+            STR_PAD_LEFT
+        );
+}
 
-            $materialId = (int)$materialId;
-            $quantity = isset($quantities[$index])
-                ? (float)$quantities[$index]
-                : 0;
 
-            if ($materialId <= 0) {
-                continue;
+// =========================================================
+// SUBMIT REQUEST
+// =========================================================
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $action = $_POST['action'] ?? '';
+
+    try {
+
+        if ($action === 'submit_request') {
+
+            $materialIds =
+                $_POST['material_id'] ?? [];
+
+            $quantities =
+                $_POST['requested_qty'] ?? [];
+
+            $remarks =
+                trim($_POST['cook_remarks'] ?? '');
+
+            if (
+                !is_array($materialIds) ||
+                !is_array($quantities)
+            ) {
+                throw new RuntimeException(
+                    'Please select at least one material.'
+                );
             }
 
-            if ($quantity <= 0) {
-                $error = 'Quantity must be greater than zero.';
-                break;
+            $items = [];
+
+            foreach ($materialIds as $index => $materialId) {
+
+                $materialId =
+                    (int) $materialId;
+
+                $qty =
+                    (float) (
+                        $quantities[$index]
+                        ?? 0
+                    );
+
+                if (
+                    $materialId <= 0 ||
+                    $qty <= 0
+                ) {
+                    continue;
+                }
+
+                $items[] = [
+                    'material_id' => $materialId,
+                    'qty' => $qty
+                ];
             }
 
-            $items[] = [
-                'material_id' => $materialId,
-                'quantity' => $quantity
-            ];
-        }
+            if (!$items) {
 
-        if (!$error && empty($items)) {
-            $error = 'Please add at least one material.';
-        }
+                throw new RuntimeException(
+                    'Please select material and enter quantity.'
+                );
+            }
 
-        if (!$error) {
+            $con->beginTransaction();
 
-            try {
+            $requestNo =
+                nextKitchenRequestNo($con);
 
-                $con->beginTransaction();
+            $stmt = $con->prepare(
+                "INSERT INTO kitchen_requests
+                (
+                    request_no,
+                    requested_by,
+                    request_date,
+                    status,
+                    cook_remarks
+                )
+                VALUES
+                (
+                    ?,
+                    ?,
+                    CURDATE(),
+                    'Submitted',
+                    ?
+                )"
+            );
 
-                /*
-                |--------------------------------------------------------------------------
-                | CREATE REQUEST
-                |--------------------------------------------------------------------------
-                */
+            $stmt->execute([
+                $requestNo,
+                $_SESSION['user_id'],
+                $remarks ?: null
+            ]);
 
-                $stmt = $con->prepare("
-                    INSERT INTO purchase_requests
-                    (
-                        requested_by,
-                        status,
-                        remarks,
-                        created_at
-                    )
-                    VALUES
-                    (
-                        :requested_by,
-                        'Pending',
-                        :remarks,
-                        NOW()
-                    )
-                ");
+            $requestId =
+                (int) $con->lastInsertId();
 
-                $stmt->execute([
-                    ':requested_by' => $_SESSION['user_id'],
-                    ':remarks' => $remarks !== '' ? $remarks : null
+
+            $itemStmt = $con->prepare(
+                "INSERT INTO kitchen_request_items
+                (
+                    request_id,
+                    material_id,
+                    requested_qty,
+                    approved_qty,
+                    issued_qty
+                )
+                VALUES
+                (
+                    ?,
+                    ?,
+                    ?,
+                    0,
+                    0
+                )"
+            );
+
+
+            foreach ($items as $item) {
+
+                $itemStmt->execute([
+                    $requestId,
+                    $item['material_id'],
+                    $item['qty']
                 ]);
-
-                $requestId = (int)$con->lastInsertId();
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | ADD REQUEST ITEMS
-                |--------------------------------------------------------------------------
-                */
-
-                $itemStmt = $con->prepare("
-                    INSERT INTO purchase_request_items
-                    (
-                        request_id,
-                        material_id,
-                        requested_qty
-                    )
-                    VALUES
-                    (
-                        :request_id,
-                        :material_id,
-                        :requested_qty
-                    )
-                ");
-
-                foreach ($items as $item) {
-
-                    // Verify material exists and is enabled
-                    $checkStmt = $con->prepare("
-                        SELECT id
-                        FROM materials
-                        WHERE id = :id
-                          AND status = 'Enable'
-                        LIMIT 1
-                    ");
-
-                    $checkStmt->execute([
-                        ':id' => $item['material_id']
-                    ]);
-
-                    if (!$checkStmt->fetch()) {
-                        throw new RuntimeException(
-                            'One of the selected materials is not available.'
-                        );
-                    }
-
-                    $itemStmt->execute([
-                        ':request_id' => $requestId,
-                        ':material_id' => $item['material_id'],
-                        ':requested_qty' => $item['quantity']
-                    ]);
-                }
-
-                $con->commit();
-
-                $success = 'Material request submitted successfully. Request No: #' . $requestId;
-
-            } catch (Throwable $e) {
-
-                if ($con->inTransaction()) {
-                    $con->rollBack();
-                }
-
-                $error = $e->getMessage();
             }
+
+
+            $con->commit();
+
+            $success =
+                'Kitchen request ' .
+                $requestNo .
+                ' submitted to Chef.';
+
         }
+
+    } catch (Throwable $e) {
+
+        if ($con->inTransaction()) {
+            $con->rollBack();
+        }
+
+        $error =
+            $e->getMessage();
     }
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| FETCH MATERIALS
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// MATERIAL LIST
+// =========================================================
 
-$stmt = $con->query("
-    SELECT
-        id,
-        material_code,
-        material_name,
-        category,
-        unit,
-        current_stock,
-        minimum_stock
-    FROM materials
-    WHERE status = 'Enable'
-    ORDER BY material_name ASC
-");
-
-$materials = $stmt->fetchAll();
+$materials = $con
+    ->query(
+        "SELECT
+            id,
+            material_code,
+            material_name,
+            unit,
+            current_stock
+         FROM materials
+         WHERE status = 'Enable'
+         ORDER BY material_name"
+    )
+    ->fetchAll();
 
 
-/*
-|--------------------------------------------------------------------------
-| FETCH MY REQUESTS
-|--------------------------------------------------------------------------
-*/
+// =========================================================
+// CURRENT USER REQUESTS
+// =========================================================
 
-$stmt = $con->prepare("
-    SELECT
-        pr.id,
-        pr.status,
-        pr.remarks,
-        pr.created_at,
-        COUNT(pri.id) AS item_count,
-        COALESCE(SUM(pri.requested_qty), 0) AS total_qty
-    FROM purchase_requests pr
-    LEFT JOIN purchase_request_items pri
-        ON pri.request_id = pr.id
-    WHERE pr.requested_by = :requested_by
-    GROUP BY
-        pr.id,
-        pr.status,
-        pr.remarks,
-        pr.created_at
-    ORDER BY pr.id DESC
-    LIMIT 20
-");
+$stmt = $con->prepare(
+    "SELECT
+        kr.*,
+        u.employee_name
+     FROM kitchen_requests kr
+     JOIN users u
+        ON u.id = kr.requested_by
+     WHERE kr.requested_by = ?
+     ORDER BY kr.id DESC"
+);
 
 $stmt->execute([
-    ':requested_by' => $_SESSION['user_id']
+    $_SESSION['user_id']
 ]);
 
-$myRequests = $stmt->fetchAll();
+$requests =
+    $stmt->fetchAll();
 
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
+
+?>
+
+<main class="main-content">
+
+<?php
 require_once __DIR__ . '/../includes/topbar.php';
 ?>
 
-<div class="main-content">
+<div class="page-body">
 
-    <!-- PAGE HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
 
         <div>
-            <h4 class="mb-1">Material Request</h4>
+            <h4>Kitchen Material Request</h4>
 
             <p class="text-muted mb-0">
-                Request materials from the Store department.
+                Cook requests cooking materials from Chef.
             </p>
         </div>
-
-        <a href="dashboard.php" class="btn btn-outline-secondary">
-            <i class="fa-solid fa-arrow-left me-1"></i>
-            Dashboard
-        </a>
 
     </div>
 
 
-    <!-- SUCCESS -->
     <?php if ($success): ?>
 
-        <div class="alert alert-success alert-dismissible fade show">
-
-            <i class="fa-solid fa-circle-check me-2"></i>
-
+        <div class="alert alert-success">
             <?= e($success) ?>
-
-            <button type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"></button>
-
         </div>
 
     <?php endif; ?>
 
 
-    <!-- ERROR -->
     <?php if ($error): ?>
 
-        <div class="alert alert-danger alert-dismissible fade show">
-
-            <i class="fa-solid fa-circle-exclamation me-2"></i>
-
+        <div class="alert alert-danger">
             <?= e($error) ?>
-
-            <button type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"></button>
-
         </div>
 
     <?php endif; ?>
 
 
-    <!-- REQUEST FORM -->
+    <!-- =====================================================
+         REQUEST FORM
+    ====================================================== -->
+
     <div class="card border-0 shadow-sm mb-4">
-
-        <div class="card-header bg-white py-3">
-
-            <h5 class="mb-0">
-                <i class="fa-solid fa-cart-plus me-2"></i>
-                Create Material Request
-            </h5>
-
-        </div>
-
 
         <div class="card-body">
 
-            <form method="POST" id="requestForm">
+            <h5 class="mb-4">
+                Create Material Request
+            </h5>
+
+            <form method="post">
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="submit_request"
+                >
+
 
                 <div class="table-responsive">
 
-                    <table class="table table-bordered align-middle"
-                           id="requestItems">
+                    <table class="table align-middle">
 
-                        <thead class="table-light">
+                        <thead>
 
                             <tr>
 
-                                <th style="width: 40%;">
+                                <th width="35%">
                                     Material
                                 </th>
 
-                                <th style="width: 15%;">
+                                <th width="20%">
+                                    Current Stock
+                                </th>
+
+                                <th width="20%">
+                                    Quantity Required
+                                </th>
+
+                                <th width="15%">
                                     Unit
                                 </th>
 
-                                <th style="width: 20%;">
-                                    Available Stock
-                                </th>
-
-                                <th style="width: 15%;">
-                                    Required Qty
-                                </th>
-
-                                <th style="width: 10%;">
+                                <th width="10%">
                                     Action
                                 </th>
 
@@ -333,33 +356,33 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                         </thead>
 
+                        <tbody id="requestRows">
 
-                        <tbody id="itemRows">
-
-                            <tr class="request-row">
+                            <tr>
 
                                 <td>
 
-                                    <select name="material_id[]"
-                                            class="form-select material-select"
-                                            required>
+                                    <select
+                                        name="material_id[]"
+                                        class="form-select"
+                                        required
+                                    >
 
                                         <option value="">
-                                            --- Select Material ---
+                                            Select Material
                                         </option>
 
-                                        <?php foreach ($materials as $material): ?>
+                                        <?php foreach (
+                                            $materials
+                                            as $material
+                                        ): ?>
 
                                             <option
-                                                value="<?= (int)$material['id'] ?>"
-                                                data-unit="<?= e($material['unit']) ?>"
-                                                data-stock="<?= e((string)$material['current_stock']) ?>"
+                                                value="<?= $material['id'] ?>"
                                             >
-
-                                                <?= e($material['material_name']) ?>
-                                                -
-                                                <?= e($material['material_code']) ?>
-
+                                                <?= e(
+                                                    $material['material_name']
+                                                ) ?>
                                             </option>
 
                                         <?php endforeach; ?>
@@ -371,18 +394,12 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                 <td>
 
-                                    <span class="material-unit text-muted">
-                                        -
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <span class="material-stock text-muted">
-                                        -
-                                    </span>
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        value="-"
+                                        readonly
+                                    >
 
                                 </td>
 
@@ -391,27 +408,36 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <input
                                         type="number"
-                                        name="quantity[]"
+                                        name="requested_qty[]"
                                         class="form-control"
                                         min="0.01"
                                         step="0.01"
-                                        placeholder="0.00"
                                         required
                                     >
 
                                 </td>
 
 
-                                <td class="text-center">
+                                <td>
+
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        value="-"
+                                        readonly
+                                    >
+
+                                </td>
+
+
+                                <td>
 
                                     <button
                                         type="button"
-                                        class="btn btn-outline-danger btn-sm remove-row"
-                                        disabled
+                                        class="btn btn-danger btn-sm"
+                                        onclick="removeRow(this)"
                                     >
-
-                                        <i class="fa-solid fa-trash"></i>
-
+                                        Remove
                                     </button>
 
                                 </td>
@@ -425,49 +451,37 @@ require_once __DIR__ . '/../includes/topbar.php';
                 </div>
 
 
+                <button
+                    type="button"
+                    class="btn btn-secondary mb-3"
+                    onclick="addRow()"
+                >
+                    + Add Material
+                </button>
+
+
                 <div class="mb-3">
 
                     <label class="form-label">
-                        Remarks
+                        Cook Remarks
                     </label>
 
                     <textarea
-                        name="remarks"
+                        name="cook_remarks"
                         class="form-control"
                         rows="3"
-                        placeholder="Enter any additional information..."
+                        placeholder="Enter cooking requirements..."
                     ></textarea>
 
                 </div>
 
 
-                <div class="d-flex justify-content-between">
-
-                    <button
-                        type="button"
-                        class="btn btn-outline-primary"
-                        id="addRow"
-                    >
-
-                        <i class="fa-solid fa-plus me-1"></i>
-                        Add Material
-
-                    </button>
-
-
-                    <button
-                        type="submit"
-                        name="create_request"
-                        value="1"
-                        class="btn btn-primary"
-                    >
-
-                        <i class="fa-solid fa-paper-plane me-1"></i>
-                        Submit Request
-
-                    </button>
-
-                </div>
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+                    Submit Request to Chef
+                </button>
 
             </form>
 
@@ -476,132 +490,97 @@ require_once __DIR__ . '/../includes/topbar.php';
     </div>
 
 
-    <!-- MY REQUESTS -->
+    <!-- =====================================================
+         REQUEST HISTORY
+    ====================================================== -->
+
     <div class="card border-0 shadow-sm">
 
-        <div class="card-header bg-white py-3">
+        <div class="card-body">
 
-            <div class="d-flex justify-content-between align-items-center">
-
-                <div>
-
-                    <h5 class="mb-0">
-                        My Material Requests
-                    </h5>
-
-                    <small class="text-muted">
-                        Recently submitted requests
-                    </small>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div class="card-body p-0">
+            <h5 class="mb-3">
+                My Kitchen Requests
+            </h5>
 
             <div class="table-responsive">
 
-                <table class="table table-hover mb-0">
+                <table class="table table-hover">
 
-                    <thead class="table-light">
+                    <thead>
 
                         <tr>
 
-                            <th>#</th>
-                            <th>Request Date</th>
-                            <th>Items</th>
-                            <th>Total Qty</th>
-                            <th>Remarks</th>
+                            <th>Request No</th>
+
+                            <th>Date</th>
+
                             <th>Status</th>
+
+                            <th>Remarks</th>
 
                         </tr>
 
                     </thead>
 
-
                     <tbody>
 
-                    <?php if (!$myRequests): ?>
+                    <?php foreach (
+                        $requests
+                        as $request
+                    ): ?>
 
                         <tr>
 
-                            <td colspan="6"
-                                class="text-center text-muted py-4">
+                            <td>
+                                <strong>
+                                    <?= e(
+                                        $request['request_no']
+                                    ) ?>
+                                </strong>
+                            </td>
 
-                                No material requests found.
+                            <td>
+                                <?= e(
+                                    $request['request_date']
+                                ) ?>
+                            </td>
 
+                            <td>
+
+                                <span class="badge text-bg-info">
+
+                                    <?= e(
+                                        $request['status']
+                                    ) ?>
+
+                                </span>
+
+                            </td>
+
+                            <td>
+                                <?= e(
+                                    $request['cook_remarks']
+                                    ?? ''
+                                ) ?>
                             </td>
 
                         </tr>
 
-                    <?php else: ?>
+                    <?php endforeach; ?>
 
-                        <?php foreach ($myRequests as $request): ?>
 
-                            <?php
+                    <?php if (!$requests): ?>
 
-                            $status = $request['status'];
+                        <tr>
 
-                            $badgeClass = match ($status) {
+                            <td
+                                colspan="4"
+                                class="text-center text-muted"
+                            >
+                                No requests found.
+                            </td>
 
-                                'Pending'  => 'bg-warning text-dark',
-
-                                'Approved' => 'bg-success',
-
-                                'Rejected' => 'bg-danger',
-
-                                default    => 'bg-secondary'
-
-                            };
-
-                            ?>
-
-                            <tr>
-
-                                <td>
-                                    #<?= (int)$request['id'] ?>
-                                </td>
-
-                                <td>
-                                    <?= e(
-                                        date(
-                                            'd-m-Y H:i',
-                                            strtotime($request['created_at'])
-                                        )
-                                    ) ?>
-                                </td>
-
-                                <td>
-                                    <?= (int)$request['item_count'] ?>
-                                </td>
-
-                                <td>
-                                    <?= number_format(
-                                        (float)$request['total_qty'],
-                                        2
-                                    ) ?>
-                                </td>
-
-                                <td>
-                                    <?= e(
-                                        $request['remarks'] ?: '-'
-                                    ) ?>
-                                </td>
-
-                                <td>
-
-                                    <span class="badge <?= $badgeClass ?>">
-                                        <?= e($status) ?>
-                                    </span>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
+                        </tr>
 
                     <?php endif; ?>
 
@@ -617,172 +596,60 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 </div>
 
+</main>
+
 
 <script>
 
-document.addEventListener('DOMContentLoaded', function () {
-
-    const itemRows = document.getElementById('itemRows');
-    const addRowButton = document.getElementById('addRow');
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE MATERIAL INFORMATION
-    |--------------------------------------------------------------------------
-    */
-
-    function updateMaterialInfo(row) {
-
-        const select = row.querySelector('.material-select');
-
-        const unitElement = row.querySelector('.material-unit');
-
-        const stockElement = row.querySelector('.material-stock');
-
-        const selectedOption =
-            select.options[select.selectedIndex];
-
-
-        if (!select.value) {
-
-            unitElement.textContent = '-';
-
-            stockElement.textContent = '-';
-
-            return;
-        }
-
-
-        unitElement.textContent =
-            selectedOption.dataset.unit || '-';
-
-
-        stockElement.textContent =
-            selectedOption.dataset.stock || '0';
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | MATERIAL CHANGE
-    |--------------------------------------------------------------------------
-    */
-
-    itemRows.addEventListener('change', function (event) {
-
-        if (event.target.classList.contains('material-select')) {
-
-            const row =
-                event.target.closest('.request-row');
-
-            updateMaterialInfo(row);
-
-        }
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ADD NEW ROW
-    |--------------------------------------------------------------------------
-    */
-
-    addRowButton.addEventListener('click', function () {
-
-        const firstRow =
-            itemRows.querySelector('.request-row');
-
-        const newRow =
-            firstRow.cloneNode(true);
-
-
-        newRow.querySelector('.material-select').value = '';
-
-        newRow.querySelector('.material-unit').textContent = '-';
-
-        newRow.querySelector('.material-stock').textContent = '-';
-
-        newRow.querySelector('input[name="quantity[]"]').value = '';
-
-
-        const removeButton =
-            newRow.querySelector('.remove-row');
-
-        removeButton.disabled = false;
-
-
-        itemRows.appendChild(newRow);
-
-
-        updateRemoveButtons();
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | REMOVE ROW
-    |--------------------------------------------------------------------------
-    */
-
-    itemRows.addEventListener('click', function (event) {
-
-        const removeButton =
-            event.target.closest('.remove-row');
-
-        if (!removeButton) {
-            return;
-        }
-
-
-        const row =
-            removeButton.closest('.request-row');
-
-
-        if (itemRows.querySelectorAll('.request-row').length > 1) {
-
-            row.remove();
-
-        }
-
-
-        updateRemoveButtons();
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ENABLE / DISABLE REMOVE BUTTONS
-    |--------------------------------------------------------------------------
-    */
-
-    function updateRemoveButtons() {
-
-        const rows =
-            itemRows.querySelectorAll('.request-row');
-
-
-        rows.forEach(function (row) {
-
-            const button =
-                row.querySelector('.remove-row');
-
-            button.disabled =
-                rows.length === 1;
-
+function addRow()
+{
+    const tbody =
+        document.getElementById('requestRows');
+
+    const firstRow =
+        tbody.querySelector('tr');
+
+    const newRow =
+        firstRow.cloneNode(true);
+
+    newRow
+        .querySelectorAll('input')
+        .forEach(function(input)
+        {
+            if (
+                input.name ===
+                'requested_qty[]'
+            ) {
+                input.value = '';
+            }
         });
 
+    newRow
+        .querySelectorAll('select')
+        .forEach(function(select)
+        {
+            select.value = '';
+        });
+
+    tbody.appendChild(newRow);
+}
+
+
+function removeRow(button)
+{
+    const tbody =
+        document.getElementById('requestRows');
+
+    if (tbody.children.length > 1)
+    {
+        button
+            .closest('tr')
+            .remove();
     }
-
-
-    updateRemoveButtons();
-
-});
+}
 
 </script>
+
 
 <?php
 require_once __DIR__ . '/../includes/footer.php';

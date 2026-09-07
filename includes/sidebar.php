@@ -119,12 +119,12 @@ $isCanteen = ($role === 'Canteen');
                 STORE
             </div>
 
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <a href="../store/dashboard.php" class="nav-link">
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Store Dashboard</span>
                 </a>
-            </li>
+            </li> -->
 
             <li class="nav-item">
                 <a href="../store/materials.php" class="nav-link">
@@ -188,12 +188,12 @@ $isCanteen = ($role === 'Canteen');
                 PURCHASE
             </div>
 
-            <li class="nav-item">
+           <!-- <li class="nav-item">
                 <a href="../purchase/dashboard.php" class="nav-link">
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Purchase Dashboard</span>
                 </a>
-            </li>
+            </li> -->
 
             <li class="nav-item">
                 <a href="../purchase/requests.php" class="nav-link">
@@ -232,7 +232,7 @@ $isCanteen = ($role === 'Canteen');
 
             
 
-            <a
+           <!-- <a
                 class="nav-link"
                 href="<?= $isAdmin ? '../kitchen/dashboard.php' : 'dashboard.php' ?>"
             >
@@ -243,7 +243,7 @@ $isCanteen = ($role === 'Canteen');
                     Kitchen Dashboard
                 </span>
 
-            </a>
+            </a> -->
 
 
             <a
@@ -273,6 +273,19 @@ $isCanteen = ($role === 'Canteen');
 
             </a>
 
+            <a
+                class="nav-link"
+                href="<?= $isAdmin ? '../kitchen/food_preparation.php' : 'food_preparation.php' ?>"
+            >
+
+                <i class="fa-solid fa-fire-burner"></i>
+
+                <span>
+                   Food Preparation
+                </span>
+
+            </a>
+
         <?php endif; ?>
 
 
@@ -287,7 +300,7 @@ $isCanteen = ($role === 'Canteen');
             </div>
 
 
-            <a
+           <!-- <a
                 class="nav-link"
                 href="<?= $isAdmin ? '../canteen/dashboard.php' : 'dashboard.php' ?>"
             >
@@ -298,7 +311,7 @@ $isCanteen = ($role === 'Canteen');
                     Canteen Dashboard
                 </span>
 
-            </a>
+            </a> -->
 
 
             <a

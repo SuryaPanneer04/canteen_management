@@ -287,6 +287,31 @@ $materials = $stmt->fetchAll();
 
 /*
 |--------------------------------------------------------------------------
+| SUMMARY COUNTS (for the stat cards)
+|--------------------------------------------------------------------------
+*/
+
+$totalMaterials = count($materials);
+$enabledCount = 0;
+$disabledCount = 0;
+$lowStockCount = 0;
+
+foreach ($materials as $m) {
+
+    if ($m['status'] === 'Enable') {
+        $enabledCount++;
+    } else {
+        $disabledCount++;
+    }
+
+    if ((float)$m['current_stock'] <= (float)$m['minimum_stock']) {
+        $lowStockCount++;
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | EDIT MATERIAL DATA
 |--------------------------------------------------------------------------
 */
@@ -383,6 +408,80 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <?php endif; ?>
 
 
+        <!-- STAT CARDS -->
+        <div class="row g-3 mb-4">
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-primary">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Total Materials</div>
+                        <div class="stat-value"><?= $totalMaterials ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-green">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Enabled</div>
+                        <div class="stat-value"><?= $enabledCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-purple">
+                        <i class="fa-solid fa-ban"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Disabled</div>
+                        <div class="stat-value"><?= $disabledCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-amber">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Low Stock</div>
+                        <div class="stat-value"><?= $lowStockCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
         <!-- MATERIAL TABLE -->
         <div class="content-card">
 
@@ -416,9 +515,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <th>#</th>
 
-                            <th>Code</th>
-
-                            <th>Material Name</th>
+                            <th>Material</th>
 
                             <th>Category</th>
 
@@ -444,7 +541,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <tr>
 
                             <td
-                                colspan="9"
+                                colspan="8"
                                 class="text-center text-muted py-5">
 
                                 <i class="fa-solid fa-box-open fs-2 d-block mb-2"></i>
@@ -470,6 +567,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             $isLowStock =
                                 $currentStock <= $minimumStock;
 
+                            $initials = strtoupper(
+                                substr($material['material_name'], 0, 1)
+                            );
+
                             ?>
 
                             <tr>
@@ -481,18 +582,25 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <td>
 
-                                    <span class="fw-semibold">
-                                        <?= e($material['material_code']) ?>
-                                    </span>
+                                    <div class="d-flex align-items-center gap-2">
 
-                                </td>
+                                        <span class="row-avatar">
+                                            <?= e($initials) ?>
+                                        </span>
 
+                                        <div>
 
-                                <td>
+                                            <div class="fw-semibold">
+                                                <?= e($material['material_name']) ?>
+                                            </div>
 
-                                    <strong>
-                                        <?= e($material['material_name']) ?>
-                                    </strong>
+                                            <div class="text-muted small">
+                                                <?= e($material['material_code']) ?>
+                                            </div>
+
+                                        </div>
+
+                                    </div>
 
                                 </td>
 
@@ -539,6 +647,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     </span>
 
+                                    <?php if ($isLowStock): ?>
+
+                                        <span class="badge badge-disabled ms-1">
+                                            Low
+                                        </span>
+
+                                    <?php endif; ?>
+
                                 </td>
 
 
@@ -546,13 +662,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     <?php if ($material['status'] === 'Enable'): ?>
 
-                                        <span class="badge bg-success">
+                                        <span class="badge badge-enable">
                                             Enable
                                         </span>
 
                                     <?php else: ?>
 
-                                        <span class="badge bg-secondary">
+                                        <span class="badge badge-disabled">
                                             Disabled
                                         </span>
 
@@ -664,7 +780,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 ========================================================== -->
 
 <div
-    class="modal fade"
+    class="modal fade edit-user-modal"
     id="addMaterialModal"
     tabindex="-1"
     aria-hidden="true">
@@ -683,13 +799,21 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                 <div class="modal-header">
 
-                    <h5 class="modal-title">
+                    <div>
 
-                        <i class="fa-solid fa-plus me-1"></i>
+                        <div class="modal-title-text">
 
-                        Add Material
+                            <i class="fa-solid fa-plus me-1"></i>
 
-                    </h5>
+                            Add Material
+
+                        </div>
+
+                        <div class="modal-subtitle-text">
+                            Create a new item in the material master.
+                        </div>
+
+                    </div>
 
                     <button
                         type="button"
@@ -702,142 +826,150 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                 <div class="modal-body">
 
-                    <div class="row g-3">
+                    <div class="edit-user-section">
 
-                        <!-- CODE -->
-                        <div class="col-md-6">
-
-                            <label class="form-label">
-                                Material Code
-                                <span class="text-danger">*</span>
-                            </label>
-
-                            <input
-                                type="text"
-                                name="material_code"
-                                class="form-control"
-                                maxlength="50"
-                                required
-                                placeholder="Example: MAT006">
-
+                        <div class="edit-user-section-label">
+                            Material Details
                         </div>
 
+                        <div class="row g-3">
 
-                        <!-- NAME -->
-                        <div class="col-md-6">
+                            <!-- CODE -->
+                            <div class="col-md-6">
 
-                            <label class="form-label">
-                                Material Name
-                                <span class="text-danger">*</span>
-                            </label>
+                                <label class="form-label">
+                                    Material Code
+                                    <span class="text-danger">*</span>
+                                </label>
 
-                            <input
-                                type="text"
-                                name="material_name"
-                                class="form-control"
-                                maxlength="150"
-                                required
-                                placeholder="Example: Sugar">
+                                <input
+                                    type="text"
+                                    name="material_code"
+                                    class="form-control"
+                                    maxlength="50"
+                                    required
+                                    placeholder="Example: MAT006">
 
-                        </div>
-
-
-                        <!-- CATEGORY -->
-                        <div class="col-md-6">
-
-                            <label class="form-label">
-                                Category
-                            </label>
-
-                            <input
-                                type="text"
-                                name="category"
-                                class="form-control"
-                                maxlength="100"
-                                placeholder="Example: Grocery">
-
-                        </div>
+                            </div>
 
 
-                        <!-- UNIT -->
-                        <div class="col-md-6">
+                            <!-- NAME -->
+                            <div class="col-md-6">
 
-                            <label class="form-label">
-                                Unit
-                                <span class="text-danger">*</span>
-                            </label>
+                                <label class="form-label">
+                                    Material Name
+                                    <span class="text-danger">*</span>
+                                </label>
 
-                            <select
-                                name="unit"
-                                class="form-select"
-                                required>
+                                <input
+                                    type="text"
+                                    name="material_name"
+                                    class="form-control"
+                                    maxlength="150"
+                                    required
+                                    placeholder="Example: Sugar">
 
-                                <option value="">
-                                    --- Select Unit ---
-                                </option>
-
-                                <option value="KG">
-                                    KG
-                                </option>
-
-                                <option value="GRAM">
-                                    Gram
-                                </option>
-
-                                <option value="LTR">
-                                    Litre
-                                </option>
-
-                                <option value="ML">
-                                    ML
-                                </option>
-
-                                <option value="PCS">
-                                    Pieces
-                                </option>
-
-                                <option value="PACKET">
-                                    Packet
-                                </option>
-
-                                <option value="BOX">
-                                    Box
-                                </option>
-
-                                <option value="BAG">
-                                    Bag
-                                </option>
-
-                                <option value="BOTTLE">
-                                    Bottle
-                                </option>
-
-                            </select>
-
-                        </div>
+                            </div>
 
 
-                        <!-- MINIMUM STOCK -->
-                        <div class="col-md-6">
+                            <!-- CATEGORY -->
+                            <div class="col-md-6">
 
-                            <label class="form-label">
-                                Minimum Stock
-                                <span class="text-danger">*</span>
-                            </label>
+                                <label class="form-label">
+                                    Category
+                                </label>
 
-                            <input
-                                type="number"
-                                name="minimum_stock"
-                                class="form-control"
-                                min="0"
-                                step="0.01"
-                                value="0"
-                                required>
+                                <input
+                                    type="text"
+                                    name="category"
+                                    class="form-control"
+                                    maxlength="100"
+                                    placeholder="Example: Grocery">
 
-                            <small class="text-muted">
-                                Low-stock alert will appear when current
-                                stock reaches this value.
-                            </small>
+                            </div>
+
+
+                            <!-- UNIT -->
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Unit
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <select
+                                    name="unit"
+                                    class="form-select"
+                                    required>
+
+                                    <option value="">
+                                        --- Select Unit ---
+                                    </option>
+
+                                    <option value="KG">
+                                        KG
+                                    </option>
+
+                                    <option value="GRAM">
+                                        Gram
+                                    </option>
+
+                                    <option value="LTR">
+                                        Litre
+                                    </option>
+
+                                    <option value="ML">
+                                        ML
+                                    </option>
+
+                                    <option value="PCS">
+                                        Pieces
+                                    </option>
+
+                                    <option value="PACKET">
+                                        Packet
+                                    </option>
+
+                                    <option value="BOX">
+                                        Box
+                                    </option>
+
+                                    <option value="BAG">
+                                        Bag
+                                    </option>
+
+                                    <option value="BOTTLE">
+                                        Bottle
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+
+                            <!-- MINIMUM STOCK -->
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Minimum Stock
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <input
+                                    type="number"
+                                    name="minimum_stock"
+                                    class="form-control"
+                                    min="0"
+                                    step="0.01"
+                                    value="0"
+                                    required>
+
+                                <small class="text-muted">
+                                    Low-stock alert will appear when current
+                                    stock reaches this value.
+                                </small>
+
+                            </div>
 
                         </div>
 
@@ -885,7 +1017,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 <?php if ($editMaterial !== false && $editMaterial !== null): ?>
 
 <div
-    class="modal fade"
+    class="modal fade edit-user-modal"
     id="editMaterialModal"
     tabindex="-1"
     aria-hidden="true">
@@ -909,13 +1041,21 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                 <div class="modal-header">
 
-                    <h5 class="modal-title">
+                    <div>
 
-                        <i class="fa-solid fa-pen me-1"></i>
+                        <div class="modal-title-text">
 
-                        Edit Material
+                            <i class="fa-solid fa-pen me-1"></i>
 
-                    </h5>
+                            Edit Material
+
+                        </div>
+
+                        <div class="modal-subtitle-text">
+                            Update details for this material.
+                        </div>
+
+                    </div>
 
                     <a
                         href="materials.php"
@@ -927,158 +1067,214 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                 <div class="modal-body">
 
-                    <div class="row g-3">
+                    <div class="edit-user-identity">
 
-                        <!-- CODE -->
-                        <div class="col-md-6">
+                        <span class="row-avatar">
+                            <?= e(strtoupper(substr($editMaterial['material_name'], 0, 1))) ?>
+                        </span>
 
-                            <label class="form-label">
-                                Material Code
-                                <span class="text-danger">*</span>
-                            </label>
+                        <div>
 
-                            <input
-                                type="text"
-                                name="material_code"
-                                class="form-control"
-                                maxlength="50"
-                                required
-                                value="<?= e($editMaterial['material_code']) ?>">
+                            <div class="edit-user-identity-name">
+                                <?= e($editMaterial['material_name']) ?>
+                            </div>
 
-                        </div>
+                            <div class="edit-user-identity-meta">
+                                <?= e($editMaterial['material_code']) ?>
 
+                                <?php if ($editMaterial['status'] === 'Enable'): ?>
 
-                        <!-- NAME -->
-                        <div class="col-md-6">
+                                    <span class="badge badge-enable">
+                                        Enable
+                                    </span>
 
-                            <label class="form-label">
-                                Material Name
-                                <span class="text-danger">*</span>
-                            </label>
+                                <?php else: ?>
 
-                            <input
-                                type="text"
-                                name="material_name"
-                                class="form-control"
-                                maxlength="150"
-                                required
-                                value="<?= e($editMaterial['material_name']) ?>">
+                                    <span class="badge badge-disabled">
+                                        Disabled
+                                    </span>
+
+                                <?php endif; ?>
+
+                            </div>
 
                         </div>
 
+                    </div>
 
-                        <!-- CATEGORY -->
-                        <div class="col-md-6">
 
-                            <label class="form-label">
-                                Category
-                            </label>
+                    <div class="edit-user-section">
 
-                            <input
-                                type="text"
-                                name="category"
-                                class="form-control"
-                                maxlength="100"
-                                value="<?= e($editMaterial['category']) ?>">
-
+                        <div class="edit-user-section-label">
+                            Material Details
                         </div>
 
+                        <div class="row g-3">
 
-                        <!-- UNIT -->
-                        <div class="col-md-6">
+                            <!-- CODE -->
+                            <div class="col-md-6">
 
-                            <label class="form-label">
-                                Unit
-                                <span class="text-danger">*</span>
-                            </label>
+                                <label class="form-label">
+                                    Material Code
+                                    <span class="text-danger">*</span>
+                                </label>
 
-                            <select
-                                name="unit"
-                                class="form-select"
-                                required>
+                                <input
+                                    type="text"
+                                    name="material_code"
+                                    class="form-control"
+                                    maxlength="50"
+                                    required
+                                    value="<?= e($editMaterial['material_code']) ?>">
 
-                                <option value="">
-                                    --- Select Unit ---
-                                </option>
+                            </div>
 
-                                <?php
 
-                                $units = [
-                                    'KG' => 'KG',
-                                    'GRAM' => 'Gram',
-                                    'LTR' => 'Litre',
-                                    'ML' => 'ML',
-                                    'PCS' => 'Pieces',
-                                    'PACKET' => 'Packet',
-                                    'BOX' => 'Box',
-                                    'BAG' => 'Bag',
-                                    'BOTTLE' => 'Bottle'
-                                ];
+                            <!-- NAME -->
+                            <div class="col-md-6">
 
-                                foreach ($units as $unitValue => $unitLabel):
+                                <label class="form-label">
+                                    Material Name
+                                    <span class="text-danger">*</span>
+                                </label>
 
-                                ?>
+                                <input
+                                    type="text"
+                                    name="material_name"
+                                    class="form-control"
+                                    maxlength="150"
+                                    required
+                                    value="<?= e($editMaterial['material_name']) ?>">
 
-                                    <option
-                                        value="<?= e($unitValue) ?>"
-                                        <?= $editMaterial['unit'] === $unitValue
-                                            ? 'selected'
-                                            : ''
-                                        ?>>
+                            </div>
 
-                                        <?= e($unitLabel) ?>
 
+                            <!-- CATEGORY -->
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Category
+                                </label>
+
+                                <input
+                                    type="text"
+                                    name="category"
+                                    class="form-control"
+                                    maxlength="100"
+                                    value="<?= e($editMaterial['category']) ?>">
+
+                            </div>
+
+
+                            <!-- UNIT -->
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Unit
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <select
+                                    name="unit"
+                                    class="form-select"
+                                    required>
+
+                                    <option value="">
+                                        --- Select Unit ---
                                     </option>
 
-                                <?php endforeach; ?>
+                                    <?php
 
-                            </select>
+                                    $units = [
+                                        'KG' => 'KG',
+                                        'GRAM' => 'Gram',
+                                        'LTR' => 'Litre',
+                                        'ML' => 'ML',
+                                        'PCS' => 'Pieces',
+                                        'PACKET' => 'Packet',
+                                        'BOX' => 'Box',
+                                        'BAG' => 'Bag',
+                                        'BOTTLE' => 'Bottle'
+                                    ];
+
+                                    foreach ($units as $unitValue => $unitLabel):
+
+                                    ?>
+
+                                        <option
+                                            value="<?= e($unitValue) ?>"
+                                            <?= $editMaterial['unit'] === $unitValue
+                                                ? 'selected'
+                                                : ''
+                                            ?>>
+
+                                            <?= e($unitLabel) ?>
+
+                                        </option>
+
+                                    <?php endforeach; ?>
+
+                                </select>
+
+                            </div>
 
                         </div>
 
+                    </div>
 
-                        <!-- CURRENT STOCK -->
-                        <div class="col-md-6">
 
-                            <label class="form-label">
-                                Current Stock
-                            </label>
+                    <div class="edit-user-section">
 
-                            <input
-                                type="text"
-                                class="form-control"
-                                readonly
-                                value="<?= number_format(
-                                    (float)$editMaterial['current_stock'],
-                                    2
-                                ) ?>">
-
-                            <small class="text-muted">
-                                Current stock must be changed through
-                                Stock Inward / Stock Issue.
-                            </small>
-
+                        <div class="edit-user-section-label">
+                            Stock
                         </div>
 
+                        <div class="row g-3">
 
-                        <!-- MINIMUM STOCK -->
-                        <div class="col-md-6">
+                            <!-- CURRENT STOCK -->
+                            <div class="col-md-6">
 
-                            <label class="form-label">
-                                Minimum Stock
-                                <span class="text-danger">*</span>
-                            </label>
+                                <label class="form-label">
+                                    Current Stock
+                                </label>
 
-                            <input
-                                type="number"
-                                name="minimum_stock"
-                                class="form-control"
-                                min="0"
-                                step="0.01"
-                                required
-                                value="<?= e(
-                                    (string)$editMaterial['minimum_stock']
-                                ) ?>">
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    disabled
+                                    value="<?= number_format(
+                                        (float)$editMaterial['current_stock'],
+                                        2
+                                    ) ?>">
+
+                                <small class="text-muted">
+                                    Current stock must be changed through
+                                    Stock Inward / Stock Issue.
+                                </small>
+
+                            </div>
+
+
+                            <!-- MINIMUM STOCK -->
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Minimum Stock
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <input
+                                    type="number"
+                                    name="minimum_stock"
+                                    class="form-control"
+                                    min="0"
+                                    step="0.01"
+                                    required
+                                    value="<?= e(
+                                        (string)$editMaterial['minimum_stock']
+                                    ) ?>">
+
+                            </div>
 
                         </div>
 

@@ -17,6 +17,9 @@ $pageTitle = 'Kitchen Material Requests';
 $success = '';
 $error = '';
 
+$loginUserId = (int)($_SESSION['user_id'] ?? 0);
+
+
 /*
 |--------------------------------------------------------------------------
 | ISSUE MATERIAL TO KITCHEN
@@ -30,9 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
     $issueQty  = (float)($_POST['issue_qty'] ?? 0);
 
     if ($requestId <= 0 || $itemId <= 0) {
+
         $error = 'Invalid request.';
+
     } elseif ($issueQty <= 0) {
+
         $error = 'Issue quantity must be greater than zero.';
+
     } else {
 
         try {
@@ -47,73 +54,134 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
 
             $stmt = $con->prepare("
                 SELECT
-                    pri.id AS item_id,
-                    pri.request_id,
-                    pri.material_id,
-                    pri.requested_qty,
+                    kri.id AS item_id,
+                    kri.request_id,
+                    kri.material_id,
 
-                    pr.status AS request_status,
+                    kri.requested_qty,
+                    kri.approved_qty,
+                    kri.issued_qty,
+
+                    kr.request_no,
+                    kr.status AS request_status,
 
                     m.material_code,
                     m.material_name,
                     m.unit,
                     m.current_stock
 
-                FROM purchase_request_items pri
+                FROM kitchen_request_items kri
 
-                INNER JOIN purchase_requests pr
-                    ON pr.id = pri.request_id
+                INNER JOIN kitchen_requests kr
+                    ON kr.id = kri.request_id
 
                 INNER JOIN materials m
-                    ON m.id = pri.material_id
+                    ON m.id = kri.material_id
 
-                WHERE pri.id = :item_id
-                  AND pri.request_id = :request_id
+                WHERE kri.id = :item_id
+                  AND kri.request_id = :request_id
 
                 FOR UPDATE
             ");
 
             $stmt->execute([
-                ':item_id' => $itemId,
+                ':item_id'    => $itemId,
                 ':request_id' => $requestId
             ]);
 
-            $item = $stmt->fetch();
+            $item = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$item) {
+
                 throw new RuntimeException(
                     'Requested material was not found.'
                 );
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | REQUEST MUST BE APPROVED
+            | REQUEST STATUS
             |--------------------------------------------------------------------------
             */
 
-            if ($item['request_status'] !== 'Approved') {
+            $allowedStatuses = [
+                'Chef Approved',
+                'Sent to Store',
+                'Partially Issued'
+            ];
+
+            if (
+                !in_array(
+                    $item['request_status'],
+                    $allowedStatuses,
+                    true
+                )
+            ) {
+
                 throw new RuntimeException(
-                    'Only approved requests can be issued.'
+                    'This request cannot be issued in its current status.'
                 );
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | VALIDATE QUANTITY
+            | QUANTITIES
             |--------------------------------------------------------------------------
             */
 
-            $requestedQty = (float)$item['requested_qty'];
+            $approvedQty = (float)$item['approved_qty'];
+            $issuedQty   = (float)$item['issued_qty'];
             $currentStock = (float)$item['current_stock'];
 
-            if ($issueQty > $requestedQty) {
+            $remainingQty = $approvedQty - $issuedQty;
+
+            if ($remainingQty < 0) {
+                $remainingQty = 0;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CHECK REMAINING APPROVED QUANTITY
+            |--------------------------------------------------------------------------
+            */
+
+            if ($remainingQty <= 0) {
+
                 throw new RuntimeException(
-                    'Issue quantity cannot be greater than requested quantity.'
+                    'This material has already been fully issued.'
                 );
             }
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | ISSUE CANNOT EXCEED REMAINING
+            |--------------------------------------------------------------------------
+            */
+
+            if ($issueQty > $remainingQty) {
+
+                throw new RuntimeException(
+                    'Issue quantity cannot be greater than the remaining approved quantity. '
+                    . 'Remaining: '
+                    . number_format($remainingQty, 2)
+                    . ' '
+                    . $item['unit']
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CHECK STOCK
+            |--------------------------------------------------------------------------
+            */
+
             if ($issueQty > $currentStock) {
+
                 throw new RuntimeException(
                     'Insufficient stock. Available stock: '
                     . number_format($currentStock, 2)
@@ -122,9 +190,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                 );
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | UPDATE STOCK
+            | UPDATE MATERIAL STOCK
             |--------------------------------------------------------------------------
             */
 
@@ -135,9 +204,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
             ");
 
             $updateStock->execute([
-                ':quantity' => $issueQty,
+                ':quantity'    => $issueQty,
                 ':material_id' => $item['material_id']
             ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE KITCHEN REQUEST ITEM
+            |--------------------------------------------------------------------------
+            */
+
+            $newIssuedQty = $issuedQty + $issueQty;
+
+            $updateItem = $con->prepare("
+                UPDATE kitchen_request_items
+
+                SET issued_qty = :issued_qty
+
+                WHERE id = :item_id
+            ");
+
+            $updateItem->execute([
+                ':issued_qty' => $newIssuedQty,
+                ':item_id'    => $itemId
+            ]);
+
 
             /*
             |--------------------------------------------------------------------------
@@ -157,6 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                     created_by,
                     created_at
                 )
+
                 VALUES
                 (
                     :material_id,
@@ -171,67 +264,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
             ");
 
             $transaction->execute([
-                ':material_id' => $item['material_id'],
-                ':quantity' => $issueQty,
-                ':reference_no' => 'REQ-' . $requestId,
+                ':material_id'  => $item['material_id'],
+                ':quantity'     => $issueQty,
+                ':reference_no' => $item['request_no'],
                 ':reference_id' => $requestId,
+
                 ':remarks' =>
                     'Material issued to Kitchen - '
                     . $item['material_name'],
-                ':created_by' => $_SESSION['user_id']
+
+                ':created_by' => $loginUserId
             ]);
+
 
             /*
             |--------------------------------------------------------------------------
-            | CHECK WHETHER ALL ITEMS HAVE BEEN ISSUED
+            | CHECK ALL ITEMS
             |--------------------------------------------------------------------------
-            |
-            | For now, after issuing an item we mark the request as Completed
-            | when all requested items have at least one issue transaction.
-            |
             */
 
             $checkItems = $con->prepare("
                 SELECT
-                    pri.id,
-                    pri.material_id,
-                    pri.requested_qty,
+                    approved_qty,
+                    issued_qty
 
-                    COALESCE(
-                        (
-                            SELECT SUM(st.quantity)
-                            FROM stock_transactions st
-                            WHERE st.transaction_type = 'ISSUE_KITCHEN'
-                              AND st.reference_id = pri.request_id
-                              AND st.material_id = pri.material_id
-                        ),
-                        0
-                    ) AS issued_qty
+                FROM kitchen_request_items
 
-                FROM purchase_request_items pri
-
-                WHERE pri.request_id = :request_id
+                WHERE request_id = :request_id
             ");
 
             $checkItems->execute([
                 ':request_id' => $requestId
             ]);
 
-            $requestItems = $checkItems->fetchAll();
+            $requestItems = $checkItems->fetchAll(PDO::FETCH_ASSOC);
 
             $allIssued = true;
 
             foreach ($requestItems as $requestItem) {
 
-                if (
-                    (float)$requestItem['issued_qty']
-                    <
-                    (float)$requestItem['requested_qty']
-                ) {
+                $approved =
+                    (float)$requestItem['approved_qty'];
+
+                $issued =
+                    (float)$requestItem['issued_qty'];
+
+                /*
+                | Ignore items where Chef approved zero quantity.
+                */
+
+                if ($approved <= 0) {
+                    continue;
+                }
+
+                if ($issued < $approved) {
+
                     $allIssued = false;
                     break;
                 }
             }
+
 
             /*
             |--------------------------------------------------------------------------
@@ -241,17 +333,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
 
             if ($allIssued) {
 
-                $updateRequest = $con->prepare("
-                    UPDATE purchase_requests
-                    SET status = 'Completed'
-                    WHERE id = :request_id
-                ");
+                $newStatus = 'Completed';
 
-                $updateRequest->execute([
-                    ':request_id' => $requestId
-                ]);
+            } else {
 
+                $newStatus = 'Partially Issued';
             }
+
+
+            $updateRequest = $con->prepare("
+                UPDATE kitchen_requests
+
+                SET status = :status
+
+                WHERE id = :request_id
+            ");
+
+            $updateRequest->execute([
+                ':status'     => $newStatus,
+                ':request_id' => $requestId
+            ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | COMMIT
+            |--------------------------------------------------------------------------
+            */
 
             $con->commit();
 
@@ -295,79 +403,107 @@ $where = [];
 
 $params = [];
 
+
 /*
-| Kitchen requests are stored in purchase_requests.
-| We identify Kitchen requests using the requesting user's role.
+|--------------------------------------------------------------------------
+| ONLY KITCHEN REQUESTS
+|--------------------------------------------------------------------------
 */
 
 $where[] = "
-    r.id IN (
-        SELECT pr2.id
-        FROM purchase_requests pr2
-        INNER JOIN users u2
-            ON u2.id = pr2.requested_by
-        INNER JOIN roles r2
-            ON r2.id = u2.role_id
-        WHERE r2.role_name = 'Kitchen'
+    kr.status IN
+    (
+        'Chef Approved',
+        'Sent to Store',
+        'Partially Issued',
+        'Completed'
     )
 ";
 
 
+/*
+|--------------------------------------------------------------------------
+| OPTIONAL STATUS FILTER
+|--------------------------------------------------------------------------
+*/
+
 if ($statusFilter !== '') {
 
-    $where[] = "pr.status = :status";
+    $where[] = "kr.status = :status";
 
     $params[':status'] = $statusFilter;
 }
 
+
 $whereSql = implode(' AND ', $where);
 
 
+/*
+|--------------------------------------------------------------------------
+| REQUEST LIST
+|--------------------------------------------------------------------------
+*/
+
 $sql = "
     SELECT
-        pr.id,
-        pr.status,
-        pr.remarks,
-        pr.created_at,
+        kr.id,
+        kr.request_no,
+        kr.request_date,
+        kr.status,
+
+        kr.cook_remarks,
+        kr.chef_remarks,
+
+        kr.created_at,
+        kr.approved_at,
+        kr.sent_to_store_at,
 
         u.employee_name,
         u.employee_code,
 
-        COUNT(pri.id) AS item_count,
+        COUNT(kri.id) AS item_count,
 
         COALESCE(
-            SUM(pri.requested_qty),
+            SUM(kri.approved_qty),
             0
-        ) AS total_qty
+        ) AS total_approved_qty,
 
-    FROM purchase_requests pr
+        COALESCE(
+            SUM(kri.issued_qty),
+            0
+        ) AS total_issued_qty
+
+    FROM kitchen_requests kr
 
     INNER JOIN users u
-        ON u.id = pr.requested_by
+        ON u.id = kr.requested_by
 
-    INNER JOIN roles r
-        ON r.id = u.role_id
-
-    LEFT JOIN purchase_request_items pri
-        ON pri.request_id = pr.id
+    LEFT JOIN kitchen_request_items kri
+        ON kri.request_id = kr.id
 
     WHERE {$whereSql}
 
     GROUP BY
-        pr.id,
-        pr.status,
-        pr.remarks,
-        pr.created_at,
+        kr.id,
+        kr.request_no,
+        kr.request_date,
+        kr.status,
+        kr.cook_remarks,
+        kr.chef_remarks,
+        kr.created_at,
+        kr.approved_at,
+        kr.sent_to_store_at,
         u.employee_name,
         u.employee_code
 
-    ORDER BY pr.id DESC
+    ORDER BY kr.id DESC
 ";
+
 
 $stmt = $con->prepare($sql);
 $stmt->execute($params);
 
-$requests = $stmt->fetchAll();
+$requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
 /*
@@ -382,22 +518,26 @@ foreach ($requests as $request) {
 
     $stmt = $con->prepare("
         SELECT
-            pri.id AS item_id,
-            pri.request_id,
-            pri.material_id,
-            pri.requested_qty,
+            kri.id AS item_id,
+            kri.request_id,
+            kri.material_id,
+
+            kri.requested_qty,
+            kri.approved_qty,
+            kri.issued_qty,
+            kri.remarks,
 
             m.material_code,
             m.material_name,
             m.unit,
             m.current_stock
 
-        FROM purchase_request_items pri
+        FROM kitchen_request_items kri
 
         INNER JOIN materials m
-            ON m.id = pri.material_id
+            ON m.id = kri.material_id
 
-        WHERE pri.request_id = :request_id
+        WHERE kri.request_id = :request_id
 
         ORDER BY m.material_name ASC
     ");
@@ -406,7 +546,8 @@ foreach ($requests as $request) {
         ':request_id' => $request['id']
     ]);
 
-    $requestItems[$request['id']] = $stmt->fetchAll();
+    $requestItems[$request['id']] =
+        $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 
@@ -428,7 +569,7 @@ require_once __DIR__ . '/../includes/topbar.php';
             </h4>
 
             <p class="text-muted mb-0">
-                Review and issue materials requested by Kitchen.
+                Review Chef-approved requests and issue materials to Kitchen.
             </p>
 
         </div>
@@ -437,6 +578,7 @@ require_once __DIR__ . '/../includes/topbar.php';
            class="btn btn-outline-secondary">
 
             <i class="fa-solid fa-arrow-left me-1"></i>
+
             Dashboard
 
         </a>
@@ -454,9 +596,11 @@ require_once __DIR__ . '/../includes/topbar.php';
 
             <?= e($success) ?>
 
-            <button type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"></button>
+            <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="alert">
+            </button>
 
         </div>
 
@@ -473,9 +617,11 @@ require_once __DIR__ . '/../includes/topbar.php';
 
             <?= e($error) ?>
 
-            <button type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"></button>
+            <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="alert">
+            </button>
 
         </div>
 
@@ -505,24 +651,32 @@ require_once __DIR__ . '/../includes/topbar.php';
                                 All Requests
                             </option>
 
-                            <option value="Pending"
-                                <?= $statusFilter === 'Pending' ? 'selected' : '' ?>>
-                                Pending
+                            <option value="Chef Approved"
+                                <?= $statusFilter === 'Chef Approved'
+                                    ? 'selected'
+                                    : '' ?>>
+                                Chef Approved
                             </option>
 
-                            <option value="Approved"
-                                <?= $statusFilter === 'Approved' ? 'selected' : '' ?>>
-                                Approved
+                            <option value="Sent to Store"
+                                <?= $statusFilter === 'Sent to Store'
+                                    ? 'selected'
+                                    : '' ?>>
+                                Sent to Store
+                            </option>
+
+                            <option value="Partially Issued"
+                                <?= $statusFilter === 'Partially Issued'
+                                    ? 'selected'
+                                    : '' ?>>
+                                Partially Issued
                             </option>
 
                             <option value="Completed"
-                                <?= $statusFilter === 'Completed' ? 'selected' : '' ?>>
+                                <?= $statusFilter === 'Completed'
+                                    ? 'selected'
+                                    : '' ?>>
                                 Completed
-                            </option>
-
-                            <option value="Rejected"
-                                <?= $statusFilter === 'Rejected' ? 'selected' : '' ?>>
-                                Rejected
                             </option>
 
                         </select>
@@ -532,10 +686,12 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                     <div class="col-md-2">
 
-                        <button type="submit"
-                                class="btn btn-primary w-100">
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100">
 
                             <i class="fa-solid fa-filter me-1"></i>
+
                             Filter
 
                         </button>
@@ -545,8 +701,9 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                     <div class="col-md-2">
 
-                        <a href="kitchen_requests.php"
-                           class="btn btn-outline-secondary w-100">
+                        <a
+                            href="kitchen_requests.php"
+                            class="btn btn-outline-secondary w-100">
 
                             Reset
 
@@ -578,7 +735,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                 </h5>
 
                 <p class="text-muted mb-0">
-                    There are no material requests to display.
+                    There are no kitchen material requests to display.
                 </p>
 
             </div>
@@ -596,17 +753,17 @@ require_once __DIR__ . '/../includes/topbar.php';
 
             $badgeClass = match ($status) {
 
-                'Pending' =>
-                    'bg-warning text-dark',
-
-                'Approved' =>
-                    'bg-success',
-
-                'Completed' =>
+                'Chef Approved' =>
                     'bg-primary',
 
-                'Rejected' =>
-                    'bg-danger',
+                'Sent to Store' =>
+                    'bg-warning text-dark',
+
+                'Partially Issued' =>
+                    'bg-info text-dark',
+
+                'Completed' =>
+                    'bg-success',
 
                 default =>
                     'bg-secondary'
@@ -614,7 +771,9 @@ require_once __DIR__ . '/../includes/topbar.php';
 
             ?>
 
+
             <div class="card border-0 shadow-sm mb-4">
+
 
                 <!-- REQUEST HEADER -->
 
@@ -622,10 +781,10 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                     <div class="row align-items-center">
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
 
                             <strong>
-                                Request #<?= (int)$request['id'] ?>
+                                <?= e($request['request_no']) ?>
                             </strong>
 
                             <br>
@@ -634,8 +793,10 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                 <?= e(
                                     date(
-                                        'd-m-Y H:i',
-                                        strtotime($request['created_at'])
+                                        'd-m-Y',
+                                        strtotime(
+                                            $request['request_date']
+                                        )
                                     )
                                 ) ?>
 
@@ -653,20 +814,45 @@ require_once __DIR__ . '/../includes/topbar.php';
                             <br>
 
                             <strong>
-                                <?= e($request['employee_name']) ?>
+                                <?= e(
+                                    $request['employee_name']
+                                ) ?>
                             </strong>
 
                             <small class="text-muted">
-                                (<?= e($request['employee_code']) ?>)
+
+                                (
+                                <?= e(
+                                    $request['employee_code']
+                                ) ?>
+                                )
+
                             </small>
 
                         </div>
 
 
-                        <div class="col-md-4 text-md-end">
+                        <div class="col-md-2">
+
+                            <small class="text-muted">
+                                Items
+                            </small>
+
+                            <br>
+
+                            <strong>
+                                <?= (int)$request['item_count'] ?>
+                            </strong>
+
+                        </div>
+
+
+                        <div class="col-md-3 text-md-end">
 
                             <span class="badge <?= $badgeClass ?>">
+
                                 <?= e($status) ?>
+
                             </span>
 
                         </div>
@@ -674,6 +860,53 @@ require_once __DIR__ . '/../includes/topbar.php';
                     </div>
 
                 </div>
+
+
+                <!-- REMARKS -->
+
+                <?php if (
+                    !empty($request['cook_remarks']) ||
+                    !empty($request['chef_remarks'])
+                ): ?>
+
+                    <div class="card-body border-bottom">
+
+                        <?php if (!empty($request['cook_remarks'])): ?>
+
+                            <div class="mb-2">
+
+                                <strong>
+                                    Cook Remarks:
+                                </strong>
+
+                                <?= nl2br(
+                                    e($request['cook_remarks'])
+                                ) ?>
+
+                            </div>
+
+                        <?php endif; ?>
+
+
+                        <?php if (!empty($request['chef_remarks'])): ?>
+
+                            <div>
+
+                                <strong>
+                                    Chef Remarks:
+                                </strong>
+
+                                <?= nl2br(
+                                    e($request['chef_remarks'])
+                                ) ?>
+
+                            </div>
+
+                        <?php endif; ?>
+
+                    </div>
+
+                <?php endif; ?>
 
 
                 <!-- ITEMS -->
@@ -688,17 +921,38 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                 <tr>
 
-                                    <th>Material</th>
+                                    <th>
+                                        Material
+                                    </th>
 
-                                    <th>Unit</th>
+                                    <th>
+                                        Unit
+                                    </th>
 
-                                    <th>Requested</th>
+                                    <th>
+                                        Requested
+                                    </th>
 
-                                    <th>Available Stock</th>
+                                    <th>
+                                        Approved
+                                    </th>
 
-                                    <th style="width: 300px;">
+                                    <th>
+                                        Issued
+                                    </th>
+
+                                    <th>
+                                        Remaining
+                                    </th>
+
+                                    <th>
+                                        Stock
+                                    </th>
+
+                                    <th style="width:320px;">
                                         Issue Material
                                     </th>
+
                                 </tr>
 
                             </thead>
@@ -706,63 +960,158 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                             <tbody>
 
+
                             <?php foreach (
                                 $requestItems[$request['id']]
                                 ?? []
                                 as $item
                             ): ?>
 
+                                <?php
+
+                                $requested =
+                                    (float)$item['requested_qty'];
+
+                                $approved =
+                                    (float)$item['approved_qty'];
+
+                                $issued =
+                                    (float)$item['issued_qty'];
+
+                                $stock =
+                                    (float)$item['current_stock'];
+
+                                $remaining =
+                                    $approved - $issued;
+
+                                if ($remaining < 0) {
+                                    $remaining = 0;
+                                }
+
+                                $maxIssue =
+                                    min(
+                                        $remaining,
+                                        $stock
+                                    );
+
+                                ?>
+
+
                                 <tr>
+
+
+                                    <!-- MATERIAL -->
 
                                     <td>
 
                                         <strong>
+
                                             <?= e(
                                                 $item['material_name']
                                             ) ?>
+
                                         </strong>
 
                                         <br>
 
                                         <small class="text-muted">
+
                                             <?= e(
                                                 $item['material_code']
                                             ) ?>
+
                                         </small>
 
                                     </td>
 
 
+                                    <!-- UNIT -->
+
                                     <td>
-                                        <?= e($item['unit']) ?>
+                                        <?= e(
+                                            $item['unit']
+                                        ) ?>
                                     </td>
 
+
+                                    <!-- REQUESTED -->
 
                                     <td>
 
                                         <?= number_format(
-                                            (float)$item['requested_qty'],
+                                            $requested,
                                             2
                                         ) ?>
 
                                     </td>
 
 
+                                    <!-- APPROVED -->
+
                                     <td>
 
-                                        <?php
+                                        <span class="badge bg-primary">
 
-                                        $stock =
-                                            (float)$item['current_stock'];
+                                            <?= number_format(
+                                                $approved,
+                                                2
+                                            ) ?>
 
-                                        $requested =
-                                            (float)$item['requested_qty'];
+                                        </span>
 
-                                        ?>
+                                    </td>
 
-                                        <?php if ($stock >= $requested): ?>
 
-                                            <span class="badge bg-success">
+                                    <!-- ISSUED -->
+
+                                    <td>
+
+                                        <?= number_format(
+                                            $issued,
+                                            2
+                                        ) ?>
+
+                                    </td>
+
+
+                                    <!-- REMAINING -->
+
+                                    <td>
+
+                                        <?php if ($remaining > 0): ?>
+
+                                            <span
+                                                class="badge bg-warning text-dark">
+
+                                                <?= number_format(
+                                                    $remaining,
+                                                    2
+                                                ) ?>
+
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span
+                                                class="badge bg-success">
+
+                                                Completed
+
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+
+                                    <!-- STOCK -->
+
+                                    <td>
+
+                                        <?php if ($stock >= $remaining && $remaining > 0): ?>
+
+                                            <span
+                                                class="badge bg-success">
 
                                                 <?= number_format(
                                                     $stock,
@@ -773,7 +1122,8 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                         <?php elseif ($stock > 0): ?>
 
-                                            <span class="badge bg-warning text-dark">
+                                            <span
+                                                class="badge bg-warning text-dark">
 
                                                 <?= number_format(
                                                     $stock,
@@ -784,7 +1134,8 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                         <?php else: ?>
 
-                                            <span class="badge bg-danger">
+                                            <span
+                                                class="badge bg-danger">
 
                                                 0.00
 
@@ -795,11 +1146,19 @@ require_once __DIR__ . '/../includes/topbar.php';
                                     </td>
 
 
+                                    <!-- ISSUE -->
+
                                     <td>
 
-                                        <?php if ($status === 'Approved'): ?>
+                                        <?php if (
+                                            $remaining > 0 &&
+                                            $stock > 0 &&
+                                            $status !== 'Completed'
+                                        ): ?>
 
-                                            <form method="POST" class="d-flex gap-2">
+                                            <form
+                                                method="POST"
+                                                class="d-flex gap-2">
 
                                                 <input
                                                     type="hidden"
@@ -813,46 +1172,86 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                     value="<?= (int)$item['item_id'] ?>"
                                                 >
 
+
                                                 <input
                                                     type="number"
                                                     name="issue_qty"
                                                     class="form-control"
                                                     min="0.01"
-                                                    max="<?= min(
-                                                        (float)$item['requested_qty'],
-                                                        (float)$item['current_stock']
+                                                    max="<?= htmlspecialchars(
+                                                        (string)$maxIssue
                                                     ) ?>"
                                                     step="0.01"
-                                                    placeholder="Enter quantity"
+                                                    placeholder="Quantity"
                                                     required
                                                 >
+
 
                                                 <button
                                                     type="submit"
                                                     name="issue_material"
                                                     value="1"
                                                     class="btn btn-primary"
+                                                    onclick="return confirm('Issue this material to Kitchen?');"
                                                 >
 
-                                                    <i class="fa-solid fa-box-open me-1"></i>
+                                                    <i
+                                                        class="fa-solid fa-box-open me-1">
+                                                    </i>
+
                                                     Issue
 
                                                 </button>
 
                                             </form>
 
-                                        <?php else: ?>
 
-                                            <span class="text-muted">
-                                                -
+                                            <small class="text-muted">
+
+                                                Maximum:
+                                                <?= number_format(
+                                                    $maxIssue,
+                                                    2
+                                                ) ?>
+                                                <?= e(
+                                                    $item['unit']
+                                                ) ?>
+
+                                            </small>
+
+                                        <?php elseif ($remaining <= 0): ?>
+
+                                            <span class="text-success">
+
+                                                <i
+                                                    class="fa-solid fa-circle-check me-1">
+                                                </i>
+
+                                                Fully Issued
+
+                                            </span>
+
+                                        <?php elseif ($stock <= 0): ?>
+
+                                            <span class="text-danger">
+
+                                                <i
+                                                    class="fa-solid fa-triangle-exclamation me-1">
+                                                </i>
+
+                                                No Stock
+
                                             </span>
 
                                         <?php endif; ?>
 
                                     </td>
+
                                 </tr>
 
+
                             <?php endforeach; ?>
+
 
                             </tbody>
 
@@ -863,29 +1262,99 @@ require_once __DIR__ . '/../includes/topbar.php';
                 </div>
 
 
-                <!-- REMARKS -->
+                <!-- FOOTER -->
 
-                <?php if (!empty($request['remarks'])): ?>
+                <div class="card-footer bg-white">
 
-                    <div class="card-footer bg-white">
+                    <div class="row">
 
-                        <strong>
-                            Remarks:
-                        </strong>
+                        <div class="col-md-4">
 
-                        <?= e($request['remarks']) ?>
+                            <small class="text-muted">
+                                Total Approved
+                            </small>
+
+                            <br>
+
+                            <strong>
+
+                                <?= number_format(
+                                    (float)$request['total_approved_qty'],
+                                    2
+                                ) ?>
+
+                            </strong>
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <small class="text-muted">
+                                Total Issued
+                            </small>
+
+                            <br>
+
+                            <strong>
+
+                                <?= number_format(
+                                    (float)$request['total_issued_qty'],
+                                    2
+                                ) ?>
+
+                            </strong>
+
+                        </div>
+
+
+                        <div class="col-md-4">
+
+                            <small class="text-muted">
+                                Request Status
+                            </small>
+
+                            <br>
+
+                            <span
+                                class="badge <?= $badgeClass ?>">
+
+                                <?= e($status) ?>
+
+                            </span>
+
+                        </div>
 
                     </div>
 
-                <?php endif; ?>
+
+                    <?php if (!empty($request['chef_remarks'])): ?>
+
+                        <div class="mt-3">
+
+                            <strong>
+                                Chef Remarks:
+                            </strong>
+
+                            <?= e(
+                                $request['chef_remarks']
+                            ) ?>
+
+                        </div>
+
+                    <?php endif; ?>
+
+                </div>
 
             </div>
 
         <?php endforeach; ?>
 
+
     <?php endif; ?>
 
 </div>
+
 
 <?php
 require_once __DIR__ . '/../includes/footer.php';

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 05, 2026 at 09:00 AM
+-- Generation Time: Sep 07, 2026 at 10:58 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -20,6 +20,158 @@ SET time_zone = "+00:00";
 --
 -- Database: `canteen_management`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `canteen_food_serving`
+--
+
+CREATE TABLE `canteen_food_serving` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `transfer_id` int(10) UNSIGNED NOT NULL,
+  `food_id` int(10) UNSIGNED NOT NULL,
+  `serving_date` date NOT NULL,
+  `received_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `served_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `remaining_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `pax` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `recorded_by` int(10) UNSIGNED NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `canteen_wastage`
+--
+
+CREATE TABLE `canteen_wastage` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `food_id` int(10) UNSIGNED NOT NULL,
+  `serving_id` int(10) UNSIGNED DEFAULT NULL,
+  `wastage_date` date NOT NULL,
+  `wastage_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `reason` varchar(150) DEFAULT NULL,
+  `remarks` varchar(255) DEFAULT NULL,
+  `recorded_by` int(10) UNSIGNED NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `food_items`
+--
+
+CREATE TABLE `food_items` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `food_code` varchar(50) NOT NULL,
+  `food_name` varchar(150) NOT NULL,
+  `unit` varchar(50) NOT NULL DEFAULT 'PLATE',
+  `status` enum('Enable','Disabled') NOT NULL DEFAULT 'Enable',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `food_items`
+--
+
+INSERT INTO `food_items` (`id`, `food_code`, `food_name`, `unit`, `status`, `created_at`) VALUES
+(1, 'FOOD001', 'Rice Meals', 'PLATE', 'Enable', '2026-09-07 10:49:37'),
+(2, 'FOOD002', 'Sambar Rice', 'PLATE', 'Enable', '2026-09-07 10:49:37'),
+(3, 'FOOD003', 'Curd Rice', 'PLATE', 'Enable', '2026-09-07 10:49:37'),
+(4, 'FOOD004', 'Chapati', 'PLATE', 'Enable', '2026-09-07 10:49:37');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `food_preparations`
+--
+
+CREATE TABLE `food_preparations` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `preparation_no` varchar(60) NOT NULL,
+  `food_id` int(10) UNSIGNED NOT NULL,
+  `preparation_date` date NOT NULL,
+  `prepared_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `status` enum('Prepared','Sent to Canteen','Completed') NOT NULL DEFAULT 'Prepared',
+  `prepared_by` int(10) UNSIGNED NOT NULL,
+  `remarks` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `food_transfers`
+--
+
+CREATE TABLE `food_transfers` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `transfer_no` varchar(60) NOT NULL,
+  `preparation_id` int(10) UNSIGNED NOT NULL,
+  `food_id` int(10) UNSIGNED NOT NULL,
+  `quantity` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `transfer_date` date NOT NULL,
+  `sent_by` int(10) UNSIGNED NOT NULL,
+  `received_by` int(10) UNSIGNED DEFAULT NULL,
+  `status` enum('Sent','Received') NOT NULL DEFAULT 'Sent',
+  `sent_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `received_at` datetime DEFAULT NULL,
+  `remarks` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `kitchen_requests`
+--
+
+CREATE TABLE `kitchen_requests` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `request_no` varchar(60) NOT NULL,
+  `requested_by` int(10) UNSIGNED NOT NULL,
+  `request_date` date NOT NULL,
+  `status` enum('Draft','Submitted','Chef Approved','Sent to Store','Partially Issued','Completed','Rejected') NOT NULL DEFAULT 'Submitted',
+  `cook_remarks` text DEFAULT NULL,
+  `chef_remarks` text DEFAULT NULL,
+  `approved_by` int(10) UNSIGNED DEFAULT NULL,
+  `approved_at` datetime DEFAULT NULL,
+  `sent_to_store_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `kitchen_requests`
+--
+
+INSERT INTO `kitchen_requests` (`id`, `request_no`, `requested_by`, `request_date`, `status`, `cook_remarks`, `chef_remarks`, `approved_by`, `approved_at`, `sent_to_store_at`, `created_at`, `updated_at`) VALUES
+(1, 'KR-20260907-0001', 3, '2026-09-07', 'Submitted', 'testing', NULL, NULL, NULL, NULL, '2026-09-07 11:01:50', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `kitchen_request_items`
+--
+
+CREATE TABLE `kitchen_request_items` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `request_id` int(10) UNSIGNED NOT NULL,
+  `material_id` int(10) UNSIGNED NOT NULL,
+  `requested_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `approved_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `issued_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `remarks` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `kitchen_request_items`
+--
+
+INSERT INTO `kitchen_request_items` (`id`, `request_id`, `material_id`, `requested_qty`, `approved_qty`, `issued_qty`, `remarks`) VALUES
+(1, 1, 2, 20.00, 0.00, 0.00, NULL);
 
 -- --------------------------------------------------------
 
@@ -122,8 +274,7 @@ CREATE TABLE `purchase_requests` (
 
 INSERT INTO `purchase_requests` (`id`, `request_no`, `requested_by`, `request_date`, `status`, `remarks`, `created_at`) VALUES
 (1, 'PR-20260903114200-489', 5, '2026-09-03', 'Approved', 'testing purchase', '2026-09-03 15:12:00'),
-(2, 'PR-20260905062846-863', 1, '2026-09-05', 'Approved', 'test cooking', '2026-09-05 09:58:46'),
-(3, '', 1, '0000-00-00', 'Pending', 'for testing', '2026-09-05 10:40:15');
+(2, 'PR-20260905062846-863', 1, '2026-09-05', 'Approved', 'test cooking', '2026-09-05 09:58:46');
 
 -- --------------------------------------------------------
 
@@ -145,8 +296,7 @@ CREATE TABLE `purchase_request_items` (
 
 INSERT INTO `purchase_request_items` (`id`, `request_id`, `material_id`, `requested_qty`, `approved_qty`) VALUES
 (1, 1, 6, 10.00, 0.00),
-(2, 2, 3, 15.00, 0.00),
-(3, 3, 4, 10.00, 0.00);
+(2, 2, 3, 15.00, 0.00);
 
 -- --------------------------------------------------------
 
@@ -261,6 +411,69 @@ INSERT INTO `users` (`id`, `role_id`, `employee_code`, `employee_name`, `email`,
 --
 
 --
+-- Indexes for table `canteen_food_serving`
+--
+ALTER TABLE `canteen_food_serving`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_serving_transfer` (`transfer_id`),
+  ADD KEY `idx_cfs_food_date` (`food_id`,`serving_date`),
+  ADD KEY `fk_cfs_user` (`recorded_by`);
+
+--
+-- Indexes for table `canteen_wastage`
+--
+ALTER TABLE `canteen_wastage`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_cw_food_date` (`food_id`,`wastage_date`),
+  ADD KEY `fk_cw_serving` (`serving_id`),
+  ADD KEY `fk_cw_user` (`recorded_by`);
+
+--
+-- Indexes for table `food_items`
+--
+ALTER TABLE `food_items`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_food_code` (`food_code`);
+
+--
+-- Indexes for table `food_preparations`
+--
+ALTER TABLE `food_preparations`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_preparation_no` (`preparation_no`),
+  ADD KEY `idx_fp_food` (`food_id`),
+  ADD KEY `fk_fp_user` (`prepared_by`);
+
+--
+-- Indexes for table `food_transfers`
+--
+ALTER TABLE `food_transfers`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_transfer_no` (`transfer_no`),
+  ADD KEY `idx_ft_preparation` (`preparation_id`),
+  ADD KEY `idx_ft_food` (`food_id`),
+  ADD KEY `fk_ft_sent_by` (`sent_by`),
+  ADD KEY `fk_ft_received_by` (`received_by`);
+
+--
+-- Indexes for table `kitchen_requests`
+--
+ALTER TABLE `kitchen_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_kitchen_request_no` (`request_no`),
+  ADD KEY `idx_kr_requested_by` (`requested_by`),
+  ADD KEY `idx_kr_status` (`status`),
+  ADD KEY `fk_kr_approved_by` (`approved_by`);
+
+--
+-- Indexes for table `kitchen_request_items`
+--
+ALTER TABLE `kitchen_request_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_kri_request` (`request_id`),
+  ADD KEY `idx_kri_material` (`material_id`);
+
+--
 -- Indexes for table `materials`
 --
 ALTER TABLE `materials`
@@ -332,6 +545,48 @@ ALTER TABLE `users`
 --
 
 --
+-- AUTO_INCREMENT for table `canteen_food_serving`
+--
+ALTER TABLE `canteen_food_serving`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `canteen_wastage`
+--
+ALTER TABLE `canteen_wastage`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `food_items`
+--
+ALTER TABLE `food_items`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `food_preparations`
+--
+ALTER TABLE `food_preparations`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `food_transfers`
+--
+ALTER TABLE `food_transfers`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `kitchen_requests`
+--
+ALTER TABLE `kitchen_requests`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `kitchen_request_items`
+--
+ALTER TABLE `kitchen_request_items`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT for table `materials`
 --
 ALTER TABLE `materials`
@@ -388,6 +643,52 @@ ALTER TABLE `users`
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `canteen_food_serving`
+--
+ALTER TABLE `canteen_food_serving`
+  ADD CONSTRAINT `fk_cfs_food` FOREIGN KEY (`food_id`) REFERENCES `food_items` (`id`),
+  ADD CONSTRAINT `fk_cfs_transfer` FOREIGN KEY (`transfer_id`) REFERENCES `food_transfers` (`id`),
+  ADD CONSTRAINT `fk_cfs_user` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`id`);
+
+--
+-- Constraints for table `canteen_wastage`
+--
+ALTER TABLE `canteen_wastage`
+  ADD CONSTRAINT `fk_cw_food` FOREIGN KEY (`food_id`) REFERENCES `food_items` (`id`),
+  ADD CONSTRAINT `fk_cw_serving` FOREIGN KEY (`serving_id`) REFERENCES `canteen_food_serving` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_cw_user` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`id`);
+
+--
+-- Constraints for table `food_preparations`
+--
+ALTER TABLE `food_preparations`
+  ADD CONSTRAINT `fk_fp_food` FOREIGN KEY (`food_id`) REFERENCES `food_items` (`id`),
+  ADD CONSTRAINT `fk_fp_user` FOREIGN KEY (`prepared_by`) REFERENCES `users` (`id`);
+
+--
+-- Constraints for table `food_transfers`
+--
+ALTER TABLE `food_transfers`
+  ADD CONSTRAINT `fk_ft_food` FOREIGN KEY (`food_id`) REFERENCES `food_items` (`id`),
+  ADD CONSTRAINT `fk_ft_preparation` FOREIGN KEY (`preparation_id`) REFERENCES `food_preparations` (`id`),
+  ADD CONSTRAINT `fk_ft_received_by` FOREIGN KEY (`received_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_ft_sent_by` FOREIGN KEY (`sent_by`) REFERENCES `users` (`id`);
+
+--
+-- Constraints for table `kitchen_requests`
+--
+ALTER TABLE `kitchen_requests`
+  ADD CONSTRAINT `fk_kr_approved_by` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_kr_user` FOREIGN KEY (`requested_by`) REFERENCES `users` (`id`);
+
+--
+-- Constraints for table `kitchen_request_items`
+--
+ALTER TABLE `kitchen_request_items`
+  ADD CONSTRAINT `fk_kri_material` FOREIGN KEY (`material_id`) REFERENCES `materials` (`id`),
+  ADD CONSTRAINT `fk_kri_request` FOREIGN KEY (`request_id`) REFERENCES `kitchen_requests` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `purchase_requests`
