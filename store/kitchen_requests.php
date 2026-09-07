@@ -551,373 +551,493 @@ foreach ($requests as $request) {
 }
 
 
+/*
+|--------------------------------------------------------------------------
+| SUMMARY COUNTS (for the stat cards)
+|--------------------------------------------------------------------------
+*/
+
+$chefApprovedCount = 0;
+$sentToStoreCount = 0;
+$partiallyIssuedCount = 0;
+$completedCount = 0;
+
+foreach ($requests as $request) {
+
+    switch ($request['status']) {
+
+        case 'Chef Approved':
+            $chefApprovedCount++;
+            break;
+
+        case 'Sent to Store':
+            $sentToStoreCount++;
+            break;
+
+        case 'Partially Issued':
+            $partiallyIssuedCount++;
+            break;
+
+        case 'Completed':
+            $completedCount++;
+            break;
+    }
+
+}
+
+
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
-require_once __DIR__ . '/../includes/topbar.php';
 ?>
 
-<div class="main-content">
+<main class="main-content">
 
-    <!-- PAGE HEADER -->
+    <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="page-body">
 
-        <div>
+        <!-- PAGE HEADER -->
 
-            <h4 class="mb-1">
-                Kitchen Material Requests
-            </h4>
+        <div class="d-flex justify-content-between align-items-center mb-4">
 
-            <p class="text-muted mb-0">
-                Review Chef-approved requests and issue materials to Kitchen.
-            </p>
+            <div>
 
-        </div>
+                <h4 class="mb-1">
+                    Kitchen Material Requests
+                </h4>
 
-        <a href="dashboard.php"
-           class="btn btn-outline-secondary">
+                <div class="text-muted">
+                    Review Chef-approved requests and issue materials to Kitchen.
+                </div>
 
-            <i class="fa-solid fa-arrow-left me-1"></i>
+            </div>
 
-            Dashboard
+            <a href="dashboard.php"
+               class="btn btn-outline-secondary">
 
-        </a>
+                <i class="fa-solid fa-arrow-left me-1"></i>
 
-    </div>
+                Dashboard
 
-
-    <!-- SUCCESS -->
-
-    <?php if ($success): ?>
-
-        <div class="alert alert-success alert-dismissible fade show">
-
-            <i class="fa-solid fa-circle-check me-2"></i>
-
-            <?= e($success) ?>
-
-            <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="alert">
-            </button>
+            </a>
 
         </div>
 
-    <?php endif; ?>
+
+        <!-- SUCCESS -->
+
+        <?php if ($success): ?>
+
+            <div class="alert alert-success alert-dismissible fade show">
+
+                <i class="fa-solid fa-circle-check me-2"></i>
+
+                <?= e($success) ?>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert">
+                </button>
+
+            </div>
+
+        <?php endif; ?>
 
 
-    <!-- ERROR -->
+        <!-- ERROR -->
 
-    <?php if ($error): ?>
+        <?php if ($error): ?>
 
-        <div class="alert alert-danger alert-dismissible fade show">
+            <div class="alert alert-danger alert-dismissible fade show">
 
-            <i class="fa-solid fa-circle-exclamation me-2"></i>
+                <i class="fa-solid fa-circle-exclamation me-2"></i>
 
-            <?= e($error) ?>
+                <?= e($error) ?>
 
-            <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="alert">
-            </button>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert">
+                </button>
 
-        </div>
+            </div>
 
-    <?php endif; ?>
+        <?php endif; ?>
 
 
-    <!-- FILTER -->
+        <!-- STAT CARDS -->
 
-    <div class="card border-0 shadow-sm mb-4">
+        <div class="row g-3 mb-4">
 
-        <div class="card-body">
+            <div class="col-6 col-lg-3">
 
-            <form method="GET">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="row g-3 align-items-end">
-
-                    <div class="col-md-4">
-
-                        <label class="form-label">
-                            Request Status
-                        </label>
-
-                        <select name="status"
-                                class="form-select">
-
-                            <option value="">
-                                All Requests
-                            </option>
-
-                            <option value="Chef Approved"
-                                <?= $statusFilter === 'Chef Approved'
-                                    ? 'selected'
-                                    : '' ?>>
-                                Chef Approved
-                            </option>
-
-                            <option value="Sent to Store"
-                                <?= $statusFilter === 'Sent to Store'
-                                    ? 'selected'
-                                    : '' ?>>
-                                Sent to Store
-                            </option>
-
-                            <option value="Partially Issued"
-                                <?= $statusFilter === 'Partially Issued'
-                                    ? 'selected'
-                                    : '' ?>>
-                                Partially Issued
-                            </option>
-
-                            <option value="Completed"
-                                <?= $statusFilter === 'Completed'
-                                    ? 'selected'
-                                    : '' ?>>
-                                Completed
-                            </option>
-
-                        </select>
-
+                    <div class="stat-icon stat-icon-primary">
+                        <i class="fa-solid fa-clipboard-check"></i>
                     </div>
 
-
-                    <div class="col-md-2">
-
-                        <button
-                            type="submit"
-                            class="btn btn-primary w-100">
-
-                            <i class="fa-solid fa-filter me-1"></i>
-
-                            Filter
-
-                        </button>
-
-                    </div>
-
-
-                    <div class="col-md-2">
-
-                        <a
-                            href="kitchen_requests.php"
-                            class="btn btn-outline-secondary w-100">
-
-                            Reset
-
-                        </a>
-
+                    <div>
+                        <div class="stat-label">Chef Approved</div>
+                        <div class="stat-value"><?= $chefApprovedCount ?></div>
                     </div>
 
                 </div>
 
-            </form>
+            </div>
 
-        </div>
+            <div class="col-6 col-lg-3">
 
-    </div>
+                <div class="stat-card d-flex align-items-center gap-3">
 
+                    <div class="stat-icon stat-icon-amber">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </div>
 
-    <!-- REQUESTS -->
+                    <div>
+                        <div class="stat-label">Sent to Store</div>
+                        <div class="stat-value"><?= $sentToStoreCount ?></div>
+                    </div>
 
-    <?php if (!$requests): ?>
+                </div>
 
-        <div class="card border-0 shadow-sm">
+            </div>
 
-            <div class="card-body text-center py-5">
+            <div class="col-6 col-lg-3">
 
-                <i class="fa-solid fa-inbox fs-1 text-muted mb-3"></i>
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                <h5>
-                    No Kitchen Requests
-                </h5>
+                    <div class="stat-icon stat-icon-purple">
+                        <i class="fa-solid fa-truck-ramp-box"></i>
+                    </div>
 
-                <p class="text-muted mb-0">
-                    There are no kitchen material requests to display.
-                </p>
+                    <div>
+                        <div class="stat-label">Partially Issued</div>
+                        <div class="stat-value"><?= $partiallyIssuedCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-green">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Completed</div>
+                        <div class="stat-value"><?= $completedCount ?></div>
+                    </div>
+
+                </div>
 
             </div>
 
         </div>
 
-    <?php else: ?>
 
+        <!-- FILTER -->
 
-        <?php foreach ($requests as $request): ?>
+        <div class="content-card mb-4">
 
-            <?php
+            <div class="content-card-header">
 
-            $status = $request['status'];
+                <strong>
+                    <i class="fa-solid fa-filter me-1"></i>
+                    Request Filter
+                </strong>
 
-            $badgeClass = match ($status) {
+            </div>
 
-                'Chef Approved' =>
-                    'bg-primary',
+            <div class="content-card-body">
 
-                'Sent to Store' =>
-                    'bg-warning text-dark',
+                <form method="GET">
 
-                'Partially Issued' =>
-                    'bg-info text-dark',
-
-                'Completed' =>
-                    'bg-success',
-
-                default =>
-                    'bg-secondary'
-            };
-
-            ?>
-
-
-            <div class="card border-0 shadow-sm mb-4">
-
-
-                <!-- REQUEST HEADER -->
-
-                <div class="card-header bg-white py-3">
-
-                    <div class="row align-items-center">
-
-                        <div class="col-md-3">
-
-                            <strong>
-                                <?= e($request['request_no']) ?>
-                            </strong>
-
-                            <br>
-
-                            <small class="text-muted">
-
-                                <?= e(
-                                    date(
-                                        'd-m-Y',
-                                        strtotime(
-                                            $request['request_date']
-                                        )
-                                    )
-                                ) ?>
-
-                            </small>
-
-                        </div>
-
+                    <div class="row g-3 align-items-end">
 
                         <div class="col-md-4">
 
-                            <small class="text-muted">
-                                Requested By
-                            </small>
+                            <label class="form-label">
+                                Request Status
+                            </label>
 
-                            <br>
+                            <select name="status"
+                                    class="form-select">
 
-                            <strong>
-                                <?= e(
-                                    $request['employee_name']
-                                ) ?>
-                            </strong>
+                                <option value="">
+                                    All Requests
+                                </option>
 
-                            <small class="text-muted">
+                                <option value="Chef Approved"
+                                    <?= $statusFilter === 'Chef Approved'
+                                        ? 'selected'
+                                        : '' ?>>
+                                    Chef Approved
+                                </option>
 
-                                (
-                                <?= e(
-                                    $request['employee_code']
-                                ) ?>
-                                )
+                                <option value="Sent to Store"
+                                    <?= $statusFilter === 'Sent to Store'
+                                        ? 'selected'
+                                        : '' ?>>
+                                    Sent to Store
+                                </option>
 
-                            </small>
+                                <option value="Partially Issued"
+                                    <?= $statusFilter === 'Partially Issued'
+                                        ? 'selected'
+                                        : '' ?>>
+                                    Partially Issued
+                                </option>
+
+                                <option value="Completed"
+                                    <?= $statusFilter === 'Completed'
+                                        ? 'selected'
+                                        : '' ?>>
+                                    Completed
+                                </option>
+
+                            </select>
 
                         </div>
 
 
                         <div class="col-md-2">
 
-                            <small class="text-muted">
-                                Items
-                            </small>
+                            <button
+                                type="submit"
+                                class="btn btn-primary w-100">
 
-                            <br>
+                                <i class="fa-solid fa-filter me-1"></i>
 
-                            <strong>
-                                <?= (int)$request['item_count'] ?>
-                            </strong>
+                                Filter
+
+                            </button>
 
                         </div>
 
 
-                        <div class="col-md-3 text-md-end">
+                        <div class="col-md-2">
 
-                            <span class="badge <?= $badgeClass ?>">
+                            <a
+                                href="kitchen_requests.php"
+                                class="btn btn-outline-secondary w-100">
 
-                                <?= e($status) ?>
+                                Reset
 
-                            </span>
+                            </a>
 
                         </div>
 
                     </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+
+        <!-- REQUESTS -->
+
+        <?php if (!$requests): ?>
+
+            <div class="content-card">
+
+                <div class="content-card-body text-center py-5">
+
+                    <i class="fa-solid fa-inbox fs-1 text-muted mb-3"></i>
+
+                    <h5>
+                        No Kitchen Requests
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        There are no kitchen material requests to display.
+                    </p>
 
                 </div>
 
+            </div>
 
-                <!-- REMARKS -->
+        <?php else: ?>
 
-                <?php if (
-                    !empty($request['cook_remarks']) ||
-                    !empty($request['chef_remarks'])
-                ): ?>
 
-                    <div class="card-body border-bottom">
+            <?php foreach ($requests as $request): ?>
 
-                        <?php if (!empty($request['cook_remarks'])): ?>
+                <?php
 
-                            <div class="mb-2">
+                $status = $request['status'];
+
+                $badgeClass = match ($status) {
+
+                    'Chef Approved' =>
+                        'bg-primary',
+
+                    'Sent to Store' =>
+                        'bg-warning text-dark',
+
+                    'Partially Issued' =>
+                        'bg-info text-dark',
+
+                    'Completed' =>
+                        'badge-enable',
+
+                    default =>
+                        'bg-secondary'
+                };
+
+                ?>
+
+
+                <div class="content-card mb-4">
+
+
+                    <!-- REQUEST HEADER -->
+
+                    <div class="content-card-header">
+
+                        <div class="row align-items-center w-100">
+
+                            <div class="col-md-3">
 
                                 <strong>
-                                    Cook Remarks:
+                                    <?= e($request['request_no']) ?>
                                 </strong>
 
-                                <?= nl2br(
-                                    e($request['cook_remarks'])
-                                ) ?>
+                                <br>
+
+                                <small class="text-muted">
+
+                                    <?= e(
+                                        date(
+                                            'd-m-Y',
+                                            strtotime(
+                                                $request['request_date']
+                                            )
+                                        )
+                                    ) ?>
+
+                                </small>
 
                             </div>
 
-                        <?php endif; ?>
 
+                            <div class="col-md-4">
 
-                        <?php if (!empty($request['chef_remarks'])): ?>
+                                <small class="text-muted">
+                                    Requested By
+                                </small>
 
-                            <div>
+                                <br>
 
                                 <strong>
-                                    Chef Remarks:
+                                    <?= e(
+                                        $request['employee_name']
+                                    ) ?>
                                 </strong>
 
-                                <?= nl2br(
-                                    e($request['chef_remarks'])
-                                ) ?>
+                                <small class="text-muted">
+
+                                    (
+                                    <?= e(
+                                        $request['employee_code']
+                                    ) ?>
+                                    )
+
+                                </small>
 
                             </div>
 
-                        <?php endif; ?>
+
+                            <div class="col-md-2">
+
+                                <small class="text-muted">
+                                    Items
+                                </small>
+
+                                <br>
+
+                                <strong>
+                                    <?= (int)$request['item_count'] ?>
+                                </strong>
+
+                            </div>
+
+
+                            <div class="col-md-3 text-md-end">
+
+                                <span class="badge <?= $badgeClass ?>">
+
+                                    <?= e($status) ?>
+
+                                </span>
+
+                            </div>
+
+                        </div>
 
                     </div>
 
-                <?php endif; ?>
+
+                    <!-- REMARKS -->
+
+                    <?php if (
+                        !empty($request['cook_remarks']) ||
+                        !empty($request['chef_remarks'])
+                    ): ?>
+
+                        <div class="content-card-body border-bottom py-3">
+
+                            <?php if (!empty($request['cook_remarks'])): ?>
+
+                                <div class="mb-2">
+
+                                    <strong>
+                                        Cook Remarks:
+                                    </strong>
+
+                                    <?= nl2br(
+                                        e($request['cook_remarks'])
+                                    ) ?>
+
+                                </div>
+
+                            <?php endif; ?>
 
 
-                <!-- ITEMS -->
+                            <?php if (!empty($request['chef_remarks'])): ?>
 
-                <div class="card-body p-0">
+                                <div>
+
+                                    <strong>
+                                        Chef Remarks:
+                                    </strong>
+
+                                    <?= nl2br(
+                                        e($request['chef_remarks'])
+                                    ) ?>
+
+                                </div>
+
+                            <?php endif; ?>
+
+                        </div>
+
+                    <?php endif; ?>
+
+
+                    <!-- ITEMS -->
 
                     <div class="table-responsive">
 
-                        <table class="table table-bordered mb-0 align-middle">
+                        <table class="table table-hover mb-0 align-middle">
 
-                            <thead class="table-light">
+                            <thead>
 
                                 <tr>
 
@@ -994,6 +1114,10 @@ require_once __DIR__ . '/../includes/topbar.php';
                                         $stock
                                     );
 
+                                $itemInitials = strtoupper(
+                                    substr($item['material_name'], 0, 1)
+                                );
+
                                 ?>
 
 
@@ -1004,23 +1128,25 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <td>
 
-                                        <strong>
+                                        <div class="d-flex align-items-center gap-2">
 
-                                            <?= e(
-                                                $item['material_name']
-                                            ) ?>
+                                            <span class="row-avatar">
+                                                <?= e($itemInitials) ?>
+                                            </span>
 
-                                        </strong>
+                                            <div>
 
-                                        <br>
+                                                <div class="fw-semibold">
+                                                    <?= e($item['material_name']) ?>
+                                                </div>
 
-                                        <small class="text-muted">
+                                                <div class="text-muted small">
+                                                    <?= e($item['material_code']) ?>
+                                                </div>
 
-                                            <?= e(
-                                                $item['material_code']
-                                            ) ?>
+                                            </div>
 
-                                        </small>
+                                        </div>
 
                                     </td>
 
@@ -1093,7 +1219,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                         <?php else: ?>
 
                                             <span
-                                                class="badge bg-success">
+                                                class="badge badge-enable">
 
                                                 Completed
 
@@ -1111,7 +1237,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                         <?php if ($stock >= $remaining && $remaining > 0): ?>
 
                                             <span
-                                                class="badge bg-success">
+                                                class="badge badge-enable">
 
                                                 <?= number_format(
                                                     $stock,
@@ -1135,7 +1261,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                         <?php else: ?>
 
                                             <span
-                                                class="badge bg-danger">
+                                                class="badge badge-disabled">
 
                                                 0.00
 
@@ -1259,101 +1385,101 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                     </div>
 
-                </div>
+
+                    <!-- FOOTER -->
+
+                    <div class="content-card-body border-top">
+
+                        <div class="row">
+
+                            <div class="col-md-4">
+
+                                <small class="text-muted">
+                                    Total Approved
+                                </small>
+
+                                <br>
+
+                                <strong>
+
+                                    <?= number_format(
+                                        (float)$request['total_approved_qty'],
+                                        2
+                                    ) ?>
+
+                                </strong>
+
+                            </div>
 
 
-                <!-- FOOTER -->
+                            <div class="col-md-4">
 
-                <div class="card-footer bg-white">
+                                <small class="text-muted">
+                                    Total Issued
+                                </small>
 
-                    <div class="row">
+                                <br>
 
-                        <div class="col-md-4">
+                                <strong>
 
-                            <small class="text-muted">
-                                Total Approved
-                            </small>
+                                    <?= number_format(
+                                        (float)$request['total_issued_qty'],
+                                        2
+                                    ) ?>
 
-                            <br>
+                                </strong>
 
-                            <strong>
+                            </div>
 
-                                <?= number_format(
-                                    (float)$request['total_approved_qty'],
-                                    2
+
+                            <div class="col-md-4">
+
+                                <small class="text-muted">
+                                    Request Status
+                                </small>
+
+                                <br>
+
+                                <span
+                                    class="badge <?= $badgeClass ?>">
+
+                                    <?= e($status) ?>
+
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <?php if (!empty($request['chef_remarks'])): ?>
+
+                            <div class="mt-3">
+
+                                <strong>
+                                    Chef Remarks:
+                                </strong>
+
+                                <?= e(
+                                    $request['chef_remarks']
                                 ) ?>
 
-                            </strong>
+                            </div>
 
-                        </div>
-
-
-                        <div class="col-md-4">
-
-                            <small class="text-muted">
-                                Total Issued
-                            </small>
-
-                            <br>
-
-                            <strong>
-
-                                <?= number_format(
-                                    (float)$request['total_issued_qty'],
-                                    2
-                                ) ?>
-
-                            </strong>
-
-                        </div>
-
-
-                        <div class="col-md-4">
-
-                            <small class="text-muted">
-                                Request Status
-                            </small>
-
-                            <br>
-
-                            <span
-                                class="badge <?= $badgeClass ?>">
-
-                                <?= e($status) ?>
-
-                            </span>
-
-                        </div>
+                        <?php endif; ?>
 
                     </div>
 
-
-                    <?php if (!empty($request['chef_remarks'])): ?>
-
-                        <div class="mt-3">
-
-                            <strong>
-                                Chef Remarks:
-                            </strong>
-
-                            <?= e(
-                                $request['chef_remarks']
-                            ) ?>
-
-                        </div>
-
-                    <?php endif; ?>
-
                 </div>
 
-            </div>
-
-        <?php endforeach; ?>
+            <?php endforeach; ?>
 
 
-    <?php endif; ?>
+        <?php endif; ?>
 
-</div>
+    </div>
+
+</main>
 
 
 <?php

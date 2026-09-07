@@ -285,19 +285,19 @@ $statusClass = match ($po['status']) {
         'bg-secondary',
 
     'Pending' =>
-        'bg-warning text-dark',
+        'badge-disabled',
 
     'Approved' =>
-        'bg-success',
+        'badge-enable',
 
     'Ordered' =>
-        'bg-primary',
+        'badge-enable',
 
     'Received' =>
-        'bg-success',
+        'badge-enable',
 
     'Cancelled' =>
-        'bg-danger',
+        'badge-disabled',
 
     default =>
         'bg-secondary'
@@ -320,7 +320,7 @@ require_once __DIR__ . '/../includes/header.php';
 
         <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
-        <div class="container-fluid py-4">
+        <div class="page-body">
 
             <!-- PAGE HEADER -->
 
@@ -403,37 +403,33 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- PO HEADER -->
 
-            <div class="card shadow-sm border-0 mb-4">
+            <div class="content-card mb-4">
 
-                <div class="card-header bg-white">
+                <div class="content-card-header">
 
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div>
 
-                        <div>
+                        <strong>
+                            <?= e($po['po_no']) ?>
+                        </strong>
 
-                            <strong>
-                                <?= e($po['po_no']) ?>
-                            </strong>
-
-                            <div class="small text-muted">
-                                Purchase Order
-                            </div>
-
+                        <div class="small text-muted">
+                            Purchase Order
                         </div>
 
-
-                        <span class="badge <?= $statusClass ?> fs-6">
-
-                            <?= e($po['status']) ?>
-
-                        </span>
-
                     </div>
+
+
+                    <span class="badge <?= $statusClass ?> fs-6">
+
+                        <?= e($po['status']) ?>
+
+                    </span>
 
                 </div>
 
 
-                <div class="card-body">
+                <div class="content-card-body">
 
                     <div class="row g-4">
 
@@ -567,9 +563,9 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- ITEMS -->
 
-            <div class="card shadow-sm border-0 mb-4">
+            <div class="content-card mb-4">
 
-                <div class="card-header bg-white">
+                <div class="content-card-header">
 
                     <strong>
                         <i class="fa-solid fa-boxes-stacked me-2"></i>
@@ -579,145 +575,141 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
 
 
-                <div class="card-body p-0">
+                <div class="table-responsive">
 
-                    <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0">
 
-                        <table class="table table-bordered align-middle mb-0">
+                        <thead class="table-light">
 
-                            <thead class="table-light">
+                            <tr>
+
+                                <th>#</th>
+
+                                <th>Material Code</th>
+
+                                <th>Material</th>
+
+                                <th>Unit</th>
+
+                                <th class="text-end">
+                                    Quantity
+                                </th>
+
+                                <th class="text-end">
+                                    Unit Rate
+                                </th>
+
+                                <th class="text-end">
+                                    Total
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                        <?php if (!$items): ?>
+
+                            <tr>
+
+                                <td
+                                    colspan="7"
+                                    class="text-center text-muted py-4"
+                                >
+                                    No items found.
+                                </td>
+
+                            </tr>
+
+                        <?php else: ?>
+
+                            <?php foreach ($items as $index => $item): ?>
 
                                 <tr>
 
-                                    <th>#</th>
+                                    <td>
+                                        <?= $index + 1 ?>
+                                    </td>
 
-                                    <th>Material Code</th>
+                                    <td>
+                                        <?= e($item['material_code']) ?>
+                                    </td>
 
-                                    <th>Material</th>
+                                    <td>
 
-                                    <th>Unit</th>
+                                        <strong>
+                                            <?= e($item['material_name']) ?>
+                                        </strong>
 
-                                    <th class="text-end">
-                                        Quantity
-                                    </th>
+                                    </td>
 
-                                    <th class="text-end">
-                                        Unit Rate
-                                    </th>
+                                    <td>
+                                        <?= e($item['unit']) ?>
+                                    </td>
 
-                                    <th class="text-end">
-                                        Total
-                                    </th>
+                                    <td class="text-end">
 
-                                </tr>
+                                        <?= number_format(
+                                            (float)$item['ordered_qty'],
+                                            2
+                                        ) ?>
 
-                            </thead>
+                                    </td>
 
+                                    <td class="text-end">
 
-                            <tbody>
+                                        ₹<?= number_format(
+                                            (float)$item['unit_rate'],
+                                            2
+                                        ) ?>
 
-                            <?php if (!$items): ?>
+                                    </td>
 
-                                <tr>
+                                    <td class="text-end">
 
-                                    <td
-                                        colspan="7"
-                                        class="text-center text-muted py-4"
-                                    >
-                                        No items found.
+                                        ₹<?= number_format(
+                                            (float)$item['total_amount'],
+                                            2
+                                        ) ?>
+
                                     </td>
 
                                 </tr>
 
-                            <?php else: ?>
+                            <?php endforeach; ?>
 
-                                <?php foreach ($items as $index => $item): ?>
+                        <?php endif; ?>
 
-                                    <tr>
-
-                                        <td>
-                                            <?= $index + 1 ?>
-                                        </td>
-
-                                        <td>
-                                            <?= e($item['material_code']) ?>
-                                        </td>
-
-                                        <td>
-
-                                            <strong>
-                                                <?= e($item['material_name']) ?>
-                                            </strong>
-
-                                        </td>
-
-                                        <td>
-                                            <?= e($item['unit']) ?>
-                                        </td>
-
-                                        <td class="text-end">
-
-                                            <?= number_format(
-                                                (float)$item['ordered_qty'],
-                                                2
-                                            ) ?>
-
-                                        </td>
-
-                                        <td class="text-end">
-
-                                            ₹<?= number_format(
-                                                (float)$item['unit_rate'],
-                                                2
-                                            ) ?>
-
-                                        </td>
-
-                                        <td class="text-end">
-
-                                            ₹<?= number_format(
-                                                (float)$item['total_amount'],
-                                                2
-                                            ) ?>
-
-                                        </td>
-
-                                    </tr>
-
-                                <?php endforeach; ?>
-
-                            <?php endif; ?>
-
-                            </tbody>
+                        </tbody>
 
 
-                            <tfoot>
+                        <tfoot>
 
-                                <tr>
+                            <tr>
 
-                                    <th
-                                        colspan="6"
-                                        class="text-end"
-                                    >
-                                        Grand Total
-                                    </th>
+                                <th
+                                    colspan="6"
+                                    class="text-end"
+                                >
+                                    Grand Total
+                                </th>
 
-                                    <th class="text-end">
+                                <th class="text-end">
 
-                                        ₹<?= number_format(
-                                            $grandTotal,
-                                            2
-                                        ) ?>
+                                    ₹<?= number_format(
+                                        $grandTotal,
+                                        2
+                                    ) ?>
 
-                                    </th>
+                                </th>
 
-                                </tr>
+                            </tr>
 
-                            </tfoot>
+                        </tfoot>
 
-                        </table>
-
-                    </div>
+                    </table>
 
                 </div>
 
@@ -728,9 +720,9 @@ require_once __DIR__ . '/../includes/header.php';
 
             <?php if (!empty($po['remarks'])): ?>
 
-                <div class="card shadow-sm border-0 mb-4">
+                <div class="content-card mb-4">
 
-                    <div class="card-header bg-white">
+                    <div class="content-card-header">
 
                         <strong>
                             <i class="fa-solid fa-comment me-2"></i>
@@ -739,7 +731,7 @@ require_once __DIR__ . '/../includes/header.php';
 
                     </div>
 
-                    <div class="card-body">
+                    <div class="content-card-body">
 
                         <?= nl2br(e($po['remarks'])) ?>
 
@@ -752,9 +744,9 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- ACTIONS -->
 
-            <div class="card shadow-sm border-0">
+            <div class="content-card">
 
-                <div class="card-header bg-white">
+                <div class="content-card-header">
 
                     <strong>
                         <i class="fa-solid fa-gears me-2"></i>
@@ -764,7 +756,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
 
 
-                <div class="card-body">
+                <div class="content-card-body">
 
                     <div class="d-flex flex-wrap gap-2">
 

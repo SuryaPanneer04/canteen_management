@@ -169,19 +169,19 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
             <div class="col-xl-3 col-md-6">
 
-                <div class="dashboard-card">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                    <div class="dashboard-card-icon">
+                    <div class="stat-icon stat-icon-primary">
                         <i class="fa-solid fa-file-invoice"></i>
                     </div>
 
                     <div>
 
-                        <div class="dashboard-card-label">
+                        <div class="stat-label">
                             Total Requests
                         </div>
 
-                        <div class="dashboard-card-value">
+                        <div class="stat-value">
                             <?= $totalRequests ?>
                         </div>
 
@@ -196,19 +196,19 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
             <div class="col-xl-3 col-md-6">
 
-                <div class="dashboard-card">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                    <div class="dashboard-card-icon">
+                    <div class="stat-icon stat-icon-amber">
                         <i class="fa-solid fa-clock"></i>
                     </div>
 
                     <div>
 
-                        <div class="dashboard-card-label">
+                        <div class="stat-label">
                             Pending
                         </div>
 
-                        <div class="dashboard-card-value">
+                        <div class="stat-value">
                             <?= $pendingRequests ?>
                         </div>
 
@@ -223,19 +223,19 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
             <div class="col-xl-3 col-md-6">
 
-                <div class="dashboard-card">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                    <div class="dashboard-card-icon">
+                    <div class="stat-icon stat-icon-green">
                         <i class="fa-solid fa-circle-check"></i>
                     </div>
 
                     <div>
 
-                        <div class="dashboard-card-label">
+                        <div class="stat-label">
                             Approved
                         </div>
 
-                        <div class="dashboard-card-value">
+                        <div class="stat-value">
                             <?= $approvedRequests ?>
                         </div>
 
@@ -250,19 +250,19 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
             <div class="col-xl-3 col-md-6">
 
-                <div class="dashboard-card">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                    <div class="dashboard-card-icon">
+                    <div class="stat-icon stat-icon-purple">
                         <i class="fa-solid fa-circle-xmark"></i>
                     </div>
 
                     <div>
 
-                        <div class="dashboard-card-label">
+                        <div class="stat-label">
                             Rejected
                         </div>
 
-                        <div class="dashboard-card-value">
+                        <div class="stat-value">
                             <?= $rejectedRequests ?>
                         </div>
 
@@ -449,25 +449,29 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             switch ($status) {
 
                                 case 'Pending':
-                                    $badge = 'bg-warning text-dark';
+                                    $badge = 'badge-disabled';
                                     break;
 
                                 case 'Approved':
-                                    $badge = 'bg-success';
+                                    $badge = 'badge-enable';
                                     break;
 
                                 case 'Rejected':
-                                    $badge = 'bg-danger';
+                                    $badge = 'badge-disabled';
                                     break;
 
                                 case 'Completed':
-                                    $badge = 'bg-primary';
+                                    $badge = 'badge-enable';
                                     break;
 
                                 default:
                                     $badge = 'bg-secondary';
                                     break;
                             }
+
+                            $initial = strtoupper(
+                                substr(trim((string)$request['employee_name']), 0, 1)
+                            );
 
                             ?>
 
@@ -495,7 +499,19 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 </td>
 
                                 <td>
-                                    <?= e($request['employee_name']) ?>
+
+                                    <div class="d-flex align-items-center gap-2">
+
+                                        <span class="row-avatar">
+                                            <?= e($initial) ?>
+                                        </span>
+
+                                        <span>
+                                            <?= e($request['employee_name']) ?>
+                                        </span>
+
+                                    </div>
+
                                 </td>
 
                                 <td>

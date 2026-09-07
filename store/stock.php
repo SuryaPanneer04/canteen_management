@@ -210,6 +210,7 @@ $transactionMaterialId = (int)(
 );
 
 $transactions = [];
+$transactionMaterial = null;
 
 if ($transactionMaterialId > 0) {
 
@@ -244,6 +245,15 @@ if ($transactionMaterialId > 0) {
     ]);
 
     $transactions = $stmt->fetchAll();
+
+    if (!empty($transactions)) {
+
+        $transactionMaterial = [
+            'material_name' => $transactions[0]['material_name'],
+            'material_code' => $transactions[0]['material_code']
+        ];
+
+    }
 
 }
 
@@ -284,7 +294,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                 <a
                     href="stock_inward.php"
-                    class="btn btn-success me-1">
+                    class="btn btn-primary me-1">
 
                     <i class="fa-solid fa-arrow-right-to-bracket me-1"></i>
 
@@ -295,7 +305,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                 <a
                     href="stock_issue.php"
-                    class="btn btn-warning">
+                    class="btn btn-secondary">
 
                     <i class="fa-solid fa-arrow-right-from-bracket me-1"></i>
 
@@ -312,30 +322,17 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <div class="row g-3 mb-4">
 
             <!-- ACTIVE MATERIALS -->
-            <div class="col-xl-3 col-md-6">
+            <div class="col-6 col-lg-3">
 
-                <div class="stat-card">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="stat-icon stat-icon-primary">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
 
-                        <div>
-
-                            <div class="stat-label">
-                                Active Materials
-                            </div>
-
-                            <div class="stat-value">
-                                <?= $totalMaterials ?>
-                            </div>
-
-                        </div>
-
-                        <div class="fs-2 text-primary">
-
-                            <i class="fa-solid fa-boxes-stacked"></i>
-
-                        </div>
-
+                    <div>
+                        <div class="stat-label">Active Materials</div>
+                        <div class="stat-value"><?= $totalMaterials ?></div>
                     </div>
 
                 </div>
@@ -344,30 +341,17 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 
             <!-- TOTAL STOCK -->
-            <div class="col-xl-3 col-md-6">
+            <div class="col-6 col-lg-3">
 
-                <div class="stat-card">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="stat-icon stat-icon-green">
+                        <i class="fa-solid fa-warehouse"></i>
+                    </div>
 
-                        <div>
-
-                            <div class="stat-label">
-                                Total Stock Qty
-                            </div>
-
-                            <div class="stat-value">
-                                <?= number_format($totalStock, 2) ?>
-                            </div>
-
-                        </div>
-
-                        <div class="fs-2 text-success">
-
-                            <i class="fa-solid fa-warehouse"></i>
-
-                        </div>
-
+                    <div>
+                        <div class="stat-label">Total Stock Qty</div>
+                        <div class="stat-value"><?= number_format($totalStock, 2) ?></div>
                     </div>
 
                 </div>
@@ -376,30 +360,17 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 
             <!-- LOW STOCK -->
-            <div class="col-xl-3 col-md-6">
+            <div class="col-6 col-lg-3">
 
-                <div class="stat-card">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="stat-icon stat-icon-amber">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
 
-                        <div>
-
-                            <div class="stat-label">
-                                Low Stock
-                            </div>
-
-                            <div class="stat-value text-warning">
-                                <?= $lowStockCount ?>
-                            </div>
-
-                        </div>
-
-                        <div class="fs-2 text-warning">
-
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-
-                        </div>
-
+                    <div>
+                        <div class="stat-label">Low Stock</div>
+                        <div class="stat-value"><?= $lowStockCount ?></div>
                     </div>
 
                 </div>
@@ -408,30 +379,17 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 
             <!-- OUT OF STOCK -->
-            <div class="col-xl-3 col-md-6">
+            <div class="col-6 col-lg-3">
 
-                <div class="stat-card">
+                <div class="stat-card d-flex align-items-center gap-3">
 
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="stat-icon stat-icon-purple">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
 
-                        <div>
-
-                            <div class="stat-label">
-                                Out of Stock
-                            </div>
-
-                            <div class="stat-value text-danger">
-                                <?= $outOfStockCount ?>
-                            </div>
-
-                        </div>
-
-                        <div class="fs-2 text-danger">
-
-                            <i class="fa-solid fa-circle-xmark"></i>
-
-                        </div>
-
+                    <div>
+                        <div class="stat-label">Out of Stock</div>
+                        <div class="stat-value"><?= $outOfStockCount ?></div>
                     </div>
 
                 </div>
@@ -457,7 +415,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
 
 
-            <div class="p-4">
+            <div class="content-card-body">
 
                 <form method="GET">
 
@@ -606,8 +564,6 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <th>#</th>
 
-                            <th>Code</th>
-
                             <th>Material</th>
 
                             <th>Category</th>
@@ -634,7 +590,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <tr>
 
                             <td
-                                colspan="9"
+                                colspan="8"
                                 class="text-center text-muted py-5">
 
                                 <i class="fa-solid fa-box-open fs-2 d-block mb-2"></i>
@@ -660,12 +616,12 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             if ($material['status'] === 'Disabled') {
 
                                 $stockStatus = 'Disabled';
-                                $badgeClass = 'bg-secondary';
+                                $badgeClass = 'badge-disabled';
 
                             } elseif ($currentStock <= 0) {
 
                                 $stockStatus = 'Out of Stock';
-                                $badgeClass = 'bg-danger';
+                                $badgeClass = 'badge-disabled';
 
                             } elseif ($currentStock <= $minimumStock) {
 
@@ -675,9 +631,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             } else {
 
                                 $stockStatus = 'In Stock';
-                                $badgeClass = 'bg-success';
+                                $badgeClass = 'badge-enable';
 
                             }
+
+                            $initials = strtoupper(
+                                substr($material['material_name'], 0, 1)
+                            );
 
                             ?>
 
@@ -690,26 +650,25 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <td>
 
-                                    <span class="fw-semibold">
+                                    <div class="d-flex align-items-center gap-2">
 
-                                        <?= e(
-                                            $material['material_code']
-                                        ) ?>
+                                        <span class="row-avatar">
+                                            <?= e($initials) ?>
+                                        </span>
 
-                                    </span>
+                                        <div>
 
-                                </td>
+                                            <div class="fw-semibold">
+                                                <?= e($material['material_name']) ?>
+                                            </div>
 
+                                            <div class="text-muted small">
+                                                <?= e($material['material_code']) ?>
+                                            </div>
 
-                                <td>
+                                        </div>
 
-                                    <strong>
-
-                                        <?= e(
-                                            $material['material_name']
-                                        ) ?>
-
-                                    </strong>
+                                    </div>
 
                                 </td>
 
@@ -823,6 +782,18 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             Stock Transaction History
 
+                            <?php if ($transactionMaterial !== null): ?>
+
+                                <span class="text-muted fw-normal">
+
+                                    &mdash;
+                                    <?= e($transactionMaterial['material_name']) ?>
+                                    (<?= e($transactionMaterial['material_code']) ?>)
+
+                                </span>
+
+                            <?php endif; ?>
+
                         </strong>
 
 
@@ -896,7 +867,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 if ($transactionType === 'PURCHASE') {
 
                                     $label = 'Stock Inward';
-                                    $badge = 'bg-success';
+                                    $badge = 'badge-enable';
                                     $prefix = '+';
 
                                 } elseif (
@@ -904,7 +875,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 ) {
 
                                     $label = 'Kitchen Issue';
-                                    $badge = 'bg-warning text-dark';
+                                    $badge = 'badge-disabled';
                                     $prefix = '-';
 
                                 } elseif ($transactionType === 'RETURN') {
@@ -921,6 +892,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 }
 
+                                $rowInitials = strtoupper(
+                                    substr($transaction['material_name'], 0, 1)
+                                );
+
                                 ?>
 
                                 <tr>
@@ -932,23 +907,25 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     <td>
 
-                                        <strong>
+                                        <div class="d-flex align-items-center gap-2">
 
-                                            <?= e(
-                                                $transaction['material_name']
-                                            ) ?>
+                                            <span class="row-avatar">
+                                                <?= e($rowInitials) ?>
+                                            </span>
 
-                                        </strong>
+                                            <div>
 
-                                        <br>
+                                                <div class="fw-semibold">
+                                                    <?= e($transaction['material_name']) ?>
+                                                </div>
 
-                                        <small class="text-muted">
+                                                <div class="text-muted small">
+                                                    <?= e($transaction['material_code']) ?>
+                                                </div>
 
-                                            <?= e(
-                                                $transaction['material_code']
-                                            ) ?>
+                                            </div>
 
-                                        </small>
+                                        </div>
 
                                     </td>
 

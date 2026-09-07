@@ -275,7 +275,7 @@ require_once __DIR__ . '/../includes/topbar.php';
     <div class="d-flex justify-content-between align-items-center mb-4">
 
         <div>
-            <h4>Kitchen Material Request</h4>
+            <h4 class="mb-1">Kitchen Material Request</h4>
 
             <p class="text-muted mb-0">
                 Cook requests cooking materials from Chef.
@@ -287,8 +287,18 @@ require_once __DIR__ . '/../includes/topbar.php';
 
     <?php if ($success): ?>
 
-        <div class="alert alert-success">
+        <div class="alert alert-success alert-dismissible fade show">
+
+            <i class="fa-solid fa-circle-check me-2"></i>
+
             <?= e($success) ?>
+
+            <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="alert"
+            ></button>
+
         </div>
 
     <?php endif; ?>
@@ -296,8 +306,18 @@ require_once __DIR__ . '/../includes/topbar.php';
 
     <?php if ($error): ?>
 
-        <div class="alert alert-danger">
+        <div class="alert alert-danger alert-dismissible fade show">
+
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+
             <?= e($error) ?>
+
+            <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="alert"
+            ></button>
+
         </div>
 
     <?php endif; ?>
@@ -307,13 +327,23 @@ require_once __DIR__ . '/../includes/topbar.php';
          REQUEST FORM
     ====================================================== -->
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="content-card mb-4">
 
-        <div class="card-body">
+        <div class="content-card-header">
 
-            <h5 class="mb-4">
-                Create Material Request
-            </h5>
+            <div>
+                <h5 class="mb-1">
+                    Create Material Request
+                </h5>
+
+                <small class="text-muted">
+                    Select materials and quantities to send to the Chef.
+                </small>
+            </div>
+
+        </div>
+
+        <div class="content-card-body">
 
             <form method="post">
 
@@ -434,7 +464,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <button
                                         type="button"
-                                        class="btn btn-danger btn-sm"
+                                        class="btn btn-outline-danger btn-sm"
                                         onclick="removeRow(this)"
                                     >
                                         Remove
@@ -453,10 +483,11 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                 <button
                     type="button"
-                    class="btn btn-secondary mb-3"
+                    class="btn btn-outline-secondary mb-3"
                     onclick="addRow()"
                 >
-                    + Add Material
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Add Material
                 </button>
 
 
@@ -480,6 +511,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                     type="submit"
                     class="btn btn-primary"
                 >
+                    <i class="fa-solid fa-paper-plane me-1"></i>
                     Submit Request to Chef
                 </button>
 
@@ -494,101 +526,140 @@ require_once __DIR__ . '/../includes/topbar.php';
          REQUEST HISTORY
     ====================================================== -->
 
-    <div class="card border-0 shadow-sm">
+    <div class="content-card">
 
-        <div class="card-body">
+        <div class="content-card-header">
 
-            <h5 class="mb-3">
-                My Kitchen Requests
-            </h5>
+            <div>
+                <h5 class="mb-1">
+                    My Kitchen Requests
+                </h5>
 
-            <div class="table-responsive">
-
-                <table class="table table-hover">
-
-                    <thead>
-
-                        <tr>
-
-                            <th>Request No</th>
-
-                            <th>Date</th>
-
-                            <th>Status</th>
-
-                            <th>Remarks</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                    <?php foreach (
-                        $requests
-                        as $request
-                    ): ?>
-
-                        <tr>
-
-                            <td>
-                                <strong>
-                                    <?= e(
-                                        $request['request_no']
-                                    ) ?>
-                                </strong>
-                            </td>
-
-                            <td>
-                                <?= e(
-                                    $request['request_date']
-                                ) ?>
-                            </td>
-
-                            <td>
-
-                                <span class="badge text-bg-info">
-
-                                    <?= e(
-                                        $request['status']
-                                    ) ?>
-
-                                </span>
-
-                            </td>
-
-                            <td>
-                                <?= e(
-                                    $request['cook_remarks']
-                                    ?? ''
-                                ) ?>
-                            </td>
-
-                        </tr>
-
-                    <?php endforeach; ?>
-
-
-                    <?php if (!$requests): ?>
-
-                        <tr>
-
-                            <td
-                                colspan="4"
-                                class="text-center text-muted"
-                            >
-                                No requests found.
-                            </td>
-
-                        </tr>
-
-                    <?php endif; ?>
-
-                    </tbody>
-
-                </table>
-
+                <small class="text-muted">
+                    <?= count($requests) ?> request(s) submitted by you
+                </small>
             </div>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="table table-hover mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Request No</th>
+
+                        <th>Date</th>
+
+                        <th>Status</th>
+
+                        <th>Remarks</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                <?php foreach (
+                    $requests
+                    as $request
+                ): ?>
+
+                    <?php
+
+                    $status = $request['status'];
+
+                    $badgeClass = 'bg-secondary';
+
+                    if ($status === 'Submitted') {
+
+                        $badgeClass = 'bg-warning text-dark';
+
+                    } elseif ($status === 'Chef Approved') {
+
+                        $badgeClass = 'bg-primary';
+
+                    } elseif ($status === 'Sent to Store') {
+
+                        $badgeClass = 'bg-info text-dark';
+
+                    } elseif ($status === 'Partially Issued') {
+
+                        $badgeClass = 'bg-warning text-dark';
+
+                    } elseif ($status === 'Completed') {
+
+                        $badgeClass = 'badge-enable';
+
+                    } elseif ($status === 'Rejected') {
+
+                        $badgeClass = 'badge-disabled';
+                    }
+
+                    ?>
+
+                    <tr>
+
+                        <td>
+                            <strong>
+                                <?= e(
+                                    $request['request_no']
+                                ) ?>
+                            </strong>
+                        </td>
+
+                        <td>
+                            <?= e(
+                                $request['request_date']
+                            ) ?>
+                        </td>
+
+                        <td>
+
+                            <span class="badge <?= $badgeClass ?>">
+
+                                <?= e(
+                                    $status
+                                ) ?>
+
+                            </span>
+
+                        </td>
+
+                        <td>
+                            <?= e(
+                                $request['cook_remarks']
+                                ?? ''
+                            ) ?>
+                        </td>
+
+                    </tr>
+
+                <?php endforeach; ?>
+
+
+                <?php if (!$requests): ?>
+
+                    <tr>
+
+                        <td
+                            colspan="4"
+                            class="text-center text-muted py-4"
+                        >
+                            No requests found.
+                        </td>
+
+                    </tr>
+
+                <?php endif; ?>
+
+                </tbody>
+
+            </table>
 
         </div>
 

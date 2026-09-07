@@ -161,6 +161,8 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 <div class="main-content">
 
+<div class="page-body">
+
     <!-- PAGE HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
 
@@ -188,9 +190,9 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 
     <!-- FILTER CARD -->
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="content-card mb-4">
 
-        <div class="card-body">
+        <div class="content-card-body">
 
             <form method="GET">
 
@@ -299,30 +301,20 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-md-4">
 
-            <div class="card border-0 shadow-sm">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-primary">
+                    <i class="fa-solid fa-right-left"></i>
+                </div>
 
-                    <div class="d-flex justify-content-between">
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Total Transactions
+                    </div>
 
-                            <div class="text-muted small">
-                                Total Transactions
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= count($issues) ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-primary">
-
-                            <i class="fa-solid fa-right-left"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= count($issues) ?>
                     </div>
 
                 </div>
@@ -334,30 +326,20 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-md-4">
 
-            <div class="card border-0 shadow-sm">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-amber">
+                    <i class="fa-solid fa-box-open"></i>
+                </div>
 
-                    <div class="d-flex justify-content-between">
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Total Quantity Issued
+                    </div>
 
-                            <div class="text-muted small">
-                                Total Quantity Issued
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= number_format($totalQuantity, 2) ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-warning">
-
-                            <i class="fa-solid fa-box-open"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= number_format($totalQuantity, 2) ?>
                     </div>
 
                 </div>
@@ -369,30 +351,20 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-md-4">
 
-            <div class="card border-0 shadow-sm">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-green">
+                    <i class="fa-solid fa-list"></i>
+                </div>
 
-                    <div class="d-flex justify-content-between">
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Current Records
+                    </div>
 
-                            <div class="text-muted small">
-                                Current Records
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= count($issues) ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-success">
-
-                            <i class="fa-solid fa-list"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= count($issues) ?>
                     </div>
 
                 </div>
@@ -406,222 +378,238 @@ require_once __DIR__ . '/../includes/topbar.php';
 
     <!-- ISSUE TABLE -->
 
-    <div class="card border-0 shadow-sm">
+    <div class="content-card">
 
-        <div class="card-header bg-white py-3">
+        <div class="content-card-header">
 
-            <div class="d-flex justify-content-between align-items-center">
+            <div>
 
-                <div>
+                <h5 class="mb-1">
+                    Issued Materials
+                </h5>
 
-                    <h5 class="mb-0">
-                        Issued Materials
-                    </h5>
-
-                    <small class="text-muted">
-                        Kitchen stock issue transactions
-                    </small>
-
-                </div>
+                <small class="text-muted">
+                    Kitchen stock issue transactions
+                </small>
 
             </div>
 
         </div>
 
 
-        <div class="card-body p-0">
+        <div class="table-responsive">
 
-            <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
 
-                <table class="table table-hover align-middle mb-0">
+                <thead>
 
-                    <thead class="table-light">
+                    <tr>
+
+                        <th>#</th>
+
+                        <th>Date</th>
+
+                        <th>Material</th>
+
+                        <th>Category</th>
+
+                        <th>Quantity</th>
+
+                        <th>Reference</th>
+
+                        <th>Remarks</th>
+
+                        <th>Issued By</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                <?php if (!$issues): ?>
+
+                    <tr>
+
+                        <td
+                            colspan="8"
+                            class="text-center text-muted py-5"
+                        >
+
+                            <i class="fa-solid fa-box-open fs-2 mb-2"></i>
+
+                            <div>
+                                No kitchen issue records found.
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                <?php else: ?>
+
+                    <?php foreach ($issues as $index => $issue): ?>
+
+                        <?php
+
+                        $issuerInitial = strtoupper(
+                            substr(
+                                trim((string)($issue['employee_name'] ?? '-')),
+                                0,
+                                1
+                            )
+                        );
+
+                        ?>
 
                         <tr>
 
-                            <th>#</th>
+                            <!-- NUMBER -->
 
-                            <th>Date</th>
-
-                            <th>Material</th>
-
-                            <th>Category</th>
-
-                            <th>Quantity</th>
-
-                            <th>Reference</th>
-
-                            <th>Remarks</th>
-
-                            <th>Issued By</th>
-
-                        </tr>
-
-                    </thead>
+                            <td>
+                                <?= $index + 1 ?>
+                            </td>
 
 
-                    <tbody>
+                            <!-- DATE -->
 
-                    <?php if (!$issues): ?>
+                            <td>
 
-                        <tr>
+                                <?= e(
+                                    date(
+                                        'd-m-Y',
+                                        strtotime($issue['created_at'])
+                                    )
+                                ) ?>
 
-                            <td
-                                colspan="8"
-                                class="text-center text-muted py-5"
-                            >
+                                <br>
 
-                                <i class="fa-solid fa-box-open fs-2 mb-2"></i>
+                                <small class="text-muted">
 
-                                <div>
-                                    No kitchen issue records found.
+                                    <?= e(
+                                        date(
+                                            'H:i',
+                                            strtotime($issue['created_at'])
+                                        )
+                                    ) ?>
+
+                                </small>
+
+                            </td>
+
+
+                            <!-- MATERIAL -->
+
+                            <td>
+
+                                <strong>
+                                    <?= e(
+                                        $issue['material_name']
+                                    ) ?>
+                                </strong>
+
+                                <br>
+
+                                <small class="text-muted">
+
+                                    <?= e(
+                                        $issue['material_code']
+                                    ) ?>
+
+                                </small>
+
+                            </td>
+
+
+                            <!-- CATEGORY -->
+
+                            <td>
+
+                                <?= e(
+                                    $issue['category'] ?? '-'
+                                ) ?>
+
+                            </td>
+
+
+                            <!-- QUANTITY -->
+
+                            <td>
+
+                                <span class="badge bg-light text-dark">
+
+                                    <?= number_format(
+                                        (float)$issue['quantity'],
+                                        2
+                                    ) ?>
+
+                                    <?= e(
+                                        $issue['unit']
+                                    ) ?>
+
+                                </span>
+
+                            </td>
+
+
+                            <!-- REFERENCE -->
+
+                            <td>
+
+                                <?= e(
+                                    $issue['reference_no'] ?: '-'
+                                ) ?>
+
+                            </td>
+
+
+                            <!-- REMARKS -->
+
+                            <td>
+
+                                <?= e(
+                                    $issue['remarks'] ?: '-'
+                                ) ?>
+
+                            </td>
+
+
+                            <!-- USER -->
+
+                            <td>
+
+                                <div class="d-flex align-items-center gap-2">
+
+                                    <span class="row-avatar">
+                                        <?= e($issuerInitial) ?>
+                                    </span>
+
+                                    <span>
+                                        <?= e(
+                                            $issue['employee_name'] ?? '-'
+                                        ) ?>
+                                    </span>
+
                                 </div>
 
                             </td>
 
                         </tr>
 
-                    <?php else: ?>
+                    <?php endforeach; ?>
 
-                        <?php foreach ($issues as $index => $issue): ?>
+                <?php endif; ?>
 
-                            <tr>
+                </tbody>
 
-                                <!-- NUMBER -->
-
-                                <td>
-                                    <?= $index + 1 ?>
-                                </td>
-
-
-                                <!-- DATE -->
-
-                                <td>
-
-                                    <?= e(
-                                        date(
-                                            'd-m-Y',
-                                            strtotime($issue['created_at'])
-                                        )
-                                    ) ?>
-
-                                    <br>
-
-                                    <small class="text-muted">
-
-                                        <?= e(
-                                            date(
-                                                'H:i',
-                                                strtotime($issue['created_at'])
-                                            )
-                                        ) ?>
-
-                                    </small>
-
-                                </td>
-
-
-                                <!-- MATERIAL -->
-
-                                <td>
-
-                                    <strong>
-                                        <?= e(
-                                            $issue['material_name']
-                                        ) ?>
-                                    </strong>
-
-                                    <br>
-
-                                    <small class="text-muted">
-
-                                        <?= e(
-                                            $issue['material_code']
-                                        ) ?>
-
-                                    </small>
-
-                                </td>
-
-
-                                <!-- CATEGORY -->
-
-                                <td>
-
-                                    <?= e(
-                                        $issue['category'] ?? '-'
-                                    ) ?>
-
-                                </td>
-
-
-                                <!-- QUANTITY -->
-
-                                <td>
-
-                                    <span class="badge bg-warning text-dark">
-
-                                        <?= number_format(
-                                            (float)$issue['quantity'],
-                                            2
-                                        ) ?>
-
-                                        <?= e(
-                                            $issue['unit']
-                                        ) ?>
-
-                                    </span>
-
-                                </td>
-
-
-                                <!-- REFERENCE -->
-
-                                <td>
-
-                                    <?= e(
-                                        $issue['reference_no'] ?: '-'
-                                    ) ?>
-
-                                </td>
-
-
-                                <!-- REMARKS -->
-
-                                <td>
-
-                                    <?= e(
-                                        $issue['remarks'] ?: '-'
-                                    ) ?>
-
-                                </td>
-
-
-                                <!-- USER -->
-
-                                <td>
-
-                                    <?= e(
-                                        $issue['employee_name'] ?? '-'
-                                    ) ?>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-                    <?php endif; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
+            </table>
 
         </div>
 
     </div>
+
+</div>
 
 </div>
 

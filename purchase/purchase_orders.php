@@ -415,7 +415,7 @@ require_once __DIR__ . '/../includes/header.php';
 
         <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
-        <div class="container-fluid py-4">
+        <div class="page-body">
 
             <!-- HEADER -->
 
@@ -487,162 +487,156 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- PO LIST -->
 
-            <div class="card shadow-sm border-0">
+            <div class="content-card">
 
-                <div class="card-header bg-white">
+                <div class="content-card-header">
 
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <strong>
+                    <div>
+                        <h5 class="mb-1">
                             Purchase Order List
-                        </strong>
+                        </h5>
 
-                        <span class="badge bg-secondary">
-                            <?= count($purchaseOrders) ?> PO(s)
-                        </span>
-
+                        <small class="text-muted">
+                            <?= count($purchaseOrders) ?> PO(s) found
+                        </small>
                     </div>
 
                 </div>
 
 
-                <div class="card-body p-0">
+                <div class="table-responsive">
 
-                    <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
 
-                        <table class="table table-hover align-middle mb-0">
+                        <thead>
 
-                            <thead class="table-light">
+                            <tr>
+
+                                <th>#</th>
+
+                                <th>PO Number</th>
+
+                                <th>Request No.</th>
+
+                                <th>Supplier</th>
+
+                                <th>PO Date</th>
+
+                                <th>Expected Date</th>
+
+                                <th>Status</th>
+
+                                <th>Created By</th>
+
+                                <th>Action</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                        <?php if (!$purchaseOrders): ?>
+
+                            <tr>
+
+                                <td
+                                    colspan="9"
+                                    class="text-center text-muted py-5"
+                                >
+
+                                    <i class="fa-solid fa-file-invoice fa-2x mb-3"></i>
+
+                                    <div>
+                                        No purchase orders found.
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+                        <?php else: ?>
+
+                            <?php foreach ($purchaseOrders as $index => $po): ?>
 
                                 <tr>
 
-                                    <th>#</th>
+                                    <td>
+                                        <?= $index + 1 ?>
+                                    </td>
 
-                                    <th>PO Number</th>
+                                    <td>
 
-                                    <th>Request No.</th>
+                                        <strong>
+                                            <?= e($po['po_no']) ?>
+                                        </strong>
 
-                                    <th>Supplier</th>
+                                    </td>
 
-                                    <th>PO Date</th>
+                                    <td>
+                                        <?= e($po['request_no']) ?>
+                                    </td>
 
-                                    <th>Expected Date</th>
+                                    <td>
+                                        <?= e($po['supplier_name']) ?>
+                                    </td>
 
-                                    <th>Status</th>
+                                    <td>
+                                        <?= e($po['po_date']) ?>
+                                    </td>
 
-                                    <th>Created By</th>
+                                    <td>
+                                        <?= e($po['expected_date']) ?>
+                                    </td>
 
-                                    <th>Action</th>
+                                    <td>
 
-                                </tr>
+                                        <?php
 
-                            </thead>
+                                        $badgeClass = match ($po['status']) {
+                                            'Draft' => 'bg-secondary',
+                                            'Pending' => 'badge-disabled',
+                                            'Approved' => 'badge-enable',
+                                            'Ordered' => 'badge-enable',
+                                            'Received' => 'badge-enable',
+                                            'Cancelled' => 'badge-disabled',
+                                            default => 'bg-secondary'
+                                        };
 
+                                        ?>
 
-                            <tbody>
+                                        <span class="badge <?= $badgeClass ?>">
+                                            <?= e($po['status']) ?>
+                                        </span>
 
-                            <?php if (!$purchaseOrders): ?>
+                                    </td>
 
-                                <tr>
+                                    <td>
+                                        <?= e($po['created_by_name']) ?>
+                                    </td>
 
-                                    <td
-                                        colspan="9"
-                                        class="text-center text-muted py-5"
-                                    >
+                                    <td>
 
-                                        <i class="fa-solid fa-file-invoice fa-2x mb-3"></i>
-
-                                        <div>
-                                            No purchase orders found.
-                                        </div>
+                                        <a
+                                            href="purchase_order_view.php?id=<?= (int)$po['id'] ?>"
+                                            class="btn btn-sm btn-outline-primary"
+                                            title="View Purchase Order"
+                                        >
+                                            <i class="fa-solid fa-eye"></i>
+                                        </a>
 
                                     </td>
 
                                 </tr>
 
-                            <?php else: ?>
+                            <?php endforeach; ?>
 
-                                <?php foreach ($purchaseOrders as $index => $po): ?>
+                        <?php endif; ?>
 
-                                    <tr>
+                        </tbody>
 
-                                        <td>
-                                            <?= $index + 1 ?>
-                                        </td>
-
-                                        <td>
-
-                                            <strong>
-                                                <?= e($po['po_no']) ?>
-                                            </strong>
-
-                                        </td>
-
-                                        <td>
-                                            <?= e($po['request_no']) ?>
-                                        </td>
-
-                                        <td>
-                                            <?= e($po['supplier_name']) ?>
-                                        </td>
-
-                                        <td>
-                                            <?= e($po['po_date']) ?>
-                                        </td>
-
-                                        <td>
-                                            <?= e($po['expected_date']) ?>
-                                        </td>
-
-                                        <td>
-
-                                            <?php
-
-                                            $badgeClass = match ($po['status']) {
-                                                'Draft' => 'bg-secondary',
-                                                'Pending' => 'bg-warning text-dark',
-                                                'Approved' => 'bg-success',
-                                                'Ordered' => 'bg-primary',
-                                                'Received' => 'bg-success',
-                                                'Cancelled' => 'bg-danger',
-                                                default => 'bg-secondary'
-                                            };
-
-                                            ?>
-
-                                            <span class="badge <?= $badgeClass ?>">
-                                                <?= e($po['status']) ?>
-                                            </span>
-
-                                        </td>
-
-                                        <td>
-                                            <?= e($po['created_by_name']) ?>
-                                        </td>
-
-                                        <td>
-
-                                            <a
-                                                href="purchase_order_view.php?id=<?= (int)$po['id'] ?>"
-                                                class="btn btn-sm btn-outline-primary"
-                                                title="View Purchase Order"
-                                            >
-                                                <i class="fa-solid fa-eye"></i>
-                                            </a>
-
-                                        </td>
-
-                                    </tr>
-
-                                <?php endforeach; ?>
-
-                            <?php endif; ?>
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
+                    </table>
 
                 </div>
 
@@ -658,7 +652,7 @@ require_once __DIR__ . '/../includes/header.php';
 <!-- CREATE PO MODAL -->
 
 <div
-    class="modal fade"
+    class="modal fade edit-user-modal"
     id="createPOModal"
     tabindex="-1"
 >
@@ -671,13 +665,18 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <div class="modal-header">
 
-                    <h5 class="modal-title">
+                    <div>
 
-                        <i class="fa-solid fa-file-invoice me-2"></i>
+                        <div class="modal-title-text">
+                            <i class="fa-solid fa-file-invoice me-2"></i>
+                            Create Purchase Order
+                        </div>
 
-                        Create Purchase Order
+                        <div class="modal-subtitle-text">
+                            Convert an approved request into an order with a supplier.
+                        </div>
 
-                    </h5>
+                    </div>
 
                     <button
                         type="button"
@@ -688,7 +687,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
 
 
-                <div class="modal-body">
+                <div class="modal-body pt-4">
 
                     <input
                         type="hidden"

@@ -251,6 +251,41 @@ $requests = $con->query("
 
 /*
 |--------------------------------------------------------------------------
+| SUMMARY COUNTS (for the stat cards)
+|--------------------------------------------------------------------------
+*/
+
+$pendingCount = 0;
+$approvedCount = 0;
+$rejectedCount = 0;
+$completedCount = 0;
+
+foreach ($requests as $request) {
+
+    switch ($request['status']) {
+
+        case 'Pending':
+            $pendingCount++;
+            break;
+
+        case 'Approved':
+            $approvedCount++;
+            break;
+
+        case 'Rejected':
+            $rejectedCount++;
+            break;
+
+        case 'Completed':
+            $completedCount++;
+            break;
+    }
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | PAGE
 |--------------------------------------------------------------------------
 */
@@ -264,6 +299,20 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
     <div class="page-body">
+
+        <!-- PAGE HEADER -->
+        <div class="mb-4">
+
+            <h4 class="mb-1">
+                Purchase Requests
+            </h4>
+
+            <div class="text-muted">
+                Request materials from the store and track approvals.
+            </div>
+
+        </div>
+
 
         <!-- SUCCESS MESSAGE -->
         <?php if ($success): ?>
@@ -302,6 +351,80 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <?php endif; ?>
 
 
+        <!-- STAT CARDS -->
+        <div class="row g-3 mb-4">
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-amber">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Pending</div>
+                        <div class="stat-value"><?= $pendingCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-green">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Approved</div>
+                        <div class="stat-value"><?= $approvedCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-purple">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Rejected</div>
+                        <div class="stat-value"><?= $rejectedCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-primary">
+                        <i class="fa-solid fa-flag-checkered"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Completed</div>
+                        <div class="stat-value"><?= $completedCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
         <!-- ==========================================================
              CREATE PURCHASE REQUEST
         =========================================================== -->
@@ -311,14 +434,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
             <div class="content-card-header">
 
                 <div>
-                    <h5 class="mb-1">
+                    <strong>
                         <i class="fa-solid fa-cart-plus me-2"></i>
                         Create Purchase Request
-                    </h5>
+                    </strong>
 
-                    <small class="text-muted">
+                    <div class="text-muted small">
                         Select the materials and required quantities.
-                    </small>
+                    </div>
                 </div>
 
             </div>
@@ -478,14 +601,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
             <div class="content-card-header">
 
                 <div>
-                    <h5 class="mb-1">
+                    <strong>
                         <i class="fa-solid fa-clock-rotate-left me-2"></i>
                         Purchase Request History
-                    </h5>
+                    </strong>
 
-                    <small class="text-muted">
+                    <div class="text-muted small">
                         View previously submitted purchase requests.
-                    </small>
+                    </div>
                 </div>
 
             </div>
@@ -600,9 +723,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         if ($status === 'Pending') {
                                             $badge = 'bg-warning text-dark';
                                         } elseif ($status === 'Approved') {
-                                            $badge = 'bg-success';
+                                            $badge = 'badge-enable';
                                         } elseif ($status === 'Rejected') {
-                                            $badge = 'bg-danger';
+                                            $badge = 'badge-disabled';
                                         } elseif ($status === 'Completed') {
                                             $badge = 'bg-primary';
                                         } else {

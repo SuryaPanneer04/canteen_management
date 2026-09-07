@@ -478,19 +478,19 @@ $requests = $stmt->fetchAll();
                             switch ($status) {
 
                                 case 'Pending':
-                                    $badge = 'bg-warning text-dark';
+                                    $badge = 'badge-disabled';
                                     break;
 
                                 case 'Approved':
-                                    $badge = 'bg-success';
+                                    $badge = 'badge-enable';
                                     break;
 
                                 case 'Rejected':
-                                    $badge = 'bg-danger';
+                                    $badge = 'badge-disabled';
                                     break;
 
                                 case 'Completed':
-                                    $badge = 'bg-primary';
+                                    $badge = 'badge-enable';
                                     break;
 
                                 default:
@@ -498,6 +498,10 @@ $requests = $stmt->fetchAll();
                                     break;
 
                             }
+
+                            $initial = strtoupper(
+                                substr(trim((string)$request['employee_name']), 0, 1)
+                            );
 
                             ?>
 
@@ -540,11 +544,17 @@ $requests = $stmt->fetchAll();
 
                                 <td>
 
-                                    <i
-                                        class="fa-solid fa-user me-1 text-muted"
-                                    ></i>
+                                    <div class="d-flex align-items-center gap-2">
 
-                                    <?= e($request['employee_name']) ?>
+                                        <span class="row-avatar">
+                                            <?= e($initial) ?>
+                                        </span>
+
+                                        <span>
+                                            <?= e($request['employee_name']) ?>
+                                        </span>
+
+                                    </div>
 
                                 </td>
 

@@ -241,6 +241,8 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 <div class="main-content">
 
+    <div class="page-body">
+
 
     <!-- =====================================================
          PAGE HEADER
@@ -304,32 +306,20 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-xl-3 col-md-6">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-primary">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
 
-                    <div
-                        class="d-flex justify-content-between align-items-center"
-                    >
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Active Materials
+                    </div>
 
-                            <div class="text-muted small">
-                                Active Materials
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= $totalMaterials ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-primary">
-
-                            <i class="fa-solid fa-boxes-stacked"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= $totalMaterials ?>
                     </div>
 
                 </div>
@@ -344,32 +334,20 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-xl-3 col-md-6">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-amber">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
 
-                    <div
-                        class="d-flex justify-content-between align-items-center"
-                    >
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Waiting for Chef
+                    </div>
 
-                            <div class="text-muted small">
-                                Waiting for Chef
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= $pendingChefApproval ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-warning">
-
-                            <i class="fa-solid fa-user-check"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= $pendingChefApproval ?>
                     </div>
 
                 </div>
@@ -384,32 +362,20 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-xl-3 col-md-6">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-purple">
+                    <i class="fa-solid fa-box-open"></i>
+                </div>
 
-                    <div
-                        class="d-flex justify-content-between align-items-center"
-                    >
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Waiting for Store
+                    </div>
 
-                            <div class="text-muted small">
-                                Waiting for Store
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= $pendingStoreIssue ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-danger">
-
-                            <i class="fa-solid fa-box-open"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= $pendingStoreIssue ?>
                     </div>
 
                 </div>
@@ -424,35 +390,23 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-xl-3 col-md-6">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-green">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </div>
 
-                    <div
-                        class="d-flex justify-content-between align-items-center"
-                    >
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Materials Issued Today
+                    </div>
 
-                            <div class="text-muted small">
-                                Materials Issued Today
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= number_format(
-                                    $todayIssued,
-                                    2
-                                ) ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-success">
-
-                            <i class="fa-solid fa-arrow-right"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= number_format(
+                            $todayIssued,
+                            2
+                        ) ?>
                     </div>
 
                 </div>
@@ -476,30 +430,20 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-xl-3 col-md-6">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-green">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
 
-                    <div class="d-flex justify-content-between">
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Requests Completed Today
+                    </div>
 
-                            <div class="text-muted small">
-                                Requests Completed Today
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= $completedRequests ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-success">
-
-                            <i class="fa-solid fa-circle-check"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= $completedRequests ?>
                     </div>
 
                 </div>
@@ -514,30 +458,20 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-xl-3 col-md-6">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-purple">
+                    <i class="fa-solid fa-fire-burner"></i>
+                </div>
 
-                    <div class="d-flex justify-content-between">
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Food Preparations Today
+                    </div>
 
-                            <div class="text-muted small">
-                                Food Preparations Today
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= $todayFoodPreparations ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-danger">
-
-                            <i class="fa-solid fa-fire-burner"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= $todayFoodPreparations ?>
                     </div>
 
                 </div>
@@ -552,33 +486,23 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-xl-3 col-md-6">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-primary">
+                    <i class="fa-solid fa-bowl-food"></i>
+                </div>
 
-                    <div class="d-flex justify-content-between">
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Food Prepared Today
+                    </div>
 
-                            <div class="text-muted small">
-                                Food Prepared Today
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= number_format(
-                                    $todayPreparedQty,
-                                    2
-                                ) ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-primary">
-
-                            <i class="fa-solid fa-bowl-food"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= number_format(
+                            $todayPreparedQty,
+                            2
+                        ) ?>
                     </div>
 
                 </div>
@@ -593,33 +517,23 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-xl-3 col-md-6">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <div class="card-body">
+                <div class="stat-icon stat-icon-amber">
+                    <i class="fa-solid fa-truck"></i>
+                </div>
 
-                    <div class="d-flex justify-content-between">
+                <div>
 
-                        <div>
+                    <div class="stat-label">
+                        Food Sent to Canteen
+                    </div>
 
-                            <div class="text-muted small">
-                                Food Sent to Canteen
-                            </div>
-
-                            <h3 class="mb-0 mt-2">
-                                <?= number_format(
-                                    $todayFoodSent,
-                                    2
-                                ) ?>
-                            </h3>
-
-                        </div>
-
-                        <div class="fs-2 text-info">
-
-                            <i class="fa-solid fa-truck"></i>
-
-                        </div>
-
+                    <div class="stat-value">
+                        <?= number_format(
+                            $todayFoodSent,
+                            2
+                        ) ?>
                     </div>
 
                 </div>
@@ -636,9 +550,9 @@ require_once __DIR__ . '/../includes/topbar.php';
          WORKFLOW QUICK LINKS
     ====================================================== -->
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="content-card mb-4">
 
-        <div class="card-body">
+        <div class="content-card-body">
 
             <h5 class="mb-3">
                 Kitchen Workflow
@@ -659,15 +573,16 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                         <div
                             class="border rounded p-3 h-100"
+                            style="border-color: var(--border) !important;"
                         >
 
-                            <div class="fs-2 text-primary mb-2">
+                            <div class="fs-2 mb-2" style="color: var(--primary);">
 
                                 <i class="fa-solid fa-user-chef"></i>
 
                             </div>
 
-                            <h6>
+                            <h6 style="color: var(--text);">
                                 1. Cook Request
                             </h6>
 
@@ -697,15 +612,16 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                         <div
                             class="border rounded p-3 h-100"
+                            style="border-color: var(--border) !important;"
                         >
 
-                            <div class="fs-2 text-warning mb-2">
+                            <div class="fs-2 mb-2" style="color: var(--accent);">
 
                                 <i class="fa-solid fa-user-check"></i>
 
                             </div>
 
-                            <h6>
+                            <h6 style="color: var(--text);">
                                 2. Chef Approval
                             </h6>
 
@@ -736,15 +652,16 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                         <div
                             class="border rounded p-3 h-100"
+                            style="border-color: var(--border) !important;"
                         >
 
-                            <div class="fs-2 text-success mb-2">
+                            <div class="fs-2 mb-2" style="color: var(--primary);">
 
                                 <i class="fa-solid fa-box-open"></i>
 
                             </div>
 
-                            <h6>
+                            <h6 style="color: var(--text);">
                                 3. Store Issue
                             </h6>
 
@@ -774,15 +691,16 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                         <div
                             class="border rounded p-3 h-100"
+                            style="border-color: var(--border) !important;"
                         >
 
-                            <div class="fs-2 text-danger mb-2">
+                            <div class="fs-2 mb-2" style="color: #6d28d9;">
 
                                 <i class="fa-solid fa-fire-burner"></i>
 
                             </div>
 
-                            <h6>
+                            <h6 style="color: var(--text);">
                                 4. Food Preparation
                             </h6>
 
@@ -819,222 +737,236 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-lg-8">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="content-card h-100">
 
-                <div class="card-header bg-white py-3">
+                <div class="content-card-header">
 
-                    <div
-                        class="d-flex justify-content-between align-items-center"
-                    >
+                    <div>
 
-                        <div>
+                        <h5 class="mb-1">
+                            Recent Kitchen Requests
+                        </h5>
 
-                            <h5 class="mb-0">
-                                Recent Kitchen Requests
-                            </h5>
-
-                            <small class="text-muted">
-                                Cook and Chef request history
-                            </small>
-
-                        </div>
-
-
-                        <a
-                            href="material_request.php"
-                            class="btn btn-sm btn-outline-primary"
-                        >
-                            View Requests
-                        </a>
+                        <small class="text-muted">
+                            Cook and Chef request history
+                        </small>
 
                     </div>
+
+
+                    <a
+                        href="material_request.php"
+                        class="btn btn-sm btn-outline-primary"
+                    >
+                        View Requests
+                    </a>
 
                 </div>
 
 
-                <div class="card-body p-0">
+                <div class="table-responsive">
 
-                    <div class="table-responsive">
+                    <table class="table table-hover mb-0">
 
-                        <table class="table table-hover mb-0">
+                        <thead>
 
-                            <thead class="table-light">
+                            <tr>
 
-                                <tr>
+                                <th>
+                                    Request No
+                                </th>
 
-                                    <th>
-                                        Request No
-                                    </th>
+                                <th>
+                                    Cook
+                                </th>
 
-                                    <th>
-                                        Cook
-                                    </th>
+                                <th>
+                                    Date
+                                </th>
 
-                                    <th>
-                                        Date
-                                    </th>
+                                <th>
+                                    Status
+                                </th>
 
-                                    <th>
-                                        Status
-                                    </th>
+                            </tr>
 
-                                </tr>
-
-                            </thead>
+                        </thead>
 
 
-                            <tbody>
+                        <tbody>
 
 
-                            <?php if (
-                                empty($recentRequests)
+                        <?php if (
+                            empty($recentRequests)
+                        ): ?>
+
+                            <tr>
+
+                                <td
+                                    colspan="4"
+                                    class="text-center text-muted py-4"
+                                >
+
+                                    No kitchen requests found.
+
+                                </td>
+
+                            </tr>
+
+                        <?php else: ?>
+
+
+                            <?php foreach (
+                                $recentRequests
+                                as $request
                             ): ?>
 
+                                <?php
+
+                                $requesterInitial = strtoupper(
+                                    substr(
+                                        trim((string)($request['employee_name'] ?? '-')),
+                                        0,
+                                        1
+                                    )
+                                );
+
+                                ?>
+
                                 <tr>
 
-                                    <td
-                                        colspan="4"
-                                        class="text-center text-muted py-4"
-                                    >
+                                    <td>
 
-                                        No kitchen requests found.
+                                        <strong>
+
+                                            <?= e(
+                                                $request['request_no']
+                                            ) ?>
+
+                                        </strong>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <div class="d-flex align-items-center gap-2">
+
+                                            <span class="row-avatar">
+                                                <?= e($requesterInitial) ?>
+                                            </span>
+
+                                            <span>
+
+                                                <?= e(
+                                                    $request['employee_name']
+                                                    ?? '-'
+                                                ) ?>
+
+                                            </span>
+
+                                        </div>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <?= e(
+                                            $request['request_date']
+                                        ) ?>
+
+                                    </td>
+
+
+                                    <td>
+
+
+                                    <?php
+
+                                    $status =
+                                        $request['status'];
+
+                                    $badgeClass =
+                                        'bg-secondary';
+
+
+                                    if (
+                                        $status ===
+                                        'Submitted'
+                                    ) {
+
+                                        $badgeClass =
+                                            'bg-warning text-dark';
+
+                                    } elseif (
+                                        $status ===
+                                        'Chef Approved'
+                                    ) {
+
+                                        $badgeClass =
+                                            'bg-primary';
+
+                                    } elseif (
+                                        $status ===
+                                        'Sent to Store'
+                                    ) {
+
+                                        $badgeClass =
+                                            'bg-info text-dark';
+
+                                    } elseif (
+                                        $status ===
+                                        'Partially Issued'
+                                    ) {
+
+                                        $badgeClass =
+                                            'bg-warning text-dark';
+
+                                    } elseif (
+                                        $status ===
+                                        'Completed'
+                                    ) {
+
+                                        $badgeClass =
+                                            'badge-enable';
+
+                                    } elseif (
+                                        $status ===
+                                        'Rejected'
+                                    ) {
+
+                                        $badgeClass =
+                                            'badge-disabled';
+
+                                    }
+
+                                    ?>
+
+
+                                        <span
+                                            class="badge <?= $badgeClass ?>"
+                                        >
+
+                                            <?= e(
+                                                $status
+                                            ) ?>
+
+                                        </span>
 
                                     </td>
 
                                 </tr>
 
-                            <?php else: ?>
+                            <?php endforeach; ?>
 
 
-                                <?php foreach (
-                                    $recentRequests
-                                    as $request
-                                ): ?>
-
-                                    <tr>
-
-                                        <td>
-
-                                            <strong>
-
-                                                <?= e(
-                                                    $request['request_no']
-                                                ) ?>
-
-                                            </strong>
-
-                                        </td>
+                        <?php endif; ?>
 
 
-                                        <td>
+                        </tbody>
 
-                                            <?= e(
-                                                $request['employee_name']
-                                                ?? '-'
-                                            ) ?>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <?= e(
-                                                $request['request_date']
-                                            ) ?>
-
-                                        </td>
-
-
-                                        <td>
-
-
-                                        <?php
-
-                                        $status =
-                                            $request['status'];
-
-                                        $badgeClass =
-                                            'bg-secondary';
-
-
-                                        if (
-                                            $status ===
-                                            'Submitted'
-                                        ) {
-
-                                            $badgeClass =
-                                                'bg-warning text-dark';
-
-                                        } elseif (
-                                            $status ===
-                                            'Chef Approved'
-                                        ) {
-
-                                            $badgeClass =
-                                                'bg-primary';
-
-                                        } elseif (
-                                            $status ===
-                                            'Sent to Store'
-                                        ) {
-
-                                            $badgeClass =
-                                                'bg-info text-dark';
-
-                                        } elseif (
-                                            $status ===
-                                            'Partially Issued'
-                                        ) {
-
-                                            $badgeClass =
-                                                'bg-warning text-dark';
-
-                                        } elseif (
-                                            $status ===
-                                            'Completed'
-                                        ) {
-
-                                            $badgeClass =
-                                                'bg-success';
-
-                                        } elseif (
-                                            $status ===
-                                            'Rejected'
-                                        ) {
-
-                                            $badgeClass =
-                                                'bg-danger';
-
-                                        }
-
-                                        ?>
-
-
-                                            <span
-                                                class="badge <?= $badgeClass ?>"
-                                            >
-
-                                                <?= e(
-                                                    $status
-                                                ) ?>
-
-                                            </span>
-
-                                        </td>
-
-                                    </tr>
-
-                                <?php endforeach; ?>
-
-
-                            <?php endif; ?>
-
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
+                    </table>
 
                 </div>
 
@@ -1048,135 +980,136 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <div class="col-lg-4">
 
-            <div class="card border-0 shadow-sm h-100">
+            <div class="content-card h-100">
 
-                <div class="card-header bg-white py-3">
+                <div class="content-card-header">
 
-                    <h5 class="mb-0">
-                        Low Stock
-                    </h5>
+                    <div>
 
-                    <small class="text-muted">
-                        Materials below minimum level
-                    </small>
+                        <h5 class="mb-1">
+                            Low Stock
+                        </h5>
+
+                        <small class="text-muted">
+                            Materials below minimum level
+                        </small>
+
+                    </div>
 
                 </div>
 
 
-                <div class="card-body p-0">
-
-                    <div class="list-group list-group-flush">
+                <div class="list-group list-group-flush">
 
 
-                    <?php if (
-                        empty($lowStockMaterials)
+                <?php if (
+                    empty($lowStockMaterials)
+                ): ?>
+
+
+                    <div
+                        class="text-center text-muted py-4"
+                    >
+
+                        <i
+                            class="fa-solid fa-circle-check fs-3 mb-2"
+                            style="color: var(--primary);"
+                        ></i>
+
+                        <br>
+
+                        No low stock materials.
+
+                    </div>
+
+
+                <?php else: ?>
+
+
+                    <?php foreach (
+                        $lowStockMaterials
+                        as $material
                     ): ?>
 
-
                         <div
-                            class="text-center text-muted py-4"
+                            class="list-group-item"
                         >
 
-                            <i
-                                class="fa-solid fa-circle-check fs-3 text-success mb-2"
-                            ></i>
-
-                            <br>
-
-                            No low stock materials.
-
-                        </div>
-
-
-                    <?php else: ?>
-
-
-                        <?php foreach (
-                            $lowStockMaterials
-                            as $material
-                        ): ?>
-
                             <div
-                                class="list-group-item"
+                                class="d-flex justify-content-between"
                             >
 
-                                <div
-                                    class="d-flex justify-content-between"
-                                >
+                                <div>
 
-                                    <div>
+                                    <strong>
 
-                                        <strong>
+                                        <?= e(
+                                            $material['material_name']
+                                        ) ?>
 
-                                            <?= e(
-                                                $material['material_name']
-                                            ) ?>
+                                    </strong>
 
-                                        </strong>
+                                    <br>
 
-                                        <br>
-
-                                        <small
-                                            class="text-muted"
-                                        >
-
-                                            <?= e(
-                                                $material['material_code']
-                                            ) ?>
-
-                                        </small>
-
-                                    </div>
-
-
-                                    <div
-                                        class="text-end"
+                                    <small
+                                        class="text-muted"
                                     >
 
-                                        <span
-                                            class="badge bg-danger"
-                                        >
+                                        <?= e(
+                                            $material['material_code']
+                                        ) ?>
 
-                                            <?= number_format(
-                                                (float)
-                                                $material['current_stock'],
-                                                2
-                                            ) ?>
+                                    </small>
 
-                                            <?= e(
-                                                $material['unit']
-                                            ) ?>
+                                </div>
 
-                                        </span>
 
-                                        <br>
+                                <div
+                                    class="text-end"
+                                >
 
-                                        <small
-                                            class="text-muted"
-                                        >
+                                    <span
+                                        class="badge badge-disabled"
+                                    >
 
-                                            Min:
-                                            <?= number_format(
-                                                (float)
-                                                $material['minimum_stock'],
-                                                2
-                                            ) ?>
+                                        <?= number_format(
+                                            (float)
+                                            $material['current_stock'],
+                                            2
+                                        ) ?>
 
-                                        </small>
+                                        <?= e(
+                                            $material['unit']
+                                        ) ?>
 
-                                    </div>
+                                    </span>
+
+                                    <br>
+
+                                    <small
+                                        class="text-muted"
+                                    >
+
+                                        Min:
+                                        <?= number_format(
+                                            (float)
+                                            $material['minimum_stock'],
+                                            2
+                                        ) ?>
+
+                                    </small>
 
                                 </div>
 
                             </div>
 
-                        <?php endforeach; ?>
+                        </div>
+
+                    <?php endforeach; ?>
 
 
-                    <?php endif; ?>
+                <?php endif; ?>
 
-
-                    </div>
 
                 </div>
 
@@ -1192,227 +1125,219 @@ require_once __DIR__ . '/../includes/topbar.php';
          RECENT FOOD PREPARATION
     ====================================================== -->
 
-    <div class="card border-0 shadow-sm mt-4">
+    <div class="content-card mt-4">
 
-        <div class="card-header bg-white py-3">
+        <div class="content-card-header">
 
-            <div
-                class="d-flex justify-content-between align-items-center"
-            >
+            <div>
 
-                <div>
+                <h5 class="mb-1">
+                    Recent Food Preparation
+                </h5>
 
-                    <h5 class="mb-0">
-                        Recent Food Preparation
-                    </h5>
-
-                    <small class="text-muted">
-                        Food prepared by Kitchen
-                    </small>
-
-                </div>
-
-
-                <a
-                    href="food_preparation.php"
-                    class="btn btn-sm btn-outline-success"
-                >
-
-                    Food Preparation
-
-                </a>
+                <small class="text-muted">
+                    Food prepared by Kitchen
+                </small>
 
             </div>
+
+
+            <a
+                href="food_preparation.php"
+                class="btn btn-sm btn-outline-primary"
+            >
+
+                Food Preparation
+
+            </a>
 
         </div>
 
 
-        <div class="card-body p-0">
+        <div class="table-responsive">
 
-            <div class="table-responsive">
+            <table class="table table-hover mb-0">
 
-                <table class="table table-hover mb-0">
+                <thead>
 
-                    <thead class="table-light">
+                    <tr>
 
-                        <tr>
+                        <th>
+                            Preparation No
+                        </th>
 
-                            <th>
-                                Preparation No
-                            </th>
+                        <th>
+                            Food
+                        </th>
 
-                            <th>
-                                Food
-                            </th>
+                        <th>
+                            Quantity
+                        </th>
 
-                            <th>
-                                Quantity
-                            </th>
+                        <th>
+                            Date
+                        </th>
 
-                            <th>
-                                Date
-                            </th>
+                        <th>
+                            Status
+                        </th>
 
-                            <th>
-                                Status
-                            </th>
+                    </tr>
 
-                        </tr>
-
-                    </thead>
+                </thead>
 
 
-                    <tbody>
+                <tbody>
 
 
-                    <?php if (
-                        empty($recentFood)
+                <?php if (
+                    empty($recentFood)
+                ): ?>
+
+                    <tr>
+
+                        <td
+                            colspan="5"
+                            class="text-center text-muted py-4"
+                        >
+
+                            No food preparation records found.
+
+                        </td>
+
+                    </tr>
+
+                <?php else: ?>
+
+
+                    <?php foreach (
+                        $recentFood
+                        as $food
                     ): ?>
 
                         <tr>
 
-                            <td
-                                colspan="5"
-                                class="text-center text-muted py-4"
-                            >
+                            <td>
 
-                                No food preparation records found.
+                                <strong>
+
+                                    <?= e(
+                                        $food['preparation_no']
+                                    ) ?>
+
+                                </strong>
+
+                            </td>
+
+
+                            <td>
+
+                                <?= e(
+                                    $food['food_name']
+                                ) ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <span
+                                    class="badge badge-enable"
+                                >
+
+                                    <?= number_format(
+                                        (float)
+                                        $food['prepared_qty'],
+                                        2
+                                    ) ?>
+
+                                    <?= e(
+                                        $food['unit']
+                                    ) ?>
+
+                                </span>
+
+                            </td>
+
+
+                            <td>
+
+                                <?= e(
+                                    $food['preparation_date']
+                                ) ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?php
+
+                                $foodStatus =
+                                    $food['status'];
+
+                                $foodBadge =
+                                    'bg-secondary';
+
+
+                                if (
+                                    $foodStatus ===
+                                    'Prepared'
+                                ) {
+
+                                    $foodBadge =
+                                        'bg-warning text-dark';
+
+                                } elseif (
+                                    $foodStatus ===
+                                    'Sent to Canteen'
+                                ) {
+
+                                    $foodBadge =
+                                        'bg-info text-dark';
+
+                                } elseif (
+                                    $foodStatus ===
+                                    'Completed'
+                                ) {
+
+                                    $foodBadge =
+                                        'badge-enable';
+                                }
+
+                                ?>
+
+
+                                <span
+                                    class="badge <?= $foodBadge ?>"
+                                >
+
+                                    <?= e(
+                                        $foodStatus
+                                    ) ?>
+
+                                </span>
 
                             </td>
 
                         </tr>
 
-                    <?php else: ?>
+                    <?php endforeach; ?>
 
 
-                        <?php foreach (
-                            $recentFood
-                            as $food
-                        ): ?>
-
-                            <tr>
-
-                                <td>
-
-                                    <strong>
-
-                                        <?= e(
-                                            $food['preparation_no']
-                                        ) ?>
-
-                                    </strong>
-
-                                </td>
+                <?php endif; ?>
 
 
-                                <td>
+                </tbody>
 
-                                    <?= e(
-                                        $food['food_name']
-                                    ) ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <span
-                                        class="badge bg-success"
-                                    >
-
-                                        <?= number_format(
-                                            (float)
-                                            $food['prepared_qty'],
-                                            2
-                                        ) ?>
-
-                                        <?= e(
-                                            $food['unit']
-                                        ) ?>
-
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?= e(
-                                        $food['preparation_date']
-                                    ) ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?php
-
-                                    $foodStatus =
-                                        $food['status'];
-
-                                    $foodBadge =
-                                        'bg-secondary';
-
-
-                                    if (
-                                        $foodStatus ===
-                                        'Prepared'
-                                    ) {
-
-                                        $foodBadge =
-                                            'bg-warning text-dark';
-
-                                    } elseif (
-                                        $foodStatus ===
-                                        'Sent to Canteen'
-                                    ) {
-
-                                        $foodBadge =
-                                            'bg-info text-dark';
-
-                                    } elseif (
-                                        $foodStatus ===
-                                        'Completed'
-                                    ) {
-
-                                        $foodBadge =
-                                            'bg-success';
-                                    }
-
-                                    ?>
-
-
-                                    <span
-                                        class="badge <?= $foodBadge ?>"
-                                    >
-
-                                        <?= e(
-                                            $foodStatus
-                                        ) ?>
-
-                                    </span>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-
-                    <?php endif; ?>
-
-
-                    </tbody>
-
-                </table>
-
-            </div>
+            </table>
 
         </div>
 
     </div>
 
+
+    </div>
 
 </div>
 
@@ -1421,4 +1346,4 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 require_once __DIR__ . '/../includes/footer.php';
 
-?>      
+?>

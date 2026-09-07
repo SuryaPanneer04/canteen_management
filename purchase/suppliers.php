@@ -339,7 +339,7 @@ require_once __DIR__ . '/../includes/header.php';
 
         <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
-        <div class="container-fluid py-4">
+        <div class="page-body">
 
             <!-- PAGE HEADER -->
 
@@ -405,9 +405,9 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- SEARCH -->
 
-            <div class="card shadow-sm border-0 mb-4">
+            <div class="content-card mb-4">
 
-                <div class="card-body">
+                <div class="content-card-body">
 
                     <form method="get">
 
@@ -466,7 +466,7 @@ require_once __DIR__ . '/../includes/header.php';
 
                                 <button
                                     type="submit"
-                                    class="btn btn-dark w-100"
+                                    class="btn btn-primary w-100"
                                 >
                                     <i class="fa-solid fa-magnifying-glass me-1"></i>
                                     Search
@@ -485,430 +485,470 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- SUPPLIER TABLE -->
 
-            <div class="card shadow-sm border-0">
+            <div class="content-card">
 
-                <div class="card-header bg-white">
+                <div class="content-card-header">
 
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <strong>
+                    <div>
+                        <h5 class="mb-1">
                             Supplier List
-                        </strong>
+                        </h5>
 
-                        <span class="badge bg-secondary">
-                            <?= count($suppliers) ?> Supplier(s)
-                        </span>
-
+                        <small class="text-muted">
+                            <?= count($suppliers) ?> supplier(s) found
+                        </small>
                     </div>
 
                 </div>
 
 
-                <div class="card-body p-0">
+                <div class="table-responsive">
 
-                    <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
 
-                        <table class="table table-hover align-middle mb-0">
+                        <thead>
 
-                            <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Code</th>
+                                <th>Supplier</th>
+                                <th>Contact Person</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>GST Number</th>
+                                <th>Status</th>
+                                <th width="180">Action</th>
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                        <?php if (!$suppliers): ?>
+
+                            <tr>
+
+                                <td
+                                    colspan="9"
+                                    class="text-center text-muted py-5"
+                                >
+
+                                    <i class="fa-solid fa-truck-field fa-2x mb-3"></i>
+
+                                    <div>
+                                        No suppliers found.
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+                        <?php else: ?>
+
+                            <?php foreach ($suppliers as $index => $supplier): ?>
+
+                                <?php
+
+                                $supplierInitial = strtoupper(
+                                    substr(trim((string)$supplier['supplier_name']), 0, 1)
+                                );
+
+                                $supplierBadge =
+                                    $supplier['status'] === 'Enable'
+                                        ? 'badge-enable'
+                                        : 'badge-disabled';
+
+                                ?>
 
                                 <tr>
-                                    <th>#</th>
-                                    <th>Code</th>
-                                    <th>Supplier</th>
-                                    <th>Contact Person</th>
-                                    <th>Phone</th>
-                                    <th>Email</th>
-                                    <th>GST Number</th>
-                                    <th>Status</th>
-                                    <th width="180">Action</th>
-                                </tr>
 
-                            </thead>
+                                    <td>
+                                        <?= $index + 1 ?>
+                                    </td>
 
 
-                            <tbody>
+                                    <td>
+                                        <strong>
+                                            <?= e($supplier['supplier_code']) ?>
+                                        </strong>
+                                    </td>
 
-                            <?php if (!$suppliers): ?>
 
-                                <tr>
+                                    <td>
 
-                                    <td
-                                        colspan="9"
-                                        class="text-center text-muted py-5"
-                                    >
+                                        <div class="d-flex align-items-center gap-2">
 
-                                        <i class="fa-solid fa-truck-field fa-2x mb-3"></i>
+                                            <span class="row-avatar">
+                                                <?= e($supplierInitial) ?>
+                                            </span>
 
-                                        <div>
-                                            No suppliers found.
+                                            <div>
+
+                                                <strong>
+                                                    <?= e($supplier['supplier_name']) ?>
+                                                </strong>
+
+                                                <?php if (!empty($supplier['address'])): ?>
+
+                                                    <div class="small text-muted">
+                                                        <?= e($supplier['address']) ?>
+                                                    </div>
+
+                                                <?php endif; ?>
+
+                                            </div>
+
+                                        </div>
+
+                                    </td>
+
+
+                                    <td>
+                                        <?= e($supplier['contact_person']) ?>
+                                    </td>
+
+
+                                    <td>
+                                        <?= e($supplier['phone']) ?>
+                                    </td>
+
+
+                                    <td>
+                                        <?= e($supplier['email']) ?>
+                                    </td>
+
+
+                                    <td>
+                                        <?= e($supplier['gst_number']) ?>
+                                    </td>
+
+
+                                    <td>
+
+                                        <span class="badge <?= $supplierBadge ?>">
+                                            <?= e($supplier['status']) ?>
+                                        </span>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <div class="d-flex gap-1">
+
+                                            <!-- EDIT -->
+
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-primary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editSupplierModal<?= (int)$supplier['id'] ?>"
+                                                title="Edit"
+                                            >
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+
+
+                                            <?php if ($supplier['status'] === 'Enable'): ?>
+
+                                                <!-- DISABLE -->
+
+                                                <form
+                                                    method="post"
+                                                    onsubmit="return confirm('Are you sure you want to disable this supplier?');"
+                                                >
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="action"
+                                                        value="disable_supplier"
+                                                    >
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="supplier_id"
+                                                        value="<?= (int)$supplier['id'] ?>"
+                                                    >
+
+                                                    <button
+                                                        type="submit"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        title="Disable"
+                                                    >
+                                                        <i class="fa-solid fa-ban"></i>
+                                                    </button>
+
+                                                </form>
+
+                                            <?php else: ?>
+
+                                                <!-- ENABLE -->
+
+                                                <form method="post">
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="action"
+                                                        value="enable_supplier"
+                                                    >
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="supplier_id"
+                                                        value="<?= (int)$supplier['id'] ?>"
+                                                    >
+
+                                                    <button
+                                                        type="submit"
+                                                        class="btn btn-sm btn-outline-success"
+                                                        title="Enable"
+                                                    >
+                                                        <i class="fa-solid fa-check"></i>
+                                                    </button>
+
+                                                </form>
+
+                                            <?php endif; ?>
+
                                         </div>
 
                                     </td>
 
                                 </tr>
 
-                            <?php else: ?>
 
-                                <?php foreach ($suppliers as $index => $supplier): ?>
+                                <!-- EDIT MODAL -->
 
-                                    <tr>
+                                <div
+                                    class="modal fade edit-user-modal"
+                                    id="editSupplierModal<?= (int)$supplier['id'] ?>"
+                                    tabindex="-1"
+                                >
 
-                                        <td>
-                                            <?= $index + 1 ?>
-                                        </td>
+                                    <div class="modal-dialog modal-lg">
 
+                                        <div class="modal-content">
 
-                                        <td>
-                                            <strong>
-                                                <?= e($supplier['supplier_code']) ?>
-                                            </strong>
-                                        </td>
+                                            <form method="post">
 
+                                                <div class="modal-header">
 
-                                        <td>
-                                            <strong>
-                                                <?= e($supplier['supplier_name']) ?>
-                                            </strong>
+                                                    <div>
 
-                                            <?php if (!empty($supplier['address'])): ?>
-
-                                                <div class="small text-muted">
-                                                    <?= e($supplier['address']) ?>
-                                                </div>
-
-                                            <?php endif; ?>
-
-                                        </td>
-
-
-                                        <td>
-                                            <?= e($supplier['contact_person']) ?>
-                                        </td>
-
-
-                                        <td>
-                                            <?= e($supplier['phone']) ?>
-                                        </td>
-
-
-                                        <td>
-                                            <?= e($supplier['email']) ?>
-                                        </td>
-
-
-                                        <td>
-                                            <?= e($supplier['gst_number']) ?>
-                                        </td>
-
-
-                                        <td>
-
-                                            <?php if ($supplier['status'] === 'Enable'): ?>
-
-                                                <span class="badge bg-success">
-                                                    Enable
-                                                </span>
-
-                                            <?php else: ?>
-
-                                                <span class="badge bg-secondary">
-                                                    Disabled
-                                                </span>
-
-                                            <?php endif; ?>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <div class="d-flex gap-1">
-
-                                                <!-- EDIT -->
-
-                                                <button
-                                                    type="button"
-                                                    class="btn btn-sm btn-outline-primary"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#editSupplierModal<?= (int)$supplier['id'] ?>"
-                                                    title="Edit"
-                                                >
-                                                    <i class="fa-solid fa-pen"></i>
-                                                </button>
-
-
-                                                <?php if ($supplier['status'] === 'Enable'): ?>
-
-                                                    <!-- DISABLE -->
-
-                                                    <form
-                                                        method="post"
-                                                        onsubmit="return confirm('Are you sure you want to disable this supplier?');"
-                                                    >
-
-                                                        <input
-                                                            type="hidden"
-                                                            name="action"
-                                                            value="disable_supplier"
-                                                        >
-
-                                                        <input
-                                                            type="hidden"
-                                                            name="supplier_id"
-                                                            value="<?= (int)$supplier['id'] ?>"
-                                                        >
-
-                                                        <button
-                                                            type="submit"
-                                                            class="btn btn-sm btn-outline-danger"
-                                                            title="Disable"
-                                                        >
-                                                            <i class="fa-solid fa-ban"></i>
-                                                        </button>
-
-                                                    </form>
-
-                                                <?php else: ?>
-
-                                                    <!-- ENABLE -->
-
-                                                    <form method="post">
-
-                                                        <input
-                                                            type="hidden"
-                                                            name="action"
-                                                            value="enable_supplier"
-                                                        >
-
-                                                        <input
-                                                            type="hidden"
-                                                            name="supplier_id"
-                                                            value="<?= (int)$supplier['id'] ?>"
-                                                        >
-
-                                                        <button
-                                                            type="submit"
-                                                            class="btn btn-sm btn-outline-success"
-                                                            title="Enable"
-                                                        >
-                                                            <i class="fa-solid fa-check"></i>
-                                                        </button>
-
-                                                    </form>
-
-                                                <?php endif; ?>
-
-                                            </div>
-
-                                        </td>
-
-                                    </tr>
-
-
-                                    <!-- EDIT MODAL -->
-
-                                    <div
-                                        class="modal fade"
-                                        id="editSupplierModal<?= (int)$supplier['id'] ?>"
-                                        tabindex="-1"
-                                    >
-
-                                        <div class="modal-dialog modal-lg">
-
-                                            <div class="modal-content">
-
-                                                <form method="post">
-
-                                                    <div class="modal-header">
-
-                                                        <h5 class="modal-title">
+                                                        <div class="modal-title-text">
                                                             <i class="fa-solid fa-pen me-2"></i>
                                                             Edit Supplier
-                                                        </h5>
+                                                        </div>
 
-                                                        <button
-                                                            type="button"
-                                                            class="btn-close"
-                                                            data-bs-dismiss="modal"
-                                                        ></button>
+                                                        <div class="modal-subtitle-text">
+                                                            Update this supplier's contact and tax details.
+                                                        </div>
 
                                                     </div>
 
+                                                    <button
+                                                        type="button"
+                                                        class="btn-close"
+                                                        data-bs-dismiss="modal"
+                                                    ></button>
 
-                                                    <div class="modal-body">
-
-                                                        <input
-                                                            type="hidden"
-                                                            name="action"
-                                                            value="edit_supplier"
-                                                        >
-
-                                                        <input
-                                                            type="hidden"
-                                                            name="supplier_id"
-                                                            value="<?= (int)$supplier['id'] ?>"
-                                                        >
+                                                </div>
 
 
-                                                        <div class="row g-3">
+                                                <div class="edit-user-identity">
 
-                                                            <div class="col-md-4">
+                                                    <span class="row-avatar">
+                                                        <?= e($supplierInitial) ?>
+                                                    </span>
 
-                                                                <label class="form-label">
-                                                                    Supplier Code
-                                                                    <span class="text-danger">*</span>
-                                                                </label>
+                                                    <div>
 
-                                                                <input
-                                                                    type="text"
-                                                                    name="supplier_code"
-                                                                    class="form-control"
-                                                                    value="<?= e($supplier['supplier_code']) ?>"
-                                                                    required
-                                                                >
+                                                        <div class="edit-user-identity-name">
+                                                            <?= e($supplier['supplier_name']) ?>
+                                                        </div>
 
-                                                            </div>
+                                                        <div class="edit-user-identity-meta">
+                                                            <i class="fa-solid fa-hashtag"></i>
+                                                            <?= e($supplier['supplier_code']) ?>
+                                                        </div>
 
+                                                    </div>
 
-                                                            <div class="col-md-8">
-
-                                                                <label class="form-label">
-                                                                    Supplier Name
-                                                                    <span class="text-danger">*</span>
-                                                                </label>
-
-                                                                <input
-                                                                    type="text"
-                                                                    name="supplier_name"
-                                                                    class="form-control"
-                                                                    value="<?= e($supplier['supplier_name']) ?>"
-                                                                    required
-                                                                >
-
-                                                            </div>
+                                                </div>
 
 
-                                                            <div class="col-md-6">
+                                                <div class="modal-body">
 
-                                                                <label class="form-label">
-                                                                    Contact Person
-                                                                </label>
+                                                    <input
+                                                        type="hidden"
+                                                        name="action"
+                                                        value="edit_supplier"
+                                                    >
 
-                                                                <input
-                                                                    type="text"
-                                                                    name="contact_person"
-                                                                    class="form-control"
-                                                                    value="<?= e($supplier['contact_person']) ?>"
-                                                                >
-
-                                                            </div>
-
-
-                                                            <div class="col-md-6">
-
-                                                                <label class="form-label">
-                                                                    Phone
-                                                                </label>
-
-                                                                <input
-                                                                    type="text"
-                                                                    name="phone"
-                                                                    class="form-control"
-                                                                    value="<?= e($supplier['phone']) ?>"
-                                                                >
-
-                                                            </div>
+                                                    <input
+                                                        type="hidden"
+                                                        name="supplier_id"
+                                                        value="<?= (int)$supplier['id'] ?>"
+                                                    >
 
 
-                                                            <div class="col-md-6">
+                                                    <div class="row g-3">
 
-                                                                <label class="form-label">
-                                                                    Email
-                                                                </label>
+                                                        <div class="col-md-4">
 
-                                                                <input
-                                                                    type="email"
-                                                                    name="email"
-                                                                    class="form-control"
-                                                                    value="<?= e($supplier['email']) ?>"
-                                                                >
+                                                            <label class="form-label">
+                                                                Supplier Code
+                                                                <span class="text-danger">*</span>
+                                                            </label>
 
-                                                            </div>
+                                                            <input
+                                                                type="text"
+                                                                name="supplier_code"
+                                                                class="form-control"
+                                                                value="<?= e($supplier['supplier_code']) ?>"
+                                                                required
+                                                            >
 
-
-                                                            <div class="col-md-6">
-
-                                                                <label class="form-label">
-                                                                    GST Number
-                                                                </label>
-
-                                                                <input
-                                                                    type="text"
-                                                                    name="gst_number"
-                                                                    class="form-control"
-                                                                    value="<?= e($supplier['gst_number']) ?>"
-                                                                >
-
-                                                            </div>
+                                                        </div>
 
 
-                                                            <div class="col-12">
+                                                        <div class="col-md-8">
 
-                                                                <label class="form-label">
-                                                                    Address
-                                                                </label>
+                                                            <label class="form-label">
+                                                                Supplier Name
+                                                                <span class="text-danger">*</span>
+                                                            </label>
 
-                                                                <textarea
-                                                                    name="address"
-                                                                    class="form-control"
-                                                                    rows="3"
-                                                                ><?= e($supplier['address']) ?></textarea>
+                                                            <input
+                                                                type="text"
+                                                                name="supplier_name"
+                                                                class="form-control"
+                                                                value="<?= e($supplier['supplier_name']) ?>"
+                                                                required
+                                                            >
 
-                                                            </div>
+                                                        </div>
+
+
+                                                        <div class="col-md-6">
+
+                                                            <label class="form-label">
+                                                                Contact Person
+                                                            </label>
+
+                                                            <input
+                                                                type="text"
+                                                                name="contact_person"
+                                                                class="form-control"
+                                                                value="<?= e($supplier['contact_person']) ?>"
+                                                            >
+
+                                                        </div>
+
+
+                                                        <div class="col-md-6">
+
+                                                            <label class="form-label">
+                                                                Phone
+                                                            </label>
+
+                                                            <input
+                                                                type="text"
+                                                                name="phone"
+                                                                class="form-control"
+                                                                value="<?= e($supplier['phone']) ?>"
+                                                            >
+
+                                                        </div>
+
+
+                                                        <div class="col-md-6">
+
+                                                            <label class="form-label">
+                                                                Email
+                                                            </label>
+
+                                                            <input
+                                                                type="email"
+                                                                name="email"
+                                                                class="form-control"
+                                                                value="<?= e($supplier['email']) ?>"
+                                                            >
+
+                                                        </div>
+
+
+                                                        <div class="col-md-6">
+
+                                                            <label class="form-label">
+                                                                GST Number
+                                                            </label>
+
+                                                            <input
+                                                                type="text"
+                                                                name="gst_number"
+                                                                class="form-control"
+                                                                value="<?= e($supplier['gst_number']) ?>"
+                                                            >
+
+                                                        </div>
+
+
+                                                        <div class="col-12">
+
+                                                            <label class="form-label">
+                                                                Address
+                                                            </label>
+
+                                                            <textarea
+                                                                name="address"
+                                                                class="form-control"
+                                                                rows="3"
+                                                            ><?= e($supplier['address']) ?></textarea>
 
                                                         </div>
 
                                                     </div>
 
+                                                </div>
 
-                                                    <div class="modal-footer">
 
-                                                        <button
-                                                            type="button"
-                                                            class="btn btn-secondary"
-                                                            data-bs-dismiss="modal"
-                                                        >
-                                                            Cancel
-                                                        </button>
+                                                <div class="modal-footer">
 
-                                                        <button
-                                                            type="submit"
-                                                            class="btn btn-primary"
-                                                        >
-                                                            <i class="fa-solid fa-save me-1"></i>
-                                                            Update Supplier
-                                                        </button>
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-secondary"
+                                                        data-bs-dismiss="modal"
+                                                    >
+                                                        Cancel
+                                                    </button>
 
-                                                    </div>
+                                                    <button
+                                                        type="submit"
+                                                        class="btn btn-primary"
+                                                    >
+                                                        <i class="fa-solid fa-save me-1"></i>
+                                                        Update Supplier
+                                                    </button>
 
-                                                </form>
+                                                </div>
 
-                                            </div>
+                                            </form>
 
                                         </div>
 
                                     </div>
 
-                                <?php endforeach; ?>
+                                </div>
 
-                            <?php endif; ?>
+                            <?php endforeach; ?>
 
-                            </tbody>
+                        <?php endif; ?>
 
-                        </table>
+                        </tbody>
 
-                    </div>
+                    </table>
 
                 </div>
 
@@ -924,7 +964,7 @@ require_once __DIR__ . '/../includes/header.php';
 <!-- ADD SUPPLIER MODAL -->
 
 <div
-    class="modal fade"
+    class="modal fade edit-user-modal"
     id="addSupplierModal"
     tabindex="-1"
 >
@@ -937,10 +977,18 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <div class="modal-header">
 
-                    <h5 class="modal-title">
-                        <i class="fa-solid fa-truck-field me-2"></i>
-                        Add Supplier
-                    </h5>
+                    <div>
+
+                        <div class="modal-title-text">
+                            <i class="fa-solid fa-truck-field me-2"></i>
+                            Add Supplier
+                        </div>
+
+                        <div class="modal-subtitle-text">
+                            Add a new supplier to your procurement network.
+                        </div>
+
+                    </div>
 
                     <button
                         type="button"
@@ -951,7 +999,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
 
 
-                <div class="modal-body">
+                <div class="modal-body pt-4">
 
                     <input
                         type="hidden"

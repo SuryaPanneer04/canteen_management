@@ -442,278 +442,265 @@ if ($selectedPoId > 0) {
 */
 
 require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<div class="d-flex">
+<main class="main-content">
 
-    <?php require_once __DIR__ . '/../includes/sidebar.php'; ?>
+    <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
-    <main class="main-content flex-grow-1">
+    <div class="page-body">
 
-        <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
+        <!-- HEADER -->
 
-        <div class="container-fluid py-4">
+        <div class="mb-4">
 
-            <!-- HEADER -->
+            <h4 class="mb-1">
+                Purchase Order Receiving
+            </h4>
 
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="text-muted">
+                Receive purchased materials and update stock.
+            </div>
 
-                <div>
+        </div>
 
-                    <h4 class="mb-1">
 
-                        <i class="fa-solid fa-box-open me-2"></i>
+        <!-- ALERTS -->
 
-                        Purchase Order Receiving
+        <?php if ($success !== ''): ?>
 
-                    </h4>
+            <div class="alert alert-success alert-dismissible fade show">
 
-                    <p class="text-muted mb-0">
+                <i class="fa-solid fa-circle-check me-2"></i>
 
-                        Receive purchased materials and update stock.
+                <?= e($success) ?>
 
-                    </p>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                ></button>
 
-                </div>
+            </div>
+
+        <?php endif; ?>
+
+
+        <?php if ($error !== ''): ?>
+
+            <div class="alert alert-danger alert-dismissible fade show">
+
+                <i class="fa-solid fa-circle-exclamation me-2"></i>
+
+                <?= e($error) ?>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                ></button>
+
+            </div>
+
+        <?php endif; ?>
+
+
+        <!-- ORDERED PO LIST -->
+
+        <div class="content-card mb-4">
+
+            <div class="content-card-header">
+
+                <strong>
+
+                    <i class="fa-solid fa-truck-ramp-box me-2"></i>
+
+                    Orders Waiting for Receiving
+
+                </strong>
 
             </div>
 
 
-            <!-- ALERTS -->
+            <div class="table-responsive">
 
-            <?php if ($success !== ''): ?>
+                <table class="table table-hover align-middle mb-0">
 
-                <div class="alert alert-success alert-dismissible fade show">
+                    <thead>
 
-                    <i class="fa-solid fa-circle-check me-2"></i>
+                        <tr>
 
-                    <?= e($success) ?>
+                            <th>#</th>
 
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="alert"
-                    ></button>
+                            <th>PO Number</th>
 
-                </div>
+                            <th>Request No.</th>
 
-            <?php endif; ?>
+                            <th>Supplier</th>
 
+                            <th>PO Date</th>
 
-            <?php if ($error !== ''): ?>
+                            <th>Expected Date</th>
 
-                <div class="alert alert-danger alert-dismissible fade show">
+                            <th>Action</th>
 
-                    <i class="fa-solid fa-circle-exclamation me-2"></i>
+                        </tr>
 
-                    <?= e($error) ?>
-
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="alert"
-                    ></button>
-
-                </div>
-
-            <?php endif; ?>
+                    </thead>
 
 
-            <!-- ORDERED PO LIST -->
+                    <tbody>
 
-            <div class="card shadow-sm border-0 mb-4">
+                    <?php if (!$orderedPOs): ?>
 
-                <div class="card-header bg-white">
+                        <tr>
 
-                    <strong>
+                            <td
+                                colspan="7"
+                                class="text-center text-muted py-5"
+                            >
 
-                        <i class="fa-solid fa-truck-ramp-box me-2"></i>
+                                <i class="fa-solid fa-box-open fs-2 d-block mb-2"></i>
 
-                        Orders Waiting for Receiving
+                                No purchase orders waiting for receiving.
 
-                    </strong>
+                            </td>
 
-                </div>
+                        </tr>
 
+                    <?php else: ?>
 
-                <div class="card-body p-0">
+                        <?php foreach ($orderedPOs as $index => $po): ?>
 
-                    <div class="table-responsive">
+                            <tr>
 
-                        <table class="table table-hover align-middle mb-0">
+                                <td>
+                                    <?= $index + 1 ?>
+                                </td>
 
-                            <thead class="table-light">
+                                <td>
 
-                                <tr>
+                                    <strong>
+                                        <?= e($po['po_no']) ?>
+                                    </strong>
 
-                                    <th>#</th>
+                                </td>
 
-                                    <th>PO Number</th>
+                                <td>
+                                    <?= e($po['request_no']) ?>
+                                </td>
 
-                                    <th>Request No.</th>
+                                <td>
+                                    <?= e($po['supplier_name']) ?>
+                                </td>
 
-                                    <th>Supplier</th>
+                                <td>
+                                    <?= e($po['po_date']) ?>
+                                </td>
 
-                                    <th>PO Date</th>
+                                <td>
 
-                                    <th>Expected Date</th>
+                                    <?= $po['expected_date']
+                                        ? e($po['expected_date'])
+                                        : '-' ?>
 
-                                    <th>Action</th>
+                                </td>
 
-                                </tr>
+                                <td>
 
-                            </thead>
-
-
-                            <tbody>
-
-                            <?php if (!$orderedPOs): ?>
-
-                                <tr>
-
-                                    <td
-                                        colspan="7"
-                                        class="text-center text-muted py-5"
+                                    <a
+                                        href="purchase_order_receiving.php?po_id=<?= (int)$po['id'] ?>"
+                                        class="btn btn-sm btn-primary"
                                     >
 
-                                        <i class="fa-solid fa-box-open fa-2x mb-3"></i>
+                                        <i class="fa-solid fa-box-open me-1"></i>
 
-                                        <div>
-                                            No purchase orders waiting for receiving.
-                                        </div>
+                                        Receive
 
-                                    </td>
+                                    </a>
 
-                                </tr>
+                                </td>
 
-                            <?php else: ?>
+                            </tr>
 
-                                <?php foreach ($orderedPOs as $index => $po): ?>
+                        <?php endforeach; ?>
 
-                                    <tr>
+                    <?php endif; ?>
 
-                                        <td>
-                                            <?= $index + 1 ?>
-                                        </td>
+                    </tbody>
 
-                                        <td>
-
-                                            <strong>
-                                                <?= e($po['po_no']) ?>
-                                            </strong>
-
-                                        </td>
-
-                                        <td>
-                                            <?= e($po['request_no']) ?>
-                                        </td>
-
-                                        <td>
-                                            <?= e($po['supplier_name']) ?>
-                                        </td>
-
-                                        <td>
-                                            <?= e($po['po_date']) ?>
-                                        </td>
-
-                                        <td>
-
-                                            <?= $po['expected_date']
-                                                ? e($po['expected_date'])
-                                                : '-' ?>
-
-                                        </td>
-
-                                        <td>
-
-                                            <a
-                                                href="purchase_order_receiving.php?po_id=<?= (int)$po['id'] ?>"
-                                                class="btn btn-sm btn-primary"
-                                            >
-
-                                                <i class="fa-solid fa-box-open me-1"></i>
-
-                                                Receive
-
-                                            </a>
-
-                                        </td>
-
-                                    </tr>
-
-                                <?php endforeach; ?>
-
-                            <?php endif; ?>
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-                </div>
+                </table>
 
             </div>
 
+        </div>
 
-            <!-- RECEIVING FORM -->
 
-            <?php if ($selectedPO): ?>
+        <!-- RECEIVING FORM -->
 
-                <div class="card shadow-sm border-0">
+        <?php if ($selectedPO): ?>
 
-                    <div class="card-header bg-white">
+            <div class="content-card">
 
-                        <div class="d-flex justify-content-between align-items-center">
+                <div class="content-card-header">
 
-                            <div>
+                    <div class="d-flex justify-content-between align-items-center w-100">
 
-                                <strong>
+                        <div>
 
-                                    Receive:
-                                    <?= e($selectedPO['po_no']) ?>
+                            <strong>
 
-                                </strong>
+                                Receive:
+                                <?= e($selectedPO['po_no']) ?>
 
-                                <div class="small text-muted">
+                            </strong>
 
-                                    <?= e($selectedPO['supplier_name']) ?>
+                            <div class="small text-muted">
 
-                                </div>
+                                <?= e($selectedPO['supplier_name']) ?>
 
                             </div>
-
-                            <span class="badge bg-primary">
-
-                                <?= e($selectedPO['status']) ?>
-
-                            </span>
 
                         </div>
 
+                        <span class="badge bg-primary">
+
+                            <?= e($selectedPO['status']) ?>
+
+                        </span>
+
                     </div>
 
+                </div>
 
-                    <div class="card-body">
 
-                        <?php if ($selectedPO['status'] !== 'Ordered'): ?>
+                <div class="content-card-body">
 
-                            <div class="alert alert-warning">
+                    <?php if ($selectedPO['status'] !== 'Ordered'): ?>
 
-                                This purchase order is no longer available
-                                for receiving.
+                        <div class="alert alert-warning">
 
+                            This purchase order is no longer available
+                            for receiving.
+
+                        </div>
+
+                    <?php else: ?>
+
+                        <div class="edit-user-section">
+
+                            <div class="edit-user-section-label">
+                                Order Details
                             </div>
 
-                        <?php else: ?>
-
-                            <div class="row mb-4">
+                            <div class="row g-3">
 
                                 <div class="col-md-4">
 
-                                    <strong>PO Number</strong>
+                                    <div class="text-muted small">PO Number</div>
 
-                                    <div>
+                                    <div class="fw-semibold">
                                         <?= e($selectedPO['po_no']) ?>
                                     </div>
 
@@ -721,9 +708,9 @@ require_once __DIR__ . '/../includes/header.php';
 
                                 <div class="col-md-4">
 
-                                    <strong>Supplier</strong>
+                                    <div class="text-muted small">Supplier</div>
 
-                                    <div>
+                                    <div class="fw-semibold">
                                         <?= e($selectedPO['supplier_name']) ?>
                                     </div>
 
@@ -731,9 +718,9 @@ require_once __DIR__ . '/../includes/header.php';
 
                                 <div class="col-md-4">
 
-                                    <strong>Request Number</strong>
+                                    <div class="text-muted small">Request Number</div>
 
-                                    <div>
+                                    <div class="fw-semibold">
                                         <?= e($selectedPO['request_no']) ?>
                                     </div>
 
@@ -741,199 +728,217 @@ require_once __DIR__ . '/../includes/header.php';
 
                             </div>
 
-
-                            <form method="post">
-
-                                <input
-                                    type="hidden"
-                                    name="action"
-                                    value="receive_po"
-                                >
-
-                                <input
-                                    type="hidden"
-                                    name="po_id"
-                                    value="<?= (int)$selectedPO['id'] ?>"
-                                >
+                        </div>
 
 
-                                <div class="table-responsive">
+                        <form method="post">
 
-                                    <table class="table table-bordered align-middle">
+                            <input
+                                type="hidden"
+                                name="action"
+                                value="receive_po"
+                            >
 
-                                        <thead class="table-light">
-
-                                            <tr>
-
-                                                <th>#</th>
-
-                                                <th>Material Code</th>
-
-                                                <th>Material</th>
-
-                                                <th>Unit</th>
-
-                                                <th class="text-end">
-                                                    Ordered Qty
-                                                </th>
-
-                                                <th class="text-end">
-                                                    Unit Rate
-                                                </th>
-
-                                                <th class="text-end">
-                                                    Current Stock
-                                                </th>
-
-                                                <th width="180">
-                                                    Received Qty
-                                                </th>
-
-                                            </tr>
-
-                                        </thead>
+                            <input
+                                type="hidden"
+                                name="po_id"
+                                value="<?= (int)$selectedPO['id'] ?>"
+                            >
 
 
-                                        <tbody>
+                            <div class="table-responsive">
 
-                                        <?php foreach ($selectedItems as $index => $item): ?>
+                                <table class="table table-bordered align-middle">
 
-                                            <tr>
+                                    <thead class="table-light">
 
-                                                <td>
-                                                    <?= $index + 1 ?>
-                                                </td>
+                                        <tr>
 
-                                                <td>
-                                                    <?= e($item['material_code']) ?>
-                                                </td>
+                                            <th>#</th>
 
-                                                <td>
+                                            <th>Material</th>
 
-                                                    <strong>
-                                                        <?= e($item['material_name']) ?>
-                                                    </strong>
+                                            <th>Unit</th>
 
-                                                </td>
+                                            <th class="text-end">
+                                                Ordered Qty
+                                            </th>
 
-                                                <td>
-                                                    <?= e($item['unit']) ?>
-                                                </td>
+                                            <th class="text-end">
+                                                Unit Rate
+                                            </th>
 
-                                                <td class="text-end">
+                                            <th class="text-end">
+                                                Current Stock
+                                            </th>
 
-                                                    <?= number_format(
-                                                        (float)$item['ordered_qty'],
-                                                        2
-                                                    ) ?>
+                                            <th width="180">
+                                                Received Qty
+                                            </th>
 
-                                                </td>
+                                        </tr>
 
-                                                <td class="text-end">
+                                    </thead>
 
-                                                    ₹<?= number_format(
-                                                        (float)$item['unit_rate'],
-                                                        2
-                                                    ) ?>
 
-                                                </td>
+                                    <tbody>
 
-                                                <td class="text-end">
+                                    <?php foreach ($selectedItems as $index => $item): ?>
 
-                                                    <span class="badge bg-secondary">
+                                        <?php
 
-                                                        <?= number_format(
-                                                            (float)$item['current_stock'],
-                                                            2
-                                                        ) ?>
+                                        $rowInitials = strtoupper(
+                                            substr($item['material_name'], 0, 1)
+                                        );
 
+                                        ?>
+
+                                        <tr>
+
+                                            <td>
+                                                <?= $index + 1 ?>
+                                            </td>
+
+                                            <td>
+
+                                                <div class="d-flex align-items-center gap-2">
+
+                                                    <span class="row-avatar">
+                                                        <?= e($rowInitials) ?>
                                                     </span>
 
-                                                </td>
+                                                    <div>
 
-                                                <td>
+                                                        <div class="fw-semibold">
+                                                            <?= e($item['material_name']) ?>
+                                                        </div>
 
-                                                    <input
-                                                        type="hidden"
-                                                        name="material_id[<?= (int)$item['id'] ?>]"
-                                                        value="<?= (int)$item['material_id'] ?>"
-                                                    >
+                                                        <div class="text-muted small">
+                                                            <?= e($item['material_code']) ?>
+                                                        </div>
 
-                                                    <input
-                                                        type="number"
-                                                        name="received_qty[<?= (int)$item['id'] ?>]"
-                                                        class="form-control"
-                                                        min="0"
-                                                        max="<?= e((string)$item['ordered_qty']) ?>"
-                                                        step="0.01"
-                                                        value="<?= e((string)$item['ordered_qty']) ?>"
-                                                    >
+                                                    </div>
 
-                                                </td>
+                                                </div>
 
-                                            </tr>
+                                            </td>
 
-                                        <?php endforeach; ?>
+                                            <td>
+                                                <?= e($item['unit']) ?>
+                                            </td>
 
-                                        </tbody>
+                                            <td class="text-end">
 
-                                    </table>
+                                                <?= number_format(
+                                                    (float)$item['ordered_qty'],
+                                                    2
+                                                ) ?>
 
-                                </div>
+                                            </td>
+
+                                            <td class="text-end">
+
+                                                ₹<?= number_format(
+                                                    (float)$item['unit_rate'],
+                                                    2
+                                                ) ?>
+
+                                            </td>
+
+                                            <td class="text-end">
+
+                                                <span class="badge bg-light text-dark border">
+
+                                                    <?= number_format(
+                                                        (float)$item['current_stock'],
+                                                        2
+                                                    ) ?>
+
+                                                </span>
+
+                                            </td>
+
+                                            <td>
+
+                                                <input
+                                                    type="hidden"
+                                                    name="material_id[<?= (int)$item['id'] ?>]"
+                                                    value="<?= (int)$item['material_id'] ?>"
+                                                >
+
+                                                <input
+                                                    type="number"
+                                                    name="received_qty[<?= (int)$item['id'] ?>]"
+                                                    class="form-control"
+                                                    min="0"
+                                                    max="<?= e((string)$item['ordered_qty']) ?>"
+                                                    step="0.01"
+                                                    value="<?= e((string)$item['ordered_qty']) ?>"
+                                                >
+
+                                            </td>
+
+                                        </tr>
+
+                                    <?php endforeach; ?>
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
 
 
-                                <div class="alert alert-info">
+                            <div class="alert alert-info">
 
-                                    <i class="fa-solid fa-circle-info me-2"></i>
+                                <i class="fa-solid fa-circle-info me-2"></i>
 
-                                    Enter the actual quantity received.
-                                    The received quantity cannot be greater
-                                    than the ordered quantity.
+                                Enter the actual quantity received.
+                                The received quantity cannot be greater
+                                than the ordered quantity.
 
-                                </div>
-
-
-                                <div class="d-flex justify-content-end gap-2">
-
-                                    <a
-                                        href="purchase_order_receiving.php"
-                                        class="btn btn-secondary"
-                                    >
-
-                                        Cancel
-
-                                    </a>
+                            </div>
 
 
-                                    <button
-                                        type="submit"
-                                        class="btn btn-success"
-                                        onclick="return confirm('Confirm receiving this purchase order? Stock will be updated immediately.');"
-                                    >
+                            <div class="d-flex justify-content-end gap-2">
 
-                                        <i class="fa-solid fa-box-open me-1"></i>
+                                <a
+                                    href="purchase_order_receiving.php"
+                                    class="btn btn-secondary"
+                                >
 
-                                        Receive & Update Stock
+                                    Cancel
 
-                                    </button>
+                                </a>
 
-                                </div>
 
-                            </form>
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary"
+                                    onclick="return confirm('Confirm receiving this purchase order? Stock will be updated immediately.');"
+                                >
 
-                        <?php endif; ?>
+                                    <i class="fa-solid fa-box-open me-1"></i>
 
-                    </div>
+                                    Receive & Update Stock
+
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    <?php endif; ?>
 
                 </div>
 
-            <?php endif; ?>
+            </div>
 
-        </div>
+        <?php endif; ?>
 
-    </main>
+    </div>
 
-</div>
+</main>
 
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

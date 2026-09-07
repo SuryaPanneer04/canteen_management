@@ -329,6 +329,32 @@ $stmt = $con->query("
 $recentInward = $stmt->fetchAll();
 
 
+/*
+|--------------------------------------------------------------------------
+| SUMMARY COUNTS (for the stat cards)
+|--------------------------------------------------------------------------
+*/
+
+$availableMaterialsCount = count($materials);
+
+$lowStockCount = 0;
+
+foreach ($materials as $m) {
+
+    if ((float)$m['current_stock'] <= (float)$m['minimum_stock']) {
+        $lowStockCount++;
+    }
+}
+
+$recentTransactionCount = count($recentInward);
+
+$recentQuantityTotal = 0.0;
+
+foreach ($recentInward as $row) {
+    $recentQuantityTotal += (float)$row['quantity'];
+}
+
+
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 ?>
@@ -377,6 +403,80 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <?php endif; ?>
 
 
+        <!-- STAT CARDS -->
+        <div class="row g-3 mb-4">
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-primary">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Materials Available</div>
+                        <div class="stat-value"><?= $availableMaterialsCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-green">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Recent Transactions</div>
+                        <div class="stat-value"><?= $recentTransactionCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-purple">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Recent Qty Added</div>
+                        <div class="stat-value"><?= number_format($recentQuantityTotal, 2) ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-6 col-lg-3">
+
+                <div class="stat-card d-flex align-items-center gap-3">
+
+                    <div class="stat-icon stat-icon-amber">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+
+                    <div>
+                        <div class="stat-label">Low Stock</div>
+                        <div class="stat-value"><?= $lowStockCount ?></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
         <!-- STOCK INWARD FORM -->
         <div class="content-card mb-4">
 
@@ -393,7 +493,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
 
 
-            <div class="p-4">
+            <div class="content-card-body">
 
                 <form method="POST">
 
@@ -403,146 +503,165 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         value="stock_inward">
 
 
-                    <div class="row g-3">
+                    <div class="edit-user-section">
 
-                        <!-- MATERIAL -->
-                        <div class="col-md-6">
+                        <div class="edit-user-section-label">
+                            Material
+                        </div>
 
-                            <label class="form-label">
+                        <div class="row g-3">
 
-                                Material
+                            <!-- MATERIAL -->
+                            <div class="col-md-6">
 
-                                <span class="text-danger">*</span>
+                                <label class="form-label">
 
-                            </label>
+                                    Material
 
-                            <select
-                                name="material_id"
-                                id="material_id"
-                                class="form-select"
-                                required>
+                                    <span class="text-danger">*</span>
 
-                                <option value="">
-                                    --- Select Material ---
-                                </option>
+                                </label>
 
-                                <?php foreach ($materials as $material): ?>
+                                <select
+                                    name="material_id"
+                                    id="material_id"
+                                    class="form-select"
+                                    required>
 
-                                    <option
-                                        value="<?= (int)$material['id'] ?>">
-
-                                        <?= e($material['material_code']) ?>
-                                        -
-                                        <?= e($material['material_name']) ?>
-
+                                    <option value="">
+                                        --- Select Material ---
                                     </option>
 
-                                <?php endforeach; ?>
+                                    <?php foreach ($materials as $material): ?>
 
-                            </select>
+                                        <option
+                                            value="<?= (int)$material['id'] ?>">
 
-                        </div>
+                                            <?= e($material['material_code']) ?>
+                                            -
+                                            <?= e($material['material_name']) ?>
 
+                                        </option>
 
-                        <!-- CURRENT STOCK -->
-                        <div class="col-md-3">
+                                    <?php endforeach; ?>
 
-                            <label class="form-label">
-                                Current Stock
-                            </label>
+                                </select>
 
-                            <input
-                                type="text"
-                                id="current_stock"
-                                class="form-control"
-                                readonly
-                                value="0">
-
-                        </div>
+                            </div>
 
 
-                        <!-- UNIT -->
-                        <div class="col-md-3">
+                            <!-- CURRENT STOCK -->
+                            <div class="col-md-3">
 
-                            <label class="form-label">
-                                Unit
-                            </label>
+                                <label class="form-label">
+                                    Current Stock
+                                </label>
 
-                            <input
-                                type="text"
-                                id="material_unit"
-                                class="form-control"
-                                readonly
-                                value="-">
+                                <input
+                                    type="text"
+                                    id="current_stock"
+                                    class="form-control"
+                                    disabled
+                                    value="0">
 
-                        </div>
+                            </div>
 
 
-                        <!-- QUANTITY -->
-                        <div class="col-md-6">
+                            <!-- UNIT -->
+                            <div class="col-md-3">
 
-                            <label class="form-label">
+                                <label class="form-label">
+                                    Unit
+                                </label>
 
-                                Inward Quantity
+                                <input
+                                    type="text"
+                                    id="material_unit"
+                                    class="form-control"
+                                    disabled
+                                    value="-">
 
-                                <span class="text-danger">*</span>
-
-                            </label>
-
-                            <input
-                                type="number"
-                                name="quantity"
-                                class="form-control"
-                                min="0.01"
-                                step="0.01"
-                                required
-                                placeholder="Enter quantity">
+                            </div>
 
                         </div>
 
+                    </div>
 
-                        <!-- REMARKS -->
-                        <div class="col-md-6">
 
-                            <label class="form-label">
-                                Remarks
-                            </label>
+                    <div class="edit-user-section">
 
-                            <input
-                                type="text"
-                                name="remarks"
-                                class="form-control"
-                                maxlength="255"
-                                placeholder="Example: Purchase invoice / supplier details">
+                        <div class="edit-user-section-label">
+                            Transaction Details
+                        </div>
+
+                        <div class="row g-3">
+
+                            <!-- QUANTITY -->
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+
+                                    Inward Quantity
+
+                                    <span class="text-danger">*</span>
+
+                                </label>
+
+                                <input
+                                    type="number"
+                                    name="quantity"
+                                    class="form-control"
+                                    min="0.01"
+                                    step="0.01"
+                                    required
+                                    placeholder="Enter quantity">
+
+                            </div>
+
+
+                            <!-- REMARKS -->
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Remarks
+                                </label>
+
+                                <input
+                                    type="text"
+                                    name="remarks"
+                                    class="form-control"
+                                    maxlength="255"
+                                    placeholder="Example: Purchase invoice / supplier details">
+
+                            </div>
 
                         </div>
 
+                    </div>
 
-                        <!-- SUBMIT -->
-                        <div class="col-12">
 
-                            <button
-                                type="submit"
-                                class="btn btn-success">
+                    <div class="d-flex gap-2">
 
-                                <i class="fa-solid fa-plus me-1"></i>
+                        <button
+                            type="submit"
+                            class="btn btn-primary">
 
-                                Add Stock
+                            <i class="fa-solid fa-plus me-1"></i>
 
-                            </button>
+                            Add Stock
 
-                            <button
-                                type="reset"
-                                class="btn btn-secondary"
-                                onclick="resetMaterialInfo();">
+                        </button>
 
-                                <i class="fa-solid fa-rotate-left me-1"></i>
+                        <button
+                            type="reset"
+                            class="btn btn-secondary"
+                            onclick="resetMaterialInfo();">
 
-                                Reset
+                            <i class="fa-solid fa-rotate-left me-1"></i>
 
-                            </button>
+                            Reset
 
-                        </div>
+                        </button>
 
                     </div>
 
@@ -626,6 +745,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                         <?php foreach ($recentInward as $index => $row): ?>
 
+                            <?php
+
+                            $initials = strtoupper(
+                                substr($row['material_name'], 0, 1)
+                            );
+
+                            ?>
+
                             <tr>
 
                                 <td>
@@ -635,24 +762,32 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <td>
 
-                                    <strong>
-                                        <?= e($row['material_name']) ?>
-                                    </strong>
+                                    <div class="d-flex align-items-center gap-2">
 
-                                    <br>
+                                        <span class="row-avatar">
+                                            <?= e($initials) ?>
+                                        </span>
 
-                                    <small class="text-muted">
+                                        <div>
 
-                                        <?= e($row['material_code']) ?>
+                                            <div class="fw-semibold">
+                                                <?= e($row['material_name']) ?>
+                                            </div>
 
-                                    </small>
+                                            <div class="text-muted small">
+                                                <?= e($row['material_code']) ?>
+                                            </div>
+
+                                        </div>
+
+                                    </div>
 
                                 </td>
 
 
                                 <td>
 
-                                    <span class="badge bg-success">
+                                    <span class="badge badge-enable">
 
                                         +
                                         <?= number_format(
