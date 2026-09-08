@@ -133,6 +133,13 @@ $isCanteen = ($role === 'Canteen');
                 </a>
             </li>
 
+             <li class="nav-item">
+                <a href="../store/categories.php" class="nav-link">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>Categories</span>
+                </a>
+            </li>
+
             <li class="nav-item">
                 <a href="../store/stock_inward.php" class="nav-link">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i>

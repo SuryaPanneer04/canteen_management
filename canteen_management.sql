@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 07, 2026 at 10:58 AM
+-- Generation Time: Sep 08, 2026 at 01:07 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -197,12 +197,41 @@ CREATE TABLE `materials` (
 --
 
 INSERT INTO `materials` (`id`, `material_code`, `material_name`, `category`, `unit`, `minimum_stock`, `current_stock`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'MAT001', 'Rice', 'Grains', 'KG', 50.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
+(1, 'MAT001', 'Rice', 'Grains', 'KG', 50.00, 10.00, 'Enable', '2026-09-03 13:56:45', '2026-09-08 12:28:21'),
 (2, 'MAT002', 'Wheat', 'Grains', 'KG', 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
 (3, 'MAT003', 'Cooking Oil', 'Oil', 'LTR', 20.00, 1015.00, 'Enable', '2026-09-03 13:56:45', '2026-09-05 11:55:24'),
 (4, 'MAT004', 'Salt', 'Grocery', 'KG', 10.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
 (5, 'MAT005', 'Vegetables', 'Vegetables', 'KG', 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
 (6, 'MAT006', 'Sugar', 'Grocery', 'KG', 5.00, 9.00, 'Enable', '2026-09-03 15:01:48', '2026-09-03 15:05:18');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `material_categories`
+--
+
+CREATE TABLE `material_categories` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `category_name` varchar(100) NOT NULL,
+  `status` enum('Enable','Disabled') NOT NULL DEFAULT 'Enable',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `material_categories`
+--
+
+INSERT INTO `material_categories` (`id`, `category_name`, `status`, `created_at`, `updated_at`) VALUES
+(1, 'Grains', 'Enable', '2026-09-08 15:06:40', NULL),
+(2, 'Grocery', 'Enable', '2026-09-08 15:06:40', NULL),
+(3, 'Oil', 'Enable', '2026-09-08 15:06:40', NULL),
+(4, 'Vegetables', 'Enable', '2026-09-08 15:06:40', NULL),
+(5, 'Dairy', 'Enable', '2026-09-08 15:06:40', NULL),
+(6, 'Spices', 'Enable', '2026-09-08 15:06:40', NULL),
+(7, 'Beverages', 'Enable', '2026-09-08 15:06:40', NULL),
+(8, 'Cleaning', 'Enable', '2026-09-08 15:06:40', NULL),
+(9, 'Other', 'Enable', '2026-09-08 15:06:40', NULL);
 
 -- --------------------------------------------------------
 
@@ -274,7 +303,8 @@ CREATE TABLE `purchase_requests` (
 
 INSERT INTO `purchase_requests` (`id`, `request_no`, `requested_by`, `request_date`, `status`, `remarks`, `created_at`) VALUES
 (1, 'PR-20260903114200-489', 5, '2026-09-03', 'Approved', 'testing purchase', '2026-09-03 15:12:00'),
-(2, 'PR-20260905062846-863', 1, '2026-09-05', 'Approved', 'test cooking', '2026-09-05 09:58:46');
+(2, 'PR-20260905062846-863', 1, '2026-09-05', 'Approved', 'test cooking', '2026-09-05 09:58:46'),
+(6, 'PR-20260908121410-483', 5, '2026-09-08', 'Pending', 'Purchase request created from Low Stock in Material Master.', '2026-09-08 15:44:10');
 
 -- --------------------------------------------------------
 
@@ -296,7 +326,9 @@ CREATE TABLE `purchase_request_items` (
 
 INSERT INTO `purchase_request_items` (`id`, `request_id`, `material_id`, `requested_qty`, `approved_qty`) VALUES
 (1, 1, 6, 10.00, 0.00),
-(2, 2, 3, 15.00, 0.00);
+(2, 2, 3, 15.00, 0.00),
+(4, 6, 5, 30.00, 0.00),
+(5, 6, 4, 10.00, 0.00);
 
 -- --------------------------------------------------------
 
@@ -348,7 +380,8 @@ INSERT INTO `stock_transactions` (`id`, `material_id`, `transaction_type`, `quan
 (1, 6, 'PURCHASE', 10.00, NULL, NULL, 'testing purchase', NULL, '2026-09-03 15:03:36'),
 (2, 6, 'ISSUE_KITCHEN', 1.00, NULL, NULL, 'testing  Issue Material', NULL, '2026-09-03 15:05:18'),
 (3, 3, 'PURCHASE', 15.00, 'PO-202609-0001', NULL, 'Purchase Order Receiving', 1, '2026-09-05 10:14:53'),
-(4, 3, 'PURCHASE', 1000.00, NULL, NULL, '', NULL, '2026-09-05 11:55:24');
+(4, 3, 'PURCHASE', 1000.00, NULL, NULL, '', NULL, '2026-09-05 11:55:24'),
+(5, 1, 'PURCHASE', 10.00, NULL, NULL, 'testing', NULL, '2026-09-08 12:28:21');
 
 -- --------------------------------------------------------
 
@@ -481,6 +514,13 @@ ALTER TABLE `materials`
   ADD UNIQUE KEY `material_code` (`material_code`);
 
 --
+-- Indexes for table `material_categories`
+--
+ALTER TABLE `material_categories`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_material_category_name` (`category_name`);
+
+--
 -- Indexes for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
@@ -593,6 +633,12 @@ ALTER TABLE `materials`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
+-- AUTO_INCREMENT for table `material_categories`
+--
+ALTER TABLE `material_categories`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
+--
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
@@ -608,13 +654,13 @@ ALTER TABLE `purchase_order_items`
 -- AUTO_INCREMENT for table `purchase_requests`
 --
 ALTER TABLE `purchase_requests`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `purchase_request_items`
 --
 ALTER TABLE `purchase_request_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `roles`
@@ -626,7 +672,7 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT for table `stock_transactions`
 --
 ALTER TABLE `stock_transactions`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `suppliers`

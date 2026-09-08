@@ -21,28 +21,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
 
+        /*
+        |--------------------------------------------------------------------------
+        | GET POST DATA
+        |--------------------------------------------------------------------------
+        */
+
         $materialIds = $_POST['material_id'] ?? [];
         $quantities  = $_POST['quantity'] ?? [];
         $remarks     = trim($_POST['remarks'] ?? '');
+
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDATE ARRAYS
+        |--------------------------------------------------------------------------
+        */
 
         if (!is_array($materialIds) || !is_array($quantities)) {
             throw new Exception('Invalid purchase request data.');
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | PREPARE ITEMS
+        |--------------------------------------------------------------------------
+        */
+
         $items = [];
+        $selectedMaterialIds = [];
 
         foreach ($materialIds as $index => $materialId) {
 
             $materialId = (int)$materialId;
             $quantity   = (float)($quantities[$index] ?? 0);
 
+            /*
+            | Skip empty material rows
+            */
             if ($materialId <= 0) {
                 continue;
             }
 
+            /*
+            | Quantity validation
+            */
             if ($quantity <= 0) {
-                throw new Exception('Quantity must be greater than zero.');
+                throw new Exception(
+                    'Quantity must be greater than zero.'
+                );
             }
+
+            /*
+            | Prevent duplicate materials
+            */
+            if (in_array($materialId, $selectedMaterialIds, true)) {
+                throw new Exception(
+                    'The same material cannot be added more than once.'
+                );
+            }
+
+            $selectedMaterialIds[] = $materialId;
 
             $items[] = [
                 'material_id' => $materialId,
@@ -50,20 +88,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | CHECK ITEMS
+        |--------------------------------------------------------------------------
+        */
+
         if (empty($items)) {
-            throw new Exception('Please add at least one material.');
+            throw new Exception(
+                'Please select at least one material.'
+            );
         }
 
         /*
         |--------------------------------------------------------------------------
-        | CHECK USER
+        | CHECK LOGGED-IN USER
         |--------------------------------------------------------------------------
         */
 
         $userId = (int)($_SESSION['user_id'] ?? 0);
 
         if ($userId <= 0) {
-            throw new Exception('User session expired. Please login again.');
+            throw new Exception(
+                'User session expired. Please login again.'
+            );
         }
 
         /*
@@ -73,10 +121,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         */
 
         $materialCheck = $con->prepare("
-            SELECT id, material_code, material_name, unit, current_stock
+            SELECT
+                id,
+                material_code,
+                material_name,
+                category,
+                unit,
+                current_stock,
+                minimum_stock
             FROM materials
             WHERE id = ?
               AND status = 'Enable'
+            LIMIT 1
         ");
 
         foreach ($items as $item) {
@@ -85,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $item['material_id']
             ]);
 
-            $material = $materialCheck->fetch();
+            $material = $materialCheck->fetch(PDO::FETCH_ASSOC);
 
             if (!$material) {
                 throw new Exception(
@@ -96,17 +152,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         /*
         |--------------------------------------------------------------------------
-        | CREATE REQUEST
+        | START TRANSACTION
         |--------------------------------------------------------------------------
         */
 
         $con->beginTransaction();
 
-        $requestNo =
-            'PR-' .
-            date('YmdHis') .
-            '-' .
-            random_int(100, 999);
+        /*
+        |--------------------------------------------------------------------------
+        | GENERATE UNIQUE REQUEST NUMBER
+        |
+        | Example:
+        | PR-20260908143025-583
+        |--------------------------------------------------------------------------
+        */
+
+        $requestNo = null;
+
+        for ($attempt = 1; $attempt <= 10; $attempt++) {
+
+            $candidate =
+                'PR-' .
+                date('YmdHis') .
+                '-' .
+                random_int(100, 999);
+
+            $checkRequestNo = $con->prepare("
+                SELECT id
+                FROM purchase_requests
+                WHERE request_no = ?
+                LIMIT 1
+            ");
+
+            $checkRequestNo->execute([
+                $candidate
+            ]);
+
+            if (!$checkRequestNo->fetch()) {
+
+                $requestNo = $candidate;
+                break;
+            }
+        }
+
+        if ($requestNo === null) {
+
+            /*
+            | Extra fallback in the very unlikely case
+            */
+            $requestNo =
+                'PR-' .
+                date('YmdHis') .
+                '-' .
+                random_int(1000, 9999);
+
+            $checkRequestNo = $con->prepare("
+                SELECT id
+                FROM purchase_requests
+                WHERE request_no = ?
+                LIMIT 1
+            ");
+
+            $checkRequestNo->execute([
+                $requestNo
+            ]);
+
+            if ($checkRequestNo->fetch()) {
+                throw new Exception(
+                    'Unable to generate a unique purchase request number. Please try again.'
+                );
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | INSERT PURCHASE REQUEST
+        |--------------------------------------------------------------------------
+        */
 
         $insertRequest = $con->prepare("
             INSERT INTO purchase_requests
@@ -135,9 +257,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $requestId = (int)$con->lastInsertId();
 
+        if ($requestId <= 0) {
+            throw new Exception(
+                'Purchase request could not be created.'
+            );
+        }
+
         /*
         |--------------------------------------------------------------------------
-        | INSERT REQUEST ITEMS
+        | INSERT PURCHASE REQUEST ITEMS
         |--------------------------------------------------------------------------
         */
 
@@ -165,7 +293,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | IMPORTANT
+        |
+        | DO NOT UPDATE MATERIAL STOCK HERE.
+        |
+        | Stock will be updated only through:
+        | - Stock Inward
+        | - Stock Issue
+        |--------------------------------------------------------------------------
+        */
+
         $con->commit();
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUCCESS
+        |--------------------------------------------------------------------------
+        */
 
         flash(
             'success',
@@ -176,6 +322,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
 
     } catch (Throwable $e) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | ROLLBACK
+        |--------------------------------------------------------------------------
+        */
 
         if ($con->inTransaction()) {
             $con->rollBack();
@@ -204,7 +356,7 @@ $materials = $con->query("
     FROM materials
     WHERE status = 'Enable'
     ORDER BY material_name ASC
-")->fetchAll();
+")->fetchAll(PDO::FETCH_ASSOC);
 
 
 /*
@@ -246,18 +398,18 @@ $requests = $con->query("
         u.employee_name
 
     ORDER BY pr.id DESC
-")->fetchAll();
+")->fetchAll(PDO::FETCH_ASSOC);
 
 
 /*
 |--------------------------------------------------------------------------
-| SUMMARY COUNTS (for the stat cards)
+| SUMMARY COUNTS
 |--------------------------------------------------------------------------
 */
 
-$pendingCount = 0;
-$approvedCount = 0;
-$rejectedCount = 0;
+$pendingCount   = 0;
+$approvedCount  = 0;
+$rejectedCount  = 0;
 $completedCount = 0;
 
 foreach ($requests as $request) {
@@ -280,7 +432,6 @@ foreach ($requests as $request) {
             $completedCount++;
             break;
     }
-
 }
 
 
@@ -292,6 +443,7 @@ foreach ($requests as $request) {
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
+
 ?>
 
 <main class="main-content">
@@ -308,17 +460,20 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </h4>
 
             <div class="text-muted">
-                Request materials from the store and track approvals.
+                Create purchase requests for required materials and track their status.
             </div>
 
         </div>
 
 
         <!-- SUCCESS MESSAGE -->
+
         <?php if ($success): ?>
 
             <div class="alert alert-success alert-dismissible fade show">
+
                 <i class="fa-solid fa-circle-check me-2"></i>
+
                 <?= e($success) ?>
 
                 <button
@@ -326,12 +481,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     class="btn-close"
                     data-bs-dismiss="alert">
                 </button>
+
             </div>
 
         <?php endif; ?>
 
 
         <!-- ERROR MESSAGE -->
+
         <?php if ($error): ?>
 
             <div class="alert alert-danger alert-dismissible fade show">
@@ -352,70 +509,118 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 
         <!-- STAT CARDS -->
+
         <div class="row g-3 mb-4">
+
+            <!-- Pending -->
 
             <div class="col-6 col-lg-3">
 
                 <div class="stat-card d-flex align-items-center gap-3">
 
                     <div class="stat-icon stat-icon-amber">
+
                         <i class="fa-solid fa-hourglass-half"></i>
+
                     </div>
 
                     <div>
-                        <div class="stat-label">Pending</div>
-                        <div class="stat-value"><?= $pendingCount ?></div>
+
+                        <div class="stat-label">
+                            Pending
+                        </div>
+
+                        <div class="stat-value">
+                            <?= $pendingCount ?>
+                        </div>
+
                     </div>
 
                 </div>
 
             </div>
+
+
+            <!-- Approved -->
 
             <div class="col-6 col-lg-3">
 
                 <div class="stat-card d-flex align-items-center gap-3">
 
                     <div class="stat-icon stat-icon-green">
+
                         <i class="fa-solid fa-circle-check"></i>
+
                     </div>
 
                     <div>
-                        <div class="stat-label">Approved</div>
-                        <div class="stat-value"><?= $approvedCount ?></div>
+
+                        <div class="stat-label">
+                            Approved
+                        </div>
+
+                        <div class="stat-value">
+                            <?= $approvedCount ?>
+                        </div>
+
                     </div>
 
                 </div>
 
             </div>
+
+
+            <!-- Rejected -->
 
             <div class="col-6 col-lg-3">
 
                 <div class="stat-card d-flex align-items-center gap-3">
 
                     <div class="stat-icon stat-icon-purple">
+
                         <i class="fa-solid fa-circle-xmark"></i>
+
                     </div>
 
                     <div>
-                        <div class="stat-label">Rejected</div>
-                        <div class="stat-value"><?= $rejectedCount ?></div>
+
+                        <div class="stat-label">
+                            Rejected
+                        </div>
+
+                        <div class="stat-value">
+                            <?= $rejectedCount ?>
+                        </div>
+
                     </div>
 
                 </div>
 
             </div>
 
+
+            <!-- Completed -->
+
             <div class="col-6 col-lg-3">
 
                 <div class="stat-card d-flex align-items-center gap-3">
 
                     <div class="stat-icon stat-icon-primary">
+
                         <i class="fa-solid fa-flag-checkered"></i>
+
                     </div>
 
                     <div>
-                        <div class="stat-label">Completed</div>
-                        <div class="stat-value"><?= $completedCount ?></div>
+
+                        <div class="stat-label">
+                            Completed
+                        </div>
+
+                        <div class="stat-value">
+                            <?= $completedCount ?>
+                        </div>
+
                     </div>
 
                 </div>
@@ -434,14 +639,21 @@ require_once __DIR__ . '/../includes/sidebar.php';
             <div class="content-card-header">
 
                 <div>
+
                     <strong>
+
                         <i class="fa-solid fa-cart-plus me-2"></i>
+
                         Create Purchase Request
+
                     </strong>
 
                     <div class="text-muted small">
-                        Select the materials and required quantities.
+
+                        Select the materials and enter the required quantity.
+
                     </div>
+
                 </div>
 
             </div>
@@ -449,15 +661,22 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
             <div class="content-card-body">
 
-                <form method="POST" id="purchaseRequestForm">
+                <form
+                    method="POST"
+                    id="purchaseRequestForm"
+                >
 
                     <div id="requestItems">
+
 
                         <!-- FIRST ITEM -->
 
                         <div class="request-item border rounded p-3 mb-3">
 
                             <div class="row g-3 align-items-end">
+
+
+                                <!-- MATERIAL -->
 
                                 <div class="col-md-7">
 
@@ -482,11 +701,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             >
 
                                                 <?= e($material['material_code']) ?>
+
                                                 -
+
                                                 <?= e($material['material_name']) ?>
 
                                                 |
                                                 Stock:
+
                                                 <?= number_format(
                                                     (float)$material['current_stock'],
                                                     2
@@ -503,16 +725,18 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 </div>
 
 
+                                <!-- QUANTITY -->
+
                                 <div class="col-md-3">
 
                                     <label class="form-label">
-                                        Quantity
+                                        Required Quantity
                                     </label>
 
                                     <input
                                         type="number"
                                         name="quantity[]"
-                                        class="form-control"
+                                        class="form-control quantity-input"
                                         min="0.01"
                                         step="0.01"
                                         placeholder="Enter quantity"
@@ -522,14 +746,19 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 </div>
 
 
+                                <!-- REMOVE -->
+
                                 <div class="col-md-2">
 
                                     <button
                                         type="button"
                                         class="btn btn-outline-danger remove-item w-100"
                                     >
+
                                         <i class="fa-solid fa-trash me-1"></i>
+
                                         Remove
+
                                     </button>
 
                                 </div>
@@ -550,6 +779,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     >
 
                         <i class="fa-solid fa-plus me-1"></i>
+
                         Add Material
 
                     </button>
@@ -578,9 +808,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     <button
                         type="submit"
                         class="btn btn-primary"
+                        id="submitRequestBtn"
                     >
 
                         <i class="fa-solid fa-paper-plane me-1"></i>
+
                         Submit Purchase Request
 
                     </button>
@@ -593,7 +825,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 
         <!-- ==========================================================
-             REQUEST HISTORY
+             PURCHASE REQUEST HISTORY
         =========================================================== -->
 
         <div class="content-card">
@@ -601,14 +833,21 @@ require_once __DIR__ . '/../includes/sidebar.php';
             <div class="content-card-header">
 
                 <div>
+
                     <strong>
+
                         <i class="fa-solid fa-clock-rotate-left me-2"></i>
+
                         Purchase Request History
+
                     </strong>
 
                     <div class="text-muted small">
+
                         View previously submitted purchase requests.
+
                     </div>
+
                 </div>
 
             </div>
@@ -670,49 +909,77 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <tr>
 
+                                    <!-- NUMBER -->
+
                                     <td>
                                         <?= $index + 1 ?>
                                     </td>
 
 
+                                    <!-- REQUEST NUMBER -->
+
                                     <td>
 
                                         <strong>
-                                            <?= e($request['request_no']) ?>
+
+                                            <?= e(
+                                                $request['request_no']
+                                            ) ?>
+
                                         </strong>
 
                                     </td>
 
+
+                                    <!-- DATE -->
 
                                     <td>
 
                                         <?= e(
                                             date(
                                                 'd-m-Y',
-                                                strtotime($request['request_date'])
+                                                strtotime(
+                                                    $request['request_date']
+                                                )
                                             )
                                         ) ?>
 
                                     </td>
 
 
+                                    <!-- REQUESTED BY -->
+
                                     <td>
-                                        <?= e($request['employee_name']) ?>
+
+                                        <?= e(
+                                            $request['employee_name']
+                                        ) ?>
+
                                     </td>
 
 
+                                    <!-- ITEMS -->
+
                                     <td>
+
                                         <?= (int)$request['item_count'] ?>
+
                                     </td>
 
 
+                                    <!-- TOTAL QUANTITY -->
+
                                     <td>
+
                                         <?= number_format(
                                             (float)$request['total_qty'],
                                             2
                                         ) ?>
+
                                     </td>
 
+
+                                    <!-- STATUS -->
 
                                     <td>
 
@@ -721,20 +988,36 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         $status = $request['status'];
 
                                         if ($status === 'Pending') {
-                                            $badge = 'bg-warning text-dark';
+
+                                            $badge =
+                                                'bg-warning text-dark';
+
                                         } elseif ($status === 'Approved') {
-                                            $badge = 'badge-enable';
+
+                                            $badge =
+                                                'badge-enable';
+
                                         } elseif ($status === 'Rejected') {
-                                            $badge = 'badge-disabled';
+
+                                            $badge =
+                                                'badge-disabled';
+
                                         } elseif ($status === 'Completed') {
-                                            $badge = 'bg-primary';
+
+                                            $badge =
+                                                'bg-primary';
+
                                         } else {
-                                            $badge = 'bg-secondary';
+
+                                            $badge =
+                                                'bg-secondary';
                                         }
 
                                         ?>
 
-                                        <span class="badge <?= $badge ?>">
+                                        <span
+                                            class="badge <?= $badge ?>"
+                                        >
 
                                             <?= e($status) ?>
 
@@ -743,6 +1026,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                     </td>
 
 
+                                    <!-- REMARKS -->
+
                                     <td>
 
                                         <?php if (!empty($request['remarks'])): ?>
@@ -750,6 +1035,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             <span
                                                 title="<?= e($request['remarks']) ?>"
                                             >
+
                                                 <?= e(
                                                     mb_strimwidth(
                                                         $request['remarks'],
@@ -758,6 +1044,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                                         '...'
                                                     )
                                                 ) ?>
+
                                             </span>
 
                                         <?php else: ?>
@@ -797,20 +1084,43 @@ require_once __DIR__ . '/../includes/sidebar.php';
 |--------------------------------------------------------------------------
 */
 
-document.getElementById('addItem').addEventListener('click', function () {
+document.getElementById('addItem').addEventListener(
+    'click',
+    function () {
 
-    const container = document.getElementById('requestItems');
+        const container =
+            document.getElementById('requestItems');
 
-    const firstItem = container.querySelector('.request-item');
+        const firstItem =
+            container.querySelector('.request-item');
 
-    const newItem = firstItem.cloneNode(true);
+        const newItem =
+            firstItem.cloneNode(true);
 
-    newItem.querySelector('select').value = '';
-    newItem.querySelector('input').value = '';
 
-    container.appendChild(newItem);
+        /*
+        | Clear material
+        */
 
-});
+        const select =
+            newItem.querySelector('.material-select');
+
+        select.value = '';
+
+
+        /*
+        | Clear quantity
+        */
+
+        const quantity =
+            newItem.querySelector('.quantity-input');
+
+        quantity.value = '';
+
+
+        container.appendChild(newItem);
+    }
+);
 
 
 /*
@@ -823,14 +1133,17 @@ document.getElementById('requestItems').addEventListener(
     'click',
     function (event) {
 
-        const button = event.target.closest('.remove-item');
+        const button =
+            event.target.closest('.remove-item');
 
         if (!button) {
             return;
         }
 
+
         const items =
             document.querySelectorAll('.request-item');
+
 
         /*
         | Keep at least one row
@@ -838,12 +1151,17 @@ document.getElementById('requestItems').addEventListener(
 
         if (items.length <= 1) {
 
-            alert('At least one material is required.');
+            alert(
+                'At least one material is required.'
+            );
 
             return;
         }
 
-        button.closest('.request-item').remove();
+
+        button
+            .closest('.request-item')
+            .remove();
 
     }
 );
@@ -859,36 +1177,233 @@ document.getElementById('requestItems').addEventListener(
     'change',
     function (event) {
 
-        if (!event.target.classList.contains('material-select')) {
+        if (
+            !event.target.classList.contains(
+                'material-select'
+            )
+        ) {
             return;
         }
 
+
         const selects =
-            document.querySelectorAll('.material-select');
+            document.querySelectorAll(
+                '.material-select'
+            );
+
 
         const selectedValues = [];
 
+
+        let duplicateFound = false;
+
+
         selects.forEach(function (select) {
 
-            if (select.value !== '') {
+            if (select.value === '') {
+                return;
+            }
 
-                if (selectedValues.includes(select.value)) {
 
-                    alert(
-                        'This material has already been selected.'
-                    );
+            if (
+                selectedValues.includes(
+                    select.value
+                )
+            ) {
 
-                    select.value = '';
+                duplicateFound = true;
 
-                } else {
+                alert(
+                    'This material has already been selected.'
+                );
 
-                    selectedValues.push(select.value);
+                select.value = '';
 
-                }
+            } else {
 
+                selectedValues.push(
+                    select.value
+                );
             }
 
         });
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| FORM VALIDATION
+|--------------------------------------------------------------------------
+*/
+
+document.getElementById(
+    'purchaseRequestForm'
+).addEventListener(
+    'submit',
+    function (event) {
+
+        const selects =
+            document.querySelectorAll(
+                '.material-select'
+            );
+
+        const quantities =
+            document.querySelectorAll(
+                '.quantity-input'
+            );
+
+
+        let validItems = 0;
+
+        const selectedValues = [];
+
+
+        for (
+            let i = 0;
+            i < selects.length;
+            i++
+        ) {
+
+            const materialId =
+                selects[i].value;
+
+            const quantity =
+                parseFloat(
+                    quantities[i].value
+                );
+
+
+            /*
+            | Ignore completely empty rows
+            */
+
+            if (
+                materialId === '' &&
+                (
+                    isNaN(quantity) ||
+                    quantity <= 0
+                )
+            ) {
+                continue;
+            }
+
+
+            /*
+            | Material required
+            */
+
+            if (materialId === '') {
+
+                event.preventDefault();
+
+                alert(
+                    'Please select a material.'
+                );
+
+                selects[i].focus();
+
+                return;
+            }
+
+
+            /*
+            | Quantity required
+            */
+
+            if (
+                isNaN(quantity) ||
+                quantity <= 0
+            ) {
+
+                event.preventDefault();
+
+                alert(
+                    'Please enter a valid quantity.'
+                );
+
+                quantities[i].focus();
+
+                return;
+            }
+
+
+            /*
+            | Duplicate check
+            */
+
+            if (
+                selectedValues.includes(
+                    materialId
+                )
+            ) {
+
+                event.preventDefault();
+
+                alert(
+                    'The same material cannot be added more than once.'
+                );
+
+                return;
+            }
+
+
+            selectedValues.push(
+                materialId
+            );
+
+            validItems++;
+        }
+
+
+        /*
+        | At least one material
+        */
+
+        if (validItems === 0) {
+
+            event.preventDefault();
+
+            alert(
+                'Please add at least one material.'
+            );
+
+            return;
+        }
+
+
+        /*
+        | Confirmation
+        */
+
+        const confirmed =
+            confirm(
+                'Are you sure you want to submit this Purchase Request?'
+            );
+
+
+        if (!confirmed) {
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        /*
+        | Prevent double click
+        */
+
+        const submitButton =
+            document.getElementById(
+                'submitRequestBtn'
+            );
+
+        submitButton.disabled = true;
+
+        submitButton.innerHTML =
+            '<i class="fa-solid fa-spinner fa-spin me-1"></i> Submitting...';
 
     }
 );
