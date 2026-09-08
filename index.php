@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="mb-3">
                     <div class="auth-row">
                         <label class="form-label">Password</label>
-                        <a href="forgot-password.php" class="auth-link">Forgot Password?</a>
+                        <!--<a href="forgot-password.php" class="auth-link">Forgot Password?</a> -->
                     </div>
                     <div class="auth-input-group">
                         <i class="fa-solid fa-lock auth-input-icon"></i>

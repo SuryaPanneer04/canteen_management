@@ -313,16 +313,15 @@ $isCanteen = ($role === 'Canteen');
 
             </a> -->
 
-
-            <a
+             <a
                 class="nav-link"
-                href="<?= $isAdmin ? '../canteen/menu.php' : 'menu.php' ?>"
+                href="<?= $isAdmin ? '../canteen/food_receiving.php' : 'food_receiving.php' ?>"
             >
 
-                <i class="fa-solid fa-bowl-food"></i>
+                <i class="fa-solid fa-store"></i>
 
                 <span>
-                    Menu
+                    Food Receiving
                 </span>
 
             </a>
@@ -330,13 +329,27 @@ $isCanteen = ($role === 'Canteen');
 
             <a
                 class="nav-link"
-                href="<?= $isAdmin ? '../canteen/sales.php' : 'sales.php' ?>"
+                href="<?= $isAdmin ? '../canteen/food_serving.php' : 'food_serving.php' ?>"
+            >
+
+                <i class="fa-solid fa-bowl-food"></i>
+
+                <span>
+                    Food Serving
+                </span>
+
+            </a>
+
+
+            <a
+                class="nav-link"
+                href="<?= $isAdmin ? '../canteen/wastage.php' : 'wastage.php' ?>"
             >
 
                 <i class="fa-solid fa-receipt"></i>
 
                 <span>
-                    Sales
+                    Wastage
                 </span>
 
             </a>

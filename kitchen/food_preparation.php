@@ -575,6 +575,30 @@ $transfers =
     $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
+// =========================================================
+// SUMMARY STATS (last 7 days)
+// =========================================================
+
+$totalPreparedQty = 0.0;
+$totalSentQty = 0.0;
+$pendingCount = 0;
+
+foreach ($preparations as $p) {
+
+    $totalPreparedQty += (float)$p['prepared_qty'];
+    $totalSentQty += (float)$p['sent_qty'];
+
+    if (
+        (float)$p['prepared_qty']
+        -
+        (float)$p['sent_qty']
+        > 0
+    ) {
+        $pendingCount++;
+    }
+}
+
+
 require_once __DIR__ . '/../includes/header.php';
 
 require_once __DIR__ . '/../includes/sidebar.php';
@@ -586,22 +610,22 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 <div class="main-content">
 
+<div class="page-body">
+
 
     <!-- =====================================================
          HEADER
     ====================================================== -->
 
-    <div
-        class="d-flex justify-content-between align-items-center mb-4"
-    >
+    <div class="page-header">
 
         <div>
 
-            <h4 class="mb-1">
+            <h4 class="page-header-title">
                 Food Preparation
             </h4>
 
-            <p class="text-muted mb-0">
+            <p class="page-header-subtitle">
 
                 Record prepared food and send it
                 from Kitchen to Canteen.
@@ -680,12 +704,80 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 
     <!-- =====================================================
+         SUMMARY STATS
+    ====================================================== -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+
+            <div class="stat-card d-flex align-items-center gap-3">
+
+                <div class="stat-icon stat-icon-primary">
+                    <i class="fa-solid fa-fire-burner"></i>
+                </div>
+
+                <div>
+                    <div class="stat-label">Prepared (7 days)</div>
+                    <div class="stat-value">
+                        <?= number_format($totalPreparedQty, 2) ?>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="stat-card d-flex align-items-center gap-3">
+
+                <div class="stat-icon stat-icon-green">
+                    <i class="fa-solid fa-truck"></i>
+                </div>
+
+                <div>
+                    <div class="stat-label">Sent to Canteen (7 days)</div>
+                    <div class="stat-value">
+                        <?= number_format($totalSentQty, 2) ?>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="stat-card d-flex align-items-center gap-3">
+
+                <div class="stat-icon stat-icon-amber">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+
+                <div>
+                    <div class="stat-label">Pending Transfer</div>
+                    <div class="stat-value">
+                        <?= (int)$pendingCount ?>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
          PREPARATION FORM
     ====================================================== -->
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="content-card mb-4">
 
-        <div class="card-header bg-white py-3">
+        <div class="content-card-header">
 
             <h5 class="mb-0">
 
@@ -700,7 +792,7 @@ require_once __DIR__ . '/../includes/topbar.php';
         </div>
 
 
-        <div class="card-body">
+        <div class="content-card-body">
 
             <form method="post">
 
@@ -712,7 +804,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                     <div class="col-md-5">
 
                         <label
-                            class="form-label fw-semibold"
+                            class="form-label"
                         >
 
                             Food Item
@@ -765,7 +857,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                     <div class="col-md-3">
 
                         <label
-                            class="form-label fw-semibold"
+                            class="form-label"
                         >
 
                             Prepared Quantity
@@ -791,7 +883,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                     <div class="col-md-4">
 
                         <label
-                            class="form-label fw-semibold"
+                            class="form-label"
                         >
 
                             Remarks
@@ -817,7 +909,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                         <button
                             type="submit"
                             name="save_preparation"
-                            class="btn btn-success"
+                            class="btn btn-primary"
                         >
 
                             <i
@@ -843,24 +935,28 @@ require_once __DIR__ . '/../includes/topbar.php';
          PREPARED FOOD
     ====================================================== -->
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="content-card mb-4">
 
-        <div class="card-header bg-white py-3">
+        <div class="content-card-header">
 
-            <h5 class="mb-0">
-                Prepared Food
-            </h5>
+            <div>
 
-            <small class="text-muted">
+                <h5 class="mb-0">
+                    Prepared Food
+                </h5>
 
-                Food prepared during the last 7 days
+                <small class="text-muted">
 
-            </small>
+                    Food prepared during the last 7 days
+
+                </small>
+
+            </div>
 
         </div>
 
 
-        <div class="card-body p-0">
+        <div class="content-card-body p-0">
 
             <div class="table-responsive">
 
@@ -981,29 +1077,41 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                 <td>
 
-                                    <strong>
+                                    <div class="food-cell">
 
-                                        <?= e(
-                                            $preparation[
-                                                'food_name'
-                                            ]
-                                        ) ?>
+                                        <span class="food-icon">
+                                            <i class="fa-solid fa-utensils"></i>
+                                        </span>
 
-                                    </strong>
+                                        <div>
 
-                                    <br>
+                                            <strong>
 
-                                    <small
-                                        class="text-muted"
-                                    >
+                                                <?= e(
+                                                    $preparation[
+                                                        'food_name'
+                                                    ]
+                                                ) ?>
 
-                                        <?= e(
-                                            $preparation[
-                                                'food_code'
-                                            ]
-                                        ) ?>
+                                            </strong>
 
-                                    </small>
+                                            <br>
+
+                                            <small
+                                                class="text-muted"
+                                            >
+
+                                                <?= e(
+                                                    $preparation[
+                                                        'food_code'
+                                                    ]
+                                                ) ?>
+
+                                            </small>
+
+                                        </div>
+
+                                    </div>
 
                                 </td>
 
@@ -1053,7 +1161,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                     ): ?>
 
                                         <span
-                                            class="badge bg-warning text-dark"
+                                            class="badge remaining-pill"
                                         >
 
                                             <?= number_format(
@@ -1072,7 +1180,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                     <?php else: ?>
 
                                         <span
-                                            class="badge bg-success"
+                                            class="badge remaining-pill is-zero"
                                         >
 
                                             0
@@ -1120,7 +1228,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                     ?>
 
                                         <span
-                                            class="badge bg-success"
+                                            class="badge badge-sent"
                                         >
 
                                             Sent to Canteen
@@ -1130,7 +1238,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                     <?php else: ?>
 
                                         <span
-                                            class="badge bg-warning text-dark"
+                                            class="badge badge-pending"
                                         >
 
                                             Prepared
@@ -1191,7 +1299,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                             ================================================== -->
 
                             <div
-                                class="modal fade"
+                                class="modal fade app-modal"
                                 id="sendModal<?= (int)$preparation['id'] ?>"
                                 tabindex="-1"
                                 aria-hidden="true"
@@ -1244,7 +1352,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                 >
 
                                                     <label
-                                                        class="form-label fw-semibold"
+                                                        class="form-label"
                                                     >
 
                                                         Preparation No
@@ -1267,7 +1375,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                 >
 
                                                     <label
-                                                        class="form-label fw-semibold"
+                                                        class="form-label"
                                                     >
 
                                                         Food
@@ -1342,7 +1450,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                 >
 
                                                     <label
-                                                        class="form-label fw-semibold"
+                                                        class="form-label"
                                                     >
 
                                                         Quantity to Send
@@ -1478,9 +1586,9 @@ require_once __DIR__ . '/../includes/topbar.php';
          TRANSFER HISTORY
     ====================================================== -->
 
-    <div class="card border-0 shadow-sm">
+    <div class="content-card">
 
-        <div class="card-header bg-white py-3">
+        <div class="content-card-header">
 
             <h5 class="mb-0">
 
@@ -1495,7 +1603,7 @@ require_once __DIR__ . '/../includes/topbar.php';
         </div>
 
 
-        <div class="card-body p-0">
+        <div class="content-card-body p-0">
 
             <div class="table-responsive">
 
@@ -1625,7 +1733,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                 <td>
 
                                     <span
-                                        class="badge bg-success"
+                                        class="badge badge-sent"
                                     >
 
                                         <?= e(
@@ -1667,6 +1775,8 @@ require_once __DIR__ . '/../includes/topbar.php';
 
     </div>
 
+
+</div>
 
 </div>
 

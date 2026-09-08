@@ -793,3 +793,179 @@ a { text-decoration: none; }
     border-top: 1px solid var(--border);
     padding: 16px 22px;
 }
+
+/* Canteen Management System - Step 6: Food Preparation page */
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.page-header-title {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 2px;
+}
+
+.page-header-subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0;
+}
+
+.badge-pending {
+    background: #fef3c7;
+    color: #b45309;
+    font-weight: 650;
+}
+
+.badge-sent {
+    background: #dcfce7;
+    color: #166534;
+    font-weight: 650;
+}
+
+.food-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    display: inline-grid;
+    place-items: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.food-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.remaining-pill {
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.remaining-pill.is-zero {
+    background: #dcfce7;
+    color: #166534;
+}
+
+/* App modal - generic themed modal (gradient header) used across pages */
+
+.app-modal .modal-content {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.app-modal .modal-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff;
+    border: none;
+    padding: 18px 22px;
+}
+
+.app-modal .modal-header .modal-title {
+    font-weight: 800;
+    font-size: 16px;
+}
+
+.app-modal .modal-header .btn-close {
+    filter: invert(1) grayscale(1) brightness(2);
+    opacity: .85;
+}
+
+.app-modal .modal-header .btn-close:hover {
+    opacity: 1;
+}
+
+.app-modal .modal-body {
+    padding: 22px;
+}
+
+.app-modal .form-label {
+    font-size: 12.5px;
+    font-weight: 650;
+}
+
+.app-modal .form-control,
+.app-modal .form-select,
+.app-modal textarea.form-control {
+    border-radius: 9px;
+    border-color: var(--border);
+    font-size: 13.5px;
+}
+
+.app-modal .form-control:disabled,
+.app-modal .form-control[readonly] {
+    background: var(--bg);
+    color: var(--muted);
+}
+
+.app-modal .form-control:focus,
+.app-modal .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 .2rem var(--primary-soft);
+}
+
+.app-modal .modal-footer {
+    border-top: 1px solid var(--border);
+    padding: 16px 22px;
+}
+
+/* Canteen Management System - Step 7: Dashboard, Serving & Wastage pages */
+
+.badge-count {
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    font-weight: 650;
+}
+
+.badge-muted {
+    background: #eef1ef;
+    color: var(--muted);
+    font-weight: 650;
+}
+
+.stat-icon-red {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.quick-action-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: var(--text);
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.quick-action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(17, 24, 39, .08);
+    color: var(--text);
+}
+
+.quick-action-card .stat-icon {
+    font-size: 20px;
+}
+
+.quick-action-label {
+    font-weight: 700;
+    font-size: 14.5px;
+}
+
+.quick-action-sub {
+    color: var(--muted);
+    font-size: 12px;
+}

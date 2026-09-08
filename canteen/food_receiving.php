@@ -368,6 +368,27 @@ $receivedTransfers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /*
 |--------------------------------------------------------------------------
+| SUMMARY STATS
+|--------------------------------------------------------------------------
+*/
+
+$pendingQtyTotal = 0.0;
+
+foreach ($pendingTransfers as $row) {
+    $pendingQtyTotal += (float)$row['quantity'];
+}
+
+$receivedQtyTotal = 0.0;
+$remainingQtyTotal = 0.0;
+
+foreach ($receivedTransfers as $row) {
+    $receivedQtyTotal += (float)$row['received_qty'];
+    $remainingQtyTotal += (float)$row['remaining_qty'];
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | COMMON HEADER
 |--------------------------------------------------------------------------
 */
@@ -380,20 +401,22 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 <div class="main-content">
 
+<div class="page-body">
+
     <!-- =========================================================
          PAGE HEADER
     ========================================================== -->
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="page-header">
 
         <div>
 
-            <h2 class="mb-1">
+            <h4 class="page-header-title">
                 <i class="fa-solid fa-hand-holding-heart me-2"></i>
                 Food Receiving
-            </h2>
+            </h4>
 
-            <p class="text-muted mb-0">
+            <p class="page-header-subtitle">
                 Receive food sent from Kitchen.
             </p>
 
@@ -449,35 +472,99 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 
     <!-- =========================================================
-         FOOD WAITING FOR RECEIVING
+         SUMMARY STATS
     ========================================================== -->
 
-    <div class="card shadow-sm border-0 mb-4">
+    <div class="row g-3 mb-4">
 
-        <div class="card-header bg-white">
+        <div class="col-md-4">
 
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="stat-card d-flex align-items-center gap-3">
 
-                <h5 class="mb-0">
+                <div class="stat-icon stat-icon-amber">
+                    <i class="fa-solid fa-truck-ramp-box"></i>
+                </div>
 
-                    <i class="fa-solid fa-truck-ramp-box me-2"></i>
-
-                    Food Sent by Kitchen
-
-                </h5>
-
-                <span class="badge bg-warning text-dark">
-
-                    <?= count($pendingTransfers) ?> Pending
-
-                </span>
+                <div>
+                    <div class="stat-label">Pending Receipt</div>
+                    <div class="stat-value">
+                        <?= count($pendingTransfers) ?>
+                    </div>
+                </div>
 
             </div>
 
         </div>
 
 
-        <div class="card-body p-0">
+        <div class="col-md-4">
+
+            <div class="stat-card d-flex align-items-center gap-3">
+
+                <div class="stat-icon stat-icon-green">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+
+                <div>
+                    <div class="stat-label">Received Qty</div>
+                    <div class="stat-value">
+                        <?= number_format($receivedQtyTotal, 2) ?>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="stat-card d-flex align-items-center gap-3">
+
+                <div class="stat-icon stat-icon-primary">
+                    <i class="fa-solid fa-bowl-food"></i>
+                </div>
+
+                <div>
+                    <div class="stat-label">Remaining to Serve</div>
+                    <div class="stat-value">
+                        <?= number_format($remainingQtyTotal, 2) ?>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         FOOD WAITING FOR RECEIVING
+    ========================================================== -->
+
+    <div class="content-card mb-4">
+
+        <div class="content-card-header">
+
+            <h5 class="mb-0">
+
+                <i class="fa-solid fa-truck-ramp-box me-2"></i>
+
+                Food Sent by Kitchen
+
+            </h5>
+
+            <span class="badge badge-pending">
+
+                <?= count($pendingTransfers) ?> Pending
+
+            </span>
+
+        </div>
+
+
+        <div class="content-card-body p-0">
 
             <?php if (empty($pendingTransfers)): ?>
 
@@ -560,17 +647,29 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <td>
 
-                                        <div>
-                                            <strong>
-                                                <?= e($row['food_name']) ?>
-                                            </strong>
+                                        <div class="food-cell">
+
+                                            <span class="food-icon">
+                                                <i class="fa-solid fa-utensils"></i>
+                                            </span>
+
+                                            <div>
+
+                                                <strong>
+                                                    <?= e($row['food_name']) ?>
+                                                </strong>
+
+                                                <br>
+
+                                                <small class="text-muted">
+
+                                                    <?= e($row['food_code']) ?>
+
+                                                </small>
+
+                                            </div>
+
                                         </div>
-
-                                        <small class="text-muted">
-
-                                            <?= e($row['food_code']) ?>
-
-                                        </small>
 
                                     </td>
 
@@ -601,7 +700,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <td>
 
-                                        <span class="badge bg-warning text-dark">
+                                        <span class="badge badge-pending">
 
                                             <i class="fa-solid fa-clock me-1"></i>
 
@@ -630,7 +729,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                             <button
                                                 type="submit"
                                                 name="receive_food"
-                                                class="btn btn-success btn-sm"
+                                                class="btn btn-primary btn-sm"
                                             >
 
                                                 <i class="fa-solid fa-check me-1"></i>
@@ -664,9 +763,9 @@ require_once __DIR__ . '/../includes/topbar.php';
          RECEIVED HISTORY
     ========================================================== -->
 
-    <div class="card shadow-sm border-0">
+    <div class="content-card">
 
-        <div class="card-header bg-white">
+        <div class="content-card-header">
 
             <h5 class="mb-0">
 
@@ -679,7 +778,7 @@ require_once __DIR__ . '/../includes/topbar.php';
         </div>
 
 
-        <div class="card-body p-0">
+        <div class="content-card-body p-0">
 
             <?php if (empty($receivedTransfers)): ?>
 
@@ -766,17 +865,29 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <td>
 
-                                        <strong>
-                                            <?= e($row['food_name']) ?>
-                                        </strong>
+                                        <div class="food-cell">
 
-                                        <br>
+                                            <span class="food-icon">
+                                                <i class="fa-solid fa-utensils"></i>
+                                            </span>
 
-                                        <small class="text-muted">
+                                            <div>
 
-                                            <?= e($row['food_code']) ?>
+                                                <strong>
+                                                    <?= e($row['food_name']) ?>
+                                                </strong>
 
-                                        </small>
+                                                <br>
+
+                                                <small class="text-muted">
+
+                                                    <?= e($row['food_code']) ?>
+
+                                                </small>
+
+                                            </div>
+
+                                        </div>
 
                                     </td>
 
@@ -829,10 +940,19 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <td>
 
-                                        <span class="badge bg-info">
+                                        <?php
+
+                                        $remainingQty =
+                                            (float)$row['remaining_qty'];
+
+                                        ?>
+
+                                        <span
+                                            class="badge remaining-pill<?= $remainingQty <= 0 ? ' is-zero' : '' ?>"
+                                        >
 
                                             <?= number_format(
-                                                (float)$row['remaining_qty'],
+                                                $remainingQty,
                                                 2
                                             ) ?>
 
@@ -864,6 +984,8 @@ require_once __DIR__ . '/../includes/topbar.php';
         </div>
 
     </div>
+
+</div>
 
 </div>
 
