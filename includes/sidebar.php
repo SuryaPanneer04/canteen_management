@@ -92,10 +92,35 @@ $isCanteen = ($role === 'Canteen');
 
             </a>
 
+            <a 
+        class="nav-link <?= $currentPage === 'price_master.php' ? 'active' : '' ?>" 
+        href="../admin/price_master.php"
+    >
+
+        <i class="fa-solid fa-tags"></i>
+        
+        <span>
+            Price Master
+        </span>
+
+    </a>
+    <a 
+        class="nav-link <?= $currentPage === 'invoice_approvals.php' ? 'active' : '' ?>" 
+        href="../admin/invoice_approvals.php"
+    >
+
+        <i class="fa-solid fa-tags"></i>
+        
+        <span>
+            Invoice Approvals
+        </span>
+
+    
+
 
             <a
                 class="nav-link <?= $currentPage === 'roles.php' ? 'active' : '' ?>"
-                href="roles.php"
+                href="../admin/roles.php"
             >
 
                 <i class="fa-solid fa-user-shield"></i>
@@ -105,6 +130,7 @@ $isCanteen = ($role === 'Canteen');
                 </span>
 
             </a>
+            
 
         <?php endif; ?>
 
@@ -230,14 +256,14 @@ $isCanteen = ($role === 'Canteen');
              KITCHEN
         ====================================================== -->
 
-        <div class="nav-label">
-                KITCHEN
-            </div>
+        
 
 
         <?php if ($isAdmin || $isKitchen): ?>
 
-            
+            <div class="nav-label">
+                KITCHEN
+            </div>
 
            <!-- <a
                 class="nav-link"

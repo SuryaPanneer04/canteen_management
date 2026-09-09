@@ -630,93 +630,66 @@ $requests = $stmt->fetchAll();
 
                                 </td>
 
-
-                                <!-- ACTION -->
+<!-- ACTION -->
 
                                 <td class="text-end">
 
+                                    <div class="d-flex align-items-center justify-content-end gap-2">
 
-                                    <?php if ($status === 'Pending'): ?>
-
-
-                                        <!-- APPROVE -->
-
-                                        <form
-                                            method="POST"
-                                            class="d-inline"
-                                            onsubmit="return confirm('Approve this purchase request?');"
+                                        <!-- VIEW BUTTON -->
+                                        <button 
+                                            type="button" 
+                                            class="btn btn-sm btn-outline-info view-request-btn" 
+                                            data-id="<?= (int)$request['id'] ?>"
+                                            data-reqno="<?= e($request['request_no']) ?>"
+                                            title="View Requested Items"
                                         >
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
 
-                                            <input
-                                                type="hidden"
-                                                name="action"
-                                                value="approve"
-                                            >
+                                        <?php if ($status === 'Pending'): ?>
 
-                                            <input
-                                                type="hidden"
-                                                name="request_id"
-                                                value="<?= (int)$request['id'] ?>"
-                                            >
+                                            <!-- APPROVE / REJECT BUTTONS -->
+                                            <div class="d-flex gap-1" style="width: 70px;">
+                                                
+                                                <form
+                                                    method="POST"
+                                                    class="m-0 p-0"
+                                                    onsubmit="return confirm('Approve this purchase request?');"
+                                                >
+                                                    <input type="hidden" name="action" value="approve">
+                                                    <input type="hidden" name="request_id" value="<?= (int)$request['id'] ?>">
+                                                    <button type="submit" class="btn btn-sm btn-success" title="Approve">
+                                                        <i class="fa-solid fa-check"></i>
+                                                    </button>
+                                                </form>
 
-                                            <button
-                                                type="submit"
-                                                class="btn btn-sm btn-success"
-                                                title="Approve"
-                                            >
+                                                <form
+                                                    method="POST"
+                                                    class="m-0 p-0"
+                                                    onsubmit="return confirm('Reject this purchase request?');"
+                                                >
+                                                    <input type="hidden" name="action" value="reject">
+                                                    <input type="hidden" name="request_id" value="<?= (int)$request['id'] ?>">
+                                                    <button type="submit" class="btn btn-sm btn-danger" title="Reject">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </form>
 
-                                                <i class="fa-solid fa-check"></i>
+                                            </div>
 
-                                            </button>
+                                        <?php else: ?>
 
-                                        </form>
+                                            <!-- NO ACTION TEXT -->
+                                            <span class="text-muted text-nowrap text-center" style="width: 70px; font-size: 0.9em;">
+                                                No action
+                                            </span>
 
+                                        <?php endif; ?>
 
-                                        <!-- REJECT -->
-
-                                        <form
-                                            method="POST"
-                                            class="d-inline"
-                                            onsubmit="return confirm('Reject this purchase request?');"
-                                        >
-
-                                            <input
-                                                type="hidden"
-                                                name="action"
-                                                value="reject"
-                                            >
-
-                                            <input
-                                                type="hidden"
-                                                name="request_id"
-                                                value="<?= (int)$request['id'] ?>"
-                                            >
-
-                                            <button
-                                                type="submit"
-                                                class="btn btn-sm btn-danger"
-                                                title="Reject"
-                                            >
-
-                                                <i class="fa-solid fa-xmark"></i>
-
-                                            </button>
-
-                                        </form>
-
-
-                                    <?php else: ?>
-
-                                        <span class="text-muted">
-                                            No action
-                                        </span>
-
-                                    <?php endif; ?>
-
+                                    </div>
 
                                 </td>
-
-                            </tr>
 
 
                         <?php endforeach; ?>
@@ -737,6 +710,106 @@ $requests = $stmt->fetchAll();
     </div>
 
 </main>
+<!-- =====================================================
+     VIEW REQUEST ITEMS MODAL
+====================================================== -->
+<div class="modal fade" id="viewRequestModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa-solid fa-boxes-stacked me-2"></i>
+                    Requested Items: <strong id="modalRequestNo" class="text-primary"></strong>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Material Code</th>
+                                <th>Material Name</th>
+                                <th>Requested Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody id="viewItemsBody">
+                            <!-- Data will load here via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    
+    // Bootstrap modal instance
+    const viewModalElement = document.getElementById('viewRequestModal');
+    if(viewModalElement) {
+        const viewModal = new bootstrap.Modal(viewModalElement);
+        const viewButtons = document.querySelectorAll('.view-request-btn');
+        const itemsBody = document.getElementById('viewItemsBody');
+        const modalReqNo = document.getElementById('modalRequestNo');
+
+        viewButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                
+                const requestId = this.getAttribute('data-id');
+                const reqNo = this.getAttribute('data-reqno');
+                
+                // Modal la Request number set pandrom
+                modalReqNo.textContent = reqNo;
+                
+                // Loading text kaaturom
+                itemsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2"></i> Loading materials...</td></tr>';
+                
+                // Modal ah open pandrom
+                viewModal.show();
+
+                // AJAX Call
+                const formData = new FormData();
+                formData.append('request_id', requestId);
+
+                fetch('ajax_get_request_items.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    itemsBody.innerHTML = ''; // Clear loading text
+                    
+                    if (data.status === 'success' && data.data.length > 0) {
+                        data.data.forEach((item, index) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${index + 1}</td>
+                                <td><strong>${item.material_code}</strong></td>
+                                <td>${item.material_name} <span class="badge bg-secondary ms-1">${item.unit}</span></td>
+                                <td>${parseFloat(item.requested_qty).toFixed(2)}</td>
+                            `;
+                            itemsBody.appendChild(tr);
+                        });
+                    } else {
+                        itemsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No materials found for this request.</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching details:', error);
+                    itemsBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">Error loading data. Check network console.</td></tr>';
+                });
+            });
+        });
+    }
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

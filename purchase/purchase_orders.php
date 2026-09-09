@@ -382,17 +382,31 @@ $stmt = $con->query("
         po.po_date,
         po.expected_date,
         po.status,
-        po.remarks,
+
         s.supplier_name,
+
         pr.request_no,
+
         u.employee_name AS created_by_name
+
+        -- INGE PUDHUSA INVOICE STATUS EDUKKA POROM --
+        , i.status AS invoice_status
+
     FROM purchase_orders po
+
     LEFT JOIN suppliers s
         ON s.id = po.supplier_id
+
     LEFT JOIN purchase_requests pr
         ON pr.id = po.request_id
+
     LEFT JOIN users u
         ON u.id = po.created_by
+
+    -- PUDHU JOIN --
+    LEFT JOIN invoices i 
+        ON i.po_id = po.id
+
     ORDER BY po.id DESC
 ");
 
@@ -505,140 +519,103 @@ require_once __DIR__ . '/../includes/header.php';
 
 
                 <div class="table-responsive">
+                <!-- text-nowrap add pannirukom, so text madangadhu (no wrapping) -->
+                <table class="table table-hover align-middle mb-0 text-nowrap">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>PO & Request Details</th>
+                            <th>Supplier</th>
+                            <th>Dates</th>
+                            <th>PO Status</th>
+                            <th class="text-center">Payment Status</th>
+                            <th>Created By</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
 
-                    <table class="table table-hover align-middle mb-0">
-
-                        <thead>
-
+                    <tbody>
+                    <?php if (!$purchaseOrders): ?>
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                <i class="fa-solid fa-file-invoice fs-2 d-block mb-2"></i>
+                                No purchase orders found.
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($purchaseOrders as $index => $po): ?>
+                            <?php
+                                // Status Badge Setup
+                                $statusClass = match ($po['status']) {
+                                    'Draft' => 'bg-secondary',
+                                    'Pending' => 'badge-disabled',
+                                    'Approved' => 'badge-enable',
+                                    'Ordered' => 'badge-enable',
+                                    'Received' => 'badge-enable',
+                                    'Cancelled' => 'badge-disabled',
+                                    default => 'bg-secondary'
+                                };
+                            ?>
                             <tr>
-
-                                <th>#</th>
-
-                                <th>PO Number</th>
-
-                                <th>Request No.</th>
-
-                                <th>Supplier</th>
-
-                                <th>PO Date</th>
-
-                                <th>Expected Date</th>
-
-                                <th>Status</th>
-
-                                <th>Created By</th>
-
-                                <th>Action</th>
-
-                            </tr>
-
-                        </thead>
-
-
-                        <tbody>
-
-                        <?php if (!$purchaseOrders): ?>
-
-                            <tr>
-
-                                <td
-                                    colspan="9"
-                                    class="text-center text-muted py-5"
-                                >
-
-                                    <i class="fa-solid fa-file-invoice fa-2x mb-3"></i>
-
-                                    <div>
-                                        No purchase orders found.
-                                    </div>
-
+                                <td><?= $index + 1 ?></td>
+                                
+                                <td>
+                                    <strong><?= e($po['po_no']) ?></strong><br>
+                                    <small class="text-muted"><i class="fa-solid fa-link me-1"></i><?= e($po['request_no']) ?></small>
                                 </td>
-
+                                
+                                <td><?= e($po['supplier_name']) ?></td>
+                                
+                                <td>
+                                    <?= e($po['po_date']) ?><br>
+                                    <small class="text-muted">Exp: <?= $po['expected_date'] ? e($po['expected_date']) : '-' ?></small>
+                                </td>
+                                
+                                <td>
+                                    <span class="badge <?= $statusClass ?>">
+                                        <?= e($po['status']) ?>
+                                    </span>
+                                </td>
+                                
+                                <!-- NEW PAYMENT STATUS COLUMN -->
+                                <td class="text-center">
+                                    <?php if ($po['status'] === 'Received'): ?>
+                                        <?php if (!empty($po['invoice_status'])): ?>
+                                            <?php 
+                                                $invBadge = match($po['invoice_status']) {
+                                                    'Pending' => 'bg-warning text-dark',
+                                                    'Approved' => 'bg-primary', /* <--- Changed to Professional Blue */
+                                                    'Paid' => 'bg-success',
+                                                    'Rejected' => 'bg-danger',
+                                                    default => 'bg-secondary'
+                                                };
+                                            ?>
+                                            <span class="badge <?= $invBadge ?>">
+                                                <i class="fa-solid fa-file-invoice-dollar me-1"></i> <?= e($po['invoice_status']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-light text-secondary border">
+                                                <i class="fa-solid fa-hourglass-start me-1"></i> Awaiting Invoice
+                                            </span>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                
+                                <td><?= e($po['created_by_name'] ?? 'System') ?></td>
+                                
+                                <td class="text-end">
+                                    <a href="purchase_order_view.php?id=<?= (int)$po['id'] ?>" class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </a>
+                                </td>
                             </tr>
-
-                        <?php else: ?>
-
-                            <?php foreach ($purchaseOrders as $index => $po): ?>
-
-                                <tr>
-
-                                    <td>
-                                        <?= $index + 1 ?>
-                                    </td>
-
-                                    <td>
-
-                                        <strong>
-                                            <?= e($po['po_no']) ?>
-                                        </strong>
-
-                                    </td>
-
-                                    <td>
-                                        <?= e($po['request_no']) ?>
-                                    </td>
-
-                                    <td>
-                                        <?= e($po['supplier_name']) ?>
-                                    </td>
-
-                                    <td>
-                                        <?= e($po['po_date']) ?>
-                                    </td>
-
-                                    <td>
-                                        <?= e($po['expected_date']) ?>
-                                    </td>
-
-                                    <td>
-
-                                        <?php
-
-                                        $badgeClass = match ($po['status']) {
-                                            'Draft' => 'bg-secondary',
-                                            'Pending' => 'badge-disabled',
-                                            'Approved' => 'badge-enable',
-                                            'Ordered' => 'badge-enable',
-                                            'Received' => 'badge-enable',
-                                            'Cancelled' => 'badge-disabled',
-                                            default => 'bg-secondary'
-                                        };
-
-                                        ?>
-
-                                        <span class="badge <?= $badgeClass ?>">
-                                            <?= e($po['status']) ?>
-                                        </span>
-
-                                    </td>
-
-                                    <td>
-                                        <?= e($po['created_by_name']) ?>
-                                    </td>
-
-                                    <td>
-
-                                        <a
-                                            href="purchase_order_view.php?id=<?= (int)$po['id'] ?>"
-                                            class="btn btn-sm btn-outline-primary"
-                                            title="View Purchase Order"
-                                        >
-                                            <i class="fa-solid fa-eye"></i>
-                                        </a>
-
-                                    </td>
-
-                                </tr>
-
-                            <?php endforeach; ?>
-
-                        <?php endif; ?>
-
-                        </tbody>
-
-                    </table>
-
-                </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
 
             </div>
 
@@ -707,11 +684,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <span class="text-danger">*</span>
                             </label>
 
-                            <select
-                                name="request_id"
-                                class="form-select"
-                                required
-                            >
+                            <select name="request_id" id="request_id" class="form-select" required>
 
                                 <option value="">
                                     --- Select Request ---
@@ -1048,160 +1021,121 @@ require_once __DIR__ . '/../includes/header.php';
 
 </div>
 
-
 <script>
-
 document.addEventListener('DOMContentLoaded', function () {
 
     const itemsBody = document.getElementById('poItemsBody');
     const addButton = document.getElementById('addPOItem');
     const grandTotal = document.getElementById('grandTotal');
+    const requestSelect = document.getElementById('request_id');
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | CALCULATE ROW TOTAL
-    |--------------------------------------------------------------------------
-    */
-
+    // ROW TOTAL CALCULATION
     function calculateRow(row) {
-
-        const qty = parseFloat(
-            row.querySelector('.qty-input')?.value || 0
-        );
-
-        const rate = parseFloat(
-            row.querySelector('.rate-input')?.value || 0
-        );
-
+        const qty = parseFloat(row.querySelector('.qty-input')?.value || 0);
+        const rate = parseFloat(row.querySelector('.rate-input')?.value || 0);
         const total = qty * rate;
-
         const totalInput = row.querySelector('.total-input');
-
         if (totalInput) {
             totalInput.value = total.toFixed(2);
         }
-
         calculateGrandTotal();
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | CALCULATE GRAND TOTAL
-    |--------------------------------------------------------------------------
-    */
-
+    // GRAND TOTAL CALCULATION
     function calculateGrandTotal() {
-
         let total = 0;
-
         document.querySelectorAll('.po-item-row').forEach(function (row) {
-
-            const qty = parseFloat(
-                row.querySelector('.qty-input')?.value || 0
-            );
-
-            const rate = parseFloat(
-                row.querySelector('.rate-input')?.value || 0
-            );
-
+            const qty = parseFloat(row.querySelector('.qty-input')?.value || 0);
+            const rate = parseFloat(row.querySelector('.rate-input')?.value || 0);
             total += qty * rate;
-
         });
-
         grandTotal.value = total.toFixed(2);
     }
 
+    // AUTOMATIC DATA FETCH ON DROPDOWN CHANGE
+    if(requestSelect) {
+        requestSelect.addEventListener('change', function () {
+            const requestId = this.value;
+            
+            if (!requestId) {
+                itemsBody.innerHTML = '';
+                calculateGrandTotal();
+                return;
+            }
 
-    /*
-    |--------------------------------------------------------------------------
-    | ADD ITEM
-    |--------------------------------------------------------------------------
-    */
+            const formData = new FormData();
+            formData.append('request_id', requestId);
 
-    addButton.addEventListener('click', function () {
+            // API Call
+            fetch('ajax_get_request_items.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Pazhaya manual row ah clear pandrom
+                    itemsBody.innerHTML = ''; 
+                    
+                    // DB la irundhu vandha items ah table la add pandrom
+                    data.data.forEach(item => {
+                        const qty = parseFloat(item.requested_qty).toFixed(2);
+                        const rate = parseFloat(item.unit_price).toFixed(2);
+                        const total = (qty * rate).toFixed(2);
+                        
+                        const tr = document.createElement('tr');
+                        tr.className = 'po-item-row';
+                        
+                        tr.innerHTML = `
+                            <td>
+                                <input type="hidden" name="material_id[]" value="${item.material_id}">
+                                <input type="text" class="form-control" value="${item.material_code} - ${item.material_name} (${item.unit})" readonly>
+                            </td>
+                            <td>
+                                <input type="number" name="ordered_qty[]" class="form-control qty-input" min="0.01" step="0.01" value="${qty}" required>
+                            </td>
+                            <td>
+                                <input type="number" name="unit_rate[]" class="form-control rate-input" min="0" step="0.01" value="${rate}" required>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control total-input" value="${total}" readonly>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        `;
+                        itemsBody.appendChild(tr);
+                    });
+                    
+                    // Total ah update pandrom
+                    calculateGrandTotal();
+                } else {
+                    alert('Error Fetching Data: ' + data.message);
+                }
+            })
+            .catch(error => console.error('Fetch error:', error));
+        });
+    }
 
-        const firstRow = document.querySelector('.po-item-row');
-
-        const newRow = firstRow.cloneNode(true);
-
-        newRow.querySelector('.material-select').value = '';
-
-        newRow.querySelector('.qty-input').value = '1';
-
-        newRow.querySelector('.rate-input').value = '0';
-
-        newRow.querySelector('.total-input').value = '0.00';
-
-        itemsBody.appendChild(newRow);
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | REMOVE ITEM
-    |--------------------------------------------------------------------------
-    */
-
-    itemsBody.addEventListener('click', function (event) {
-
-        const button = event.target.closest('.remove-item');
-
-        if (!button) {
-            return;
-        }
-
-        const rows = document.querySelectorAll('.po-item-row');
-
-        if (rows.length <= 1) {
-
-            alert('At least one item is required.');
-
-            return;
-        }
-
-        button.closest('.po-item-row').remove();
-
-        calculateGrandTotal();
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | QUANTITY / RATE CHANGE
-    |--------------------------------------------------------------------------
-    */
-
+    // QUANTITY OR RATE CHANGE PANNALUM TOTAL UPDATE AAGANUM
     itemsBody.addEventListener('input', function (event) {
-
-        if (
-            event.target.classList.contains('qty-input') ||
-            event.target.classList.contains('rate-input')
-        ) {
-
-            calculateRow(
-                event.target.closest('.po-item-row')
-            );
-
+        if (event.target.classList.contains('qty-input') || event.target.classList.contains('rate-input')) {
+            calculateRow(event.target.closest('.po-item-row'));
         }
-
     });
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | INITIAL CALCULATION
-    |--------------------------------------------------------------------------
-    */
-
-    calculateGrandTotal();
+    // REMOVE ITEM BUTTON
+    itemsBody.addEventListener('click', function (event) {
+        const button = event.target.closest('.remove-item');
+        if (button) {
+            button.closest('.po-item-row').remove();
+            calculateGrandTotal();
+        }
+    });
 
 });
-
 </script>
-
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
