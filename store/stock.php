@@ -16,6 +16,7 @@ $pageTitle = 'Stock Report';
 
 $search = trim($_GET['search'] ?? '');
 $statusFilter = $_GET['status'] ?? 'All';
+$categoryFilter = trim($_GET['category'] ?? '');
 
 
 /*
@@ -38,6 +39,22 @@ if (!in_array($statusFilter, $allowedStatuses, true)) {
 
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| FETCH CATEGORIES
+|--------------------------------------------------------------------------
+*/
+
+$stmt = $con->query("
+    SELECT category_name
+    FROM material_categories
+    WHERE status = 'Enable'
+    ORDER BY category_name ASC
+");
+
+
+$categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +83,21 @@ if ($search !== '') {
     ";
 
     $params[':search'] = '%' . $search . '%';
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CATEGORY FILTER
+|--------------------------------------------------------------------------
+*/
+
+if ($categoryFilter !== '') {
+
+    $where[] = "category = :category";
+
+    $params[':category'] = $categoryFilter;
 
 }
 
@@ -129,7 +161,7 @@ if (!empty($where)) {
 */
 
 $sql = "
-    SELECT
+        SELECT
         id,
         material_code,
         material_name,
@@ -137,6 +169,7 @@ $sql = "
         unit,
         minimum_stock,
         current_stock,
+        unit_price,
         status,
         created_at
     FROM materials
@@ -291,7 +324,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 
             <div>
-
+                <!--
                 <a
                     href="stock_inward.php"
                     class="btn btn-primary me-1">
@@ -301,11 +334,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     Stock Inward
 
                 </a>
-
+                -->
 
                 <a
                     href="stock_issue.php"
-                    class="btn btn-secondary">
+                    class="btn btn-primary me-1">
 
                     <i class="fa-solid fa-arrow-right-from-bracket me-1"></i>
 
@@ -400,132 +433,166 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 
         <!-- FILTER -->
-        <div class="content-card mb-4">
+<div class="content-card mb-4">
 
-            <div class="content-card-header">
+    <div class="content-card-header">
 
-                <strong>
+        <strong>
 
-                    <i class="fa-solid fa-filter me-1"></i>
+            <i class="fa-solid fa-filter me-1"></i>
 
-                    Stock Filter
+            Stock Filter
 
-                </strong>
+        </strong>
+
+    </div>
+
+
+    <div class="content-card-body">
+
+        <form method="GET">
+
+            <div class="row g-3 align-items-end">
+
+                <!-- SEARCH -->
+                <div class="col-md-4">
+
+                    <label class="form-label">
+                        Search Material
+                    </label>
+
+                    <input
+                        type="text"
+                        name="search"
+                        class="form-control"
+                        value="<?= e($search) ?>"
+                        placeholder="Code, material name or category">
+
+                </div>
+
+
+                <!-- CATEGORY -->
+                <div class="col-md-3">
+
+                    <label class="form-label">
+                        Category
+                    </label>
+
+                    <select
+                        name="category"
+                        class="form-select">
+
+                        <option value="">
+                            All Categories
+                        </option>
+
+                        <?php foreach ($categories as $category): ?>
+
+                            <option
+                                value="<?= e($category) ?>"
+                                <?= $categoryFilter === $category
+                                    ? 'selected'
+                                    : '' ?>>
+
+                                <?= e($category) ?>
+
+                            </option>
+
+                        <?php endforeach; ?>
+
+                    </select>
+
+                </div>
+
+
+                <!-- STATUS -->
+                <div class="col-md-3">
+
+                    <label class="form-label">
+                        Stock Status
+                    </label>
+
+                    <select
+                        name="status"
+                        class="form-select">
+
+                        <option
+                            value="All"
+                            <?= $statusFilter === 'All'
+                                ? 'selected'
+                                : '' ?>>
+
+                            All
+
+                        </option>
+
+                        <option
+                            value="In Stock"
+                            <?= $statusFilter === 'In Stock'
+                                ? 'selected'
+                                : '' ?>>
+
+                            In Stock
+
+                        </option>
+
+                        <option
+                            value="Low Stock"
+                            <?= $statusFilter === 'Low Stock'
+                                ? 'selected'
+                                : '' ?>>
+
+                            Low Stock
+
+                        </option>
+
+                        <option
+                            value="Out of Stock"
+                            <?= $statusFilter === 'Out of Stock'
+                                ? 'selected'
+                                : '' ?>>
+
+                            Out of Stock
+
+                        </option>
+
+                        <option
+                            value="Disabled"
+                            <?= $statusFilter === 'Disabled'
+                                ? 'selected'
+                                : '' ?>>
+
+                            Disabled
+
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- BUTTON -->
+                <div class="col-md-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary w-100">
+
+                        <i class="fa-solid fa-magnifying-glass me-1"></i>
+
+                        Filter
+
+                    </button>
+
+                </div>
 
             </div>
 
+        </form>
 
-            <div class="content-card-body">
+    </div>
 
-                <form method="GET">
-
-                    <div class="row g-3 align-items-end">
-
-                        <!-- SEARCH -->
-                        <div class="col-md-6">
-
-                            <label class="form-label">
-                                Search Material
-                            </label>
-
-                            <input
-                                type="text"
-                                name="search"
-                                class="form-control"
-                                value="<?= e($search) ?>"
-                                placeholder="Code, material name or category">
-
-                        </div>
-
-
-                        <!-- STATUS -->
-                        <div class="col-md-4">
-
-                            <label class="form-label">
-                                Stock Status
-                            </label>
-
-                            <select
-                                name="status"
-                                class="form-select">
-
-                                <option
-                                    value="All"
-                                    <?= $statusFilter === 'All'
-                                        ? 'selected'
-                                        : '' ?>>
-
-                                    All
-
-                                </option>
-
-                                <option
-                                    value="In Stock"
-                                    <?= $statusFilter === 'In Stock'
-                                        ? 'selected'
-                                        : '' ?>>
-
-                                    In Stock
-
-                                </option>
-
-                                <option
-                                    value="Low Stock"
-                                    <?= $statusFilter === 'Low Stock'
-                                        ? 'selected'
-                                        : '' ?>>
-
-                                    Low Stock
-
-                                </option>
-
-                                <option
-                                    value="Out of Stock"
-                                    <?= $statusFilter === 'Out of Stock'
-                                        ? 'selected'
-                                        : '' ?>>
-
-                                    Out of Stock
-
-                                </option>
-
-                                <option
-                                    value="Disabled"
-                                    <?= $statusFilter === 'Disabled'
-                                        ? 'selected'
-                                        : '' ?>>
-
-                                    Disabled
-
-                                </option>
-
-                            </select>
-
-                        </div>
-
-
-                        <!-- BUTTON -->
-                        <div class="col-md-2">
-
-                            <button
-                                type="submit"
-                                class="btn btn-primary w-100">
-
-                                <i class="fa-solid fa-magnifying-glass me-1"></i>
-
-                                Search
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </form>
-
-            </div>
-
-        </div>
+</div>
 
 
         <!-- STOCK TABLE -->
@@ -574,6 +641,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <th>Current Stock</th>
 
+                            <th>Unit Price</th>
+
+                            <th>Total Price</th>
+
                             <th>Status</th>
 
                             <th class="text-center">Action</th>
@@ -590,7 +661,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <tr>
 
                             <td
-                                colspan="8"
+                                colspan="10"
                                 class="text-center text-muted py-5">
 
                                 <i class="fa-solid fa-box-open fs-2 d-block mb-2"></i>
@@ -706,7 +777,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 </td>
 
 
-                                <td>
+                               <td>
 
                                     <strong
                                         class="<?= $stockStatus === 'Out of Stock'
@@ -728,6 +799,33 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 </td>
 
 
+                                <!-- UNIT PRICE -->
+                                <td>
+
+                                    ₹<?= number_format(
+                                        (float)$material['unit_price'],
+                                        2
+                                    ) ?>
+
+                                </td>
+
+
+                                <!-- TOTAL PRICE -->
+                                <td>
+
+                                    <strong>
+
+                                        ₹<?= number_format(
+                                            (float)$material['unit_price'] * $currentStock,
+                                            2
+                                        ) ?>
+
+                                    </strong>
+
+                                </td>
+
+
+                                <!-- STATUS -->
                                 <td>
 
                                     <span class="badge <?= $badgeClass ?>">

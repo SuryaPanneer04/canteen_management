@@ -92,10 +92,35 @@ $isCanteen = ($role === 'Canteen');
 
             </a>
 
+            <a 
+        class="nav-link <?= $currentPage === 'price_master.php' ? 'active' : '' ?>" 
+        href="../admin/price_master.php"
+    >
+
+        <i class="fa-solid fa-tags"></i>
+        
+        <span>
+            Price Master
+        </span>
+
+    </a>
+    <a 
+        class="nav-link <?= $currentPage === 'invoice_approvals.php' ? 'active' : '' ?>" 
+        href="../admin/invoice_approvals.php"
+    >
+
+        <i class="fa-solid fa-tags"></i>
+        
+        <span>
+            Invoice Approvals
+        </span>
+
+    
+
 
             <a
                 class="nav-link <?= $currentPage === 'roles.php' ? 'active' : '' ?>"
-                href="roles.php"
+                href="../admin/roles.php"
             >
 
                 <i class="fa-solid fa-user-shield"></i>
@@ -105,6 +130,7 @@ $isCanteen = ($role === 'Canteen');
                 </span>
 
             </a>
+            
 
         <?php endif; ?>
 
@@ -126,6 +152,13 @@ $isCanteen = ($role === 'Canteen');
                 </a>
             </li> -->
 
+             <li class="nav-item">
+                <a href="../store/stock.php" class="nav-link">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>Stock</span>
+                </a>
+            </li>
+
             <li class="nav-item">
                 <a href="../store/materials.php" class="nav-link">
                     <i class="fa-solid fa-boxes-stacked"></i>
@@ -140,24 +173,17 @@ $isCanteen = ($role === 'Canteen');
                 </a>
             </li>
 
-            <li class="nav-item">
+           <!-- <li class="nav-item">
                 <a href="../store/stock_inward.php" class="nav-link">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i>
                     <span>Stock Inward</span>
                 </a>
-            </li>
+            </li>-->
 
             <li class="nav-item">
                 <a href="../store/stock_issue.php" class="nav-link">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     <span>Stock Issue</span>
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a href="../store/stock.php" class="nav-link">
-                    <i class="fa-solid fa-boxes-stacked"></i>
-                    <span>Stock</span>
                 </a>
             </li>
 
@@ -230,14 +256,14 @@ $isCanteen = ($role === 'Canteen');
              KITCHEN
         ====================================================== -->
 
-        <div class="nav-label">
-                KITCHEN
-            </div>
+        
 
 
         <?php if ($isAdmin || $isKitchen): ?>
 
-            
+            <div class="nav-label">
+                KITCHEN
+            </div>
 
            <!-- <a
                 class="nav-link"

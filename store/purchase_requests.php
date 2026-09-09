@@ -770,19 +770,53 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </div>
 
 
-                    <!-- ADD MATERIAL -->
+                    <!-- ADD MATERIAL / EXCEL UPLOAD -->
 
-                    <button
-                        type="button"
-                        id="addItem"
-                        class="btn btn-outline-secondary mb-3"
-                    >
+                    <div class="d-flex flex-wrap gap-2 mb-3">
 
-                        <i class="fa-solid fa-plus me-1"></i>
+                        <button
+                            type="button"
+                            id="addItem"
+                            class="btn btn-outline-secondary"
+                        >
+                            <i class="fa-solid fa-plus me-1"></i>
+                            Add Material
+                        </button>
 
-                        Add Material
+                        <button
+                            type="button"
+                            id="uploadExcelBtn"
+                            class="btn btn-outline-success"
+                        >
+                            <i class="fa-solid fa-file-excel me-1"></i>
+                            Upload Excel
+                        </button>
 
-                    </button>
+                        <input
+                            type="file"
+                            id="excelFile"
+                            accept=".xlsx,.xls"
+                            style="display:none;"
+                        >
+
+                    </div>
+
+                    <div class="text-muted small mb-3">
+
+                        <i class="fa-solid fa-circle-info me-1"></i>
+
+                        Excel format:
+
+                        <strong>Material Code</strong>,
+                        <strong>Material Name</strong>,
+                        <strong>Quantity</strong>
+
+                        <br>
+
+                        Example:
+                        <strong>MAT-001 | Cement | 10</strong>
+
+                    </div>
 
 
                     <!-- REMARKS -->
@@ -1076,6 +1110,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 </main>
 
 
+<!-- SheetJS Excel Library -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
 <script>
 
 /*
@@ -1195,9 +1232,6 @@ document.getElementById('requestItems').addEventListener(
         const selectedValues = [];
 
 
-        let duplicateFound = false;
-
-
         selects.forEach(function (select) {
 
             if (select.value === '') {
@@ -1211,8 +1245,6 @@ document.getElementById('requestItems').addEventListener(
                 )
             ) {
 
-                duplicateFound = true;
-
                 alert(
                     'This material has already been selected.'
                 );
@@ -1224,9 +1256,730 @@ document.getElementById('requestItems').addEventListener(
                 selectedValues.push(
                     select.value
                 );
+
             }
 
         });
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| EXCEL UPLOAD BUTTON
+|--------------------------------------------------------------------------
+*/
+
+document.getElementById(
+    'uploadExcelBtn'
+).addEventListener(
+    'click',
+    function () {
+
+        document.getElementById(
+            'excelFile'
+        ).click();
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| EXCEL FILE UPLOAD
+|--------------------------------------------------------------------------
+*/
+
+document.getElementById(
+    'excelFile'
+).addEventListener(
+    'change',
+    function (event) {
+
+        const file =
+            event.target.files[0];
+
+
+        if (!file) {
+            return;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CHECK EXCEL LIBRARY
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            typeof XLSX === 'undefined'
+        ) {
+
+            alert(
+                'Excel library could not be loaded. Please check your internet connection.'
+            );
+
+            event.target.value = '';
+
+            return;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | READ EXCEL FILE
+        |--------------------------------------------------------------------------
+        */
+
+        const reader =
+            new FileReader();
+
+
+        reader.onload =
+            function (e) {
+
+                try {
+
+                    const data =
+                        new Uint8Array(
+                            e.target.result
+                        );
+
+
+                    const workbook =
+                        XLSX.read(
+                            data,
+                            {
+                                type: 'array'
+                            }
+                        );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FIRST SHEET
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const sheetName =
+                        workbook.SheetNames[0];
+
+
+                    const worksheet =
+                        workbook.Sheets[
+                            sheetName
+                        ];
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CONVERT SHEET TO JSON
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const rows =
+                        XLSX.utils.sheet_to_json(
+                            worksheet,
+                            {
+                                defval: ''
+                            }
+                        );
+
+
+                    if (!rows.length) {
+
+                        alert(
+                            'The Excel file is empty.'
+                        );
+
+                        return;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | GET DATABASE MATERIALS
+                    |
+                    | PHP materials array is converted to JavaScript.
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const materials =
+                        <?= json_encode(
+                            $materials,
+                            JSON_UNESCAPED_UNICODE |
+                            JSON_UNESCAPED_SLASHES
+                        ) ?>;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | NORMALIZE TEXT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    function normalizeText(value) {
+
+                        return String(
+                            value ?? ''
+                        )
+                        .trim()
+                        .toLowerCase();
+
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | NORMALIZE EXCEL HEADER
+                    |--------------------------------------------------------------------------
+                    */
+
+                    function getColumn(
+                        row,
+                        possibleNames
+                    ) {
+
+                        const keys =
+                            Object.keys(row);
+
+
+                        for (
+                            const key of keys
+                        ) {
+
+                            const normalizedKey =
+                                normalizeText(
+                                    key
+                                );
+
+
+                            for (
+                                const possibleName
+                                of possibleNames
+                            ) {
+
+                                if (
+                                    normalizedKey ===
+                                    normalizeText(
+                                        possibleName
+                                    )
+                                ) {
+
+                                    return row[key];
+
+                                }
+
+                            }
+
+                        }
+
+
+                        return '';
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CURRENTLY SELECTED MATERIALS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const existingSelections =
+                        new Set();
+
+
+                    document
+                        .querySelectorAll(
+                            '.material-select'
+                        )
+                        .forEach(function (select) {
+
+                            if (select.value !== '') {
+
+                                existingSelections.add(
+                                    select.value
+                                );
+
+                            }
+
+                        });
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RESULT COUNTERS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    let addedCount = 0;
+
+                    let skippedCount = 0;
+
+                    const errors = [];
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PROCESS EACH EXCEL ROW
+                    |--------------------------------------------------------------------------
+                    */
+
+                    rows.forEach(
+                        function (
+                            row,
+                            rowIndex
+                        ) {
+
+                            const excelRowNumber =
+                                rowIndex + 2;
+
+
+                            /*
+                            | Read columns
+                            */
+
+                            const materialCode =
+                                String(
+                                    getColumn(
+                                        row,
+                                        [
+                                            'Material Code',
+                                            'material_code',
+                                            'Code'
+                                        ]
+                                    )
+                                ).trim();
+
+
+                            const materialName =
+                                String(
+                                    getColumn(
+                                        row,
+                                        [
+                                            'Material Name',
+                                            'material_name',
+                                            'Name'
+                                        ]
+                                    )
+                                ).trim();
+
+
+                            const quantityValue =
+                                getColumn(
+                                    row,
+                                    [
+                                        'Quantity',
+                                        'quantity',
+                                        'Required Quantity',
+                                        'required_qty'
+                                    ]
+                                );
+
+
+                            const quantity =
+                                parseFloat(
+                                    quantityValue
+                                );
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | VALIDATE EMPTY VALUES
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (
+                                materialCode === '' &&
+                                materialName === '' &&
+                                (
+                                    isNaN(quantity) ||
+                                    quantity <= 0
+                                )
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            if (
+                                materialCode === ''
+                            ) {
+
+                                skippedCount++;
+
+                                errors.push(
+                                    'Row ' +
+                                    excelRowNumber +
+                                    ': Material Code is missing.'
+                                );
+
+                                return;
+
+                            }
+
+
+                            if (
+                                materialName === ''
+                            ) {
+
+                                skippedCount++;
+
+                                errors.push(
+                                    'Row ' +
+                                    excelRowNumber +
+                                    ': Material Name is missing.'
+                                );
+
+                                return;
+
+                            }
+
+
+                            if (
+                                isNaN(quantity) ||
+                                quantity <= 0
+                            ) {
+
+                                skippedCount++;
+
+                                errors.push(
+                                    'Row ' +
+                                    excelRowNumber +
+                                    ': Quantity must be greater than zero.'
+                                );
+
+                                return;
+
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | FIND MATERIAL BY CODE
+                            |--------------------------------------------------------------------------
+                            */
+
+                            const material =
+                                materials.find(
+                                    function (
+                                        item
+                                    ) {
+
+                                        return (
+                                            normalizeText(
+                                                item.material_code
+                                            ) ===
+                                            normalizeText(
+                                                materialCode
+                                            )
+                                        );
+
+                                    }
+                                );
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | MATERIAL CODE NOT FOUND
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (!material) {
+
+                                skippedCount++;
+
+                                errors.push(
+                                    'Row ' +
+                                    excelRowNumber +
+                                    ': Material Code "' +
+                                    materialCode +
+                                    '" was not found in Material Master.'
+                                );
+
+                                return;
+
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | VALIDATE MATERIAL NAME
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (
+                                normalizeText(
+                                    material.material_name
+                                ) !==
+                                normalizeText(
+                                    materialName
+                                )
+                            ) {
+
+                                skippedCount++;
+
+                                errors.push(
+                                    'Row ' +
+                                    excelRowNumber +
+                                    ': Material Name "' +
+                                    materialName +
+                                    '" does not match Material Code "' +
+                                    materialCode +
+                                    '". Database name is "' +
+                                    material.material_name +
+                                    '".'
+                                );
+
+                                return;
+
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | CHECK DUPLICATE
+                            |--------------------------------------------------------------------------
+                            */
+
+                            const materialId =
+                                String(
+                                    material.id
+                                );
+
+
+                            if (
+                                existingSelections.has(
+                                    materialId
+                                )
+                            ) {
+
+                                skippedCount++;
+
+                                errors.push(
+                                    'Row ' +
+                                    excelRowNumber +
+                                    ': Material "' +
+                                    materialCode +
+                                    '" is already selected.'
+                                );
+
+                                return;
+
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | ADD MATERIAL TO EXISTING FORM
+                            |--------------------------------------------------------------------------
+                            */
+
+                            const container =
+                                document.getElementById(
+                                    'requestItems'
+                                );
+
+
+                            let targetItem = null;
+
+
+                            /*
+                            | Find an empty row first
+                            */
+
+                            const requestItems =
+                                container.querySelectorAll(
+                                    '.request-item'
+                                );
+
+
+                            requestItems.forEach(
+                                function (
+                                    item
+                                ) {
+
+                                    if (
+                                        targetItem !== null
+                                    ) {
+                                        return;
+                                    }
+
+
+                                    const select =
+                                        item.querySelector(
+                                            '.material-select'
+                                        );
+
+                                    const quantityInput =
+                                        item.querySelector(
+                                            '.quantity-input'
+                                        );
+
+
+                                    if (
+                                        select.value === '' &&
+                                        quantityInput.value === ''
+                                    ) {
+
+                                        targetItem =
+                                            item;
+
+                                    }
+
+                                }
+                            );
+
+
+                            /*
+                            | If no empty row exists,
+                            | create a new row.
+                            */
+
+                            if (
+                                targetItem === null
+                            ) {
+
+                                const firstItem =
+                                    container.querySelector(
+                                        '.request-item'
+                                    );
+
+
+                                targetItem =
+                                    firstItem.cloneNode(
+                                        true
+                                    );
+
+
+                                targetItem
+                                    .querySelector(
+                                        '.material-select'
+                                    )
+                                    .value = '';
+
+
+                                targetItem
+                                    .querySelector(
+                                        '.quantity-input'
+                                    )
+                                    .value = '';
+
+
+                                container.appendChild(
+                                    targetItem
+                                );
+
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | SET MATERIAL
+                            |--------------------------------------------------------------------------
+                            */
+
+                            const select =
+                                targetItem.querySelector(
+                                    '.material-select'
+                                );
+
+
+                            const quantityInput =
+                                targetItem.querySelector(
+                                    '.quantity-input'
+                                );
+
+
+                            select.value =
+                                materialId;
+
+
+                            quantityInput.value =
+                                quantity;
+
+
+                            /*
+                            | Mark as selected
+                            */
+
+                            existingSelections.add(
+                                materialId
+                            );
+
+
+                            addedCount++;
+
+                        }
+                    );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RESET FILE INPUT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    event.target.value = '';
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SHOW RESULT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    let message =
+                        'Excel upload completed.\\n\\n' +
+                        'Materials added: ' +
+                        addedCount +
+                        '\\n' +
+                        'Rows skipped: ' +
+                        skippedCount;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SHOW ERRORS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        errors.length > 0
+                    ) {
+
+                        message +=
+                            '\\n\\nDetails:\\n' +
+                            errors.join(
+                                '\\n'
+                            );
+
+                    }
+
+
+                    alert(message);
+
+                } catch (error) {
+
+                    console.error(
+                        error
+                    );
+
+
+                    alert(
+                        'Unable to read the Excel file. Please check the file format.'
+                    );
+
+                }
+
+            };
+
+
+        reader.readAsArrayBuffer(
+            file
+        );
 
     }
 );
@@ -1276,7 +2029,9 @@ document.getElementById(
 
 
             /*
+            |--------------------------------------------------------------------------
             | Ignore completely empty rows
+            |--------------------------------------------------------------------------
             */
 
             if (
@@ -1286,15 +2041,21 @@ document.getElementById(
                     quantity <= 0
                 )
             ) {
+
                 continue;
+
             }
 
 
             /*
+            |--------------------------------------------------------------------------
             | Material required
+            |--------------------------------------------------------------------------
             */
 
-            if (materialId === '') {
+            if (
+                materialId === ''
+            ) {
 
                 event.preventDefault();
 
@@ -1305,11 +2066,14 @@ document.getElementById(
                 selects[i].focus();
 
                 return;
+
             }
 
 
             /*
+            |--------------------------------------------------------------------------
             | Quantity required
+            |--------------------------------------------------------------------------
             */
 
             if (
@@ -1326,11 +2090,14 @@ document.getElementById(
                 quantities[i].focus();
 
                 return;
+
             }
 
 
             /*
+            |--------------------------------------------------------------------------
             | Duplicate check
+            |--------------------------------------------------------------------------
             */
 
             if (
@@ -1346,6 +2113,7 @@ document.getElementById(
                 );
 
                 return;
+
             }
 
 
@@ -1354,14 +2122,19 @@ document.getElementById(
             );
 
             validItems++;
+
         }
 
 
         /*
-        | At least one material
+        |--------------------------------------------------------------------------
+        | AT LEAST ONE MATERIAL
+        |--------------------------------------------------------------------------
         */
 
-        if (validItems === 0) {
+        if (
+            validItems === 0
+        ) {
 
             event.preventDefault();
 
@@ -1370,11 +2143,14 @@ document.getElementById(
             );
 
             return;
+
         }
 
 
         /*
-        | Confirmation
+        |--------------------------------------------------------------------------
+        | CONFIRMATION
+        |--------------------------------------------------------------------------
         */
 
         const confirmed =
@@ -1388,11 +2164,14 @@ document.getElementById(
             event.preventDefault();
 
             return;
+
         }
 
 
         /*
-        | Prevent double click
+        |--------------------------------------------------------------------------
+        | PREVENT DOUBLE CLICK
+        |--------------------------------------------------------------------------
         */
 
         const submitButton =
@@ -1400,7 +2179,10 @@ document.getElementById(
                 'submitRequestBtn'
             );
 
-        submitButton.disabled = true;
+
+        submitButton.disabled =
+            true;
+
 
         submitButton.innerHTML =
             '<i class="fa-solid fa-spinner fa-spin me-1"></i> Submitting...';
