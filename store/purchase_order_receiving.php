@@ -26,6 +26,35 @@ $success = '';
 | RECEIVE PURCHASE ORDER
 |--------------------------------------------------------------------------
 */
+/*
+|--------------------------------------------------------------------------
+| GENERATE GRN NUMBER
+|--------------------------------------------------------------------------
+*/
+function generateGRNNumber(PDO $con): string
+{
+    $prefix = 'GRN-' . date('Ym') . '-';
+
+    $stmt = $con->prepare("
+        SELECT reference_no
+        FROM stock_transactions
+        WHERE reference_no LIKE ?
+        AND transaction_type = 'PURCHASE'
+        ORDER BY id DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$prefix . '%']);
+    $lastGRN = $stmt->fetchColumn();
+
+    if ($lastGRN) {
+        $lastNumber = (int)substr((string)$lastGRN, strrpos((string)$lastGRN, '-') + 1);
+        $nextNumber = $lastNumber + 1;
+    } else {
+        $nextNumber = 1;
+    }
+
+    return $prefix . str_pad((string)$nextNumber, 4, '0', STR_PAD_LEFT);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -51,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
 
                 $con->beginTransaction();
+                $grnNo = generateGRNNumber($con);
 
                 /*
                 |--------------------------------------------------------------------------
@@ -270,8 +300,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $transactionStmt->execute([
                         $materialId,
                         $receivedQty,
-                        $po['po_no'],
-                        'Purchase Order Receiving',
+                        $grnNo, 
+                        'GRN: ' . $grnNo . ' (PO: ' . $po['po_no'] . ')', 
                         $_SESSION['user_id'] ?? null
                     ]);
 
@@ -308,10 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $con->commit();
 
-                $success =
-                    'Purchase Order ' .
-                    $po['po_no'] .
-                    ' received successfully. Stock has been updated.';
+                $success = 'Materials received successfully. GRN Generated: ' . $grnNo . '. Stock has been updated.';
 
             } catch (Throwable $e) {
 

@@ -51,38 +51,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     */
 
     if ($action === 'approve_po') {
-
-        $stmt = $con->prepare("
-            SELECT id, status
-            FROM purchase_orders
-            WHERE id = ?
-            LIMIT 1
-        ");
-
-        $stmt->execute([$poId]);
-
-        $po = $stmt->fetch();
-
-        if (!$po) {
-
-            $error = 'Purchase order not found.';
-
-        } elseif ($po['status'] !== 'Pending') {
-
-            $error = 'Only Pending purchase orders can be approved.';
-
+        
+        // Role Check added here
+        if (($_SESSION['role_name'] ?? '') !== 'Super Admin') {
+            $error = 'Access Denied: Only Super Admin can approve purchase orders.';
         } else {
-
             $stmt = $con->prepare("
-                UPDATE purchase_orders
-                SET status = 'Approved'
+                SELECT id, status
+                FROM purchase_orders
                 WHERE id = ?
-                AND status = 'Pending'
+                LIMIT 1
             ");
 
             $stmt->execute([$poId]);
+            $po = $stmt->fetch();
 
-            $success = 'Purchase order approved successfully.';
+            if (!$po) {
+                $error = 'Purchase order not found.';
+            } elseif ($po['status'] !== 'Pending') {
+                $error = 'Only Pending purchase orders can be approved.';
+            } else {
+                $stmt = $con->prepare("
+                    UPDATE purchase_orders
+                    SET status = 'Approved'
+                    WHERE id = ?
+                    AND status = 'Pending'
+                ");
+                $stmt->execute([$poId]);
+                $success = 'Purchase order approved successfully.';
+            }
         }
     }
 
@@ -93,8 +90,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     */
 
     elseif ($action === 'mark_ordered') {
-
-        $stmt = $con->prepare("
+        
+        if (($_SESSION['role_name'] ?? '') !== 'Purchase') {
+            $error = 'Access Denied: Only Purchase team can place the order.';
+        } else {
+            $stmt = $con->prepare("
             SELECT id, status
             FROM purchase_orders
             WHERE id = ?
@@ -102,77 +102,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
 
         $stmt->execute([$poId]);
-
         $po = $stmt->fetch();
 
         if (!$po) {
-
             $error = 'Purchase order not found.';
-
         } elseif ($po['status'] !== 'Approved') {
-
             $error = 'Only Approved purchase orders can be marked as Ordered.';
-
         } else {
-
             $stmt = $con->prepare("
                 UPDATE purchase_orders
                 SET status = 'Ordered'
                 WHERE id = ?
                 AND status = 'Approved'
             ");
-
             $stmt->execute([$poId]);
-
             $success = 'Purchase order marked as Ordered.';
         }
     }
-
-    /*
+    }
+   /*
     |--------------------------------------------------------------------------
     | CANCEL PO
     |--------------------------------------------------------------------------
     */
 
     elseif ($action === 'cancel_po') {
-
-        $stmt = $con->prepare("
-            SELECT id, status
-            FROM purchase_orders
-            WHERE id = ?
-            LIMIT 1
-        ");
-
-        $stmt->execute([$poId]);
-
-        $po = $stmt->fetch();
-
-        if (!$po) {
-
-            $error = 'Purchase order not found.';
-
-        } elseif (in_array(
-            $po['status'],
-            ['Received', 'Cancelled'],
-            true
-        )) {
-
-            $error = 'This purchase order cannot be cancelled.';
-
+        
+        // Role Check added here
+        if (($_SESSION['role_name'] ?? '') !== 'Super Admin') {
+            $error = 'Access Denied: Only Super Admin can cancel purchase orders.';
         } else {
-
             $stmt = $con->prepare("
-                UPDATE purchase_orders
-                SET status = 'Cancelled'
+                SELECT id, status
+                FROM purchase_orders
                 WHERE id = ?
+                LIMIT 1
             ");
 
             $stmt->execute([$poId]);
+            $po = $stmt->fetch();
 
-            $success = 'Purchase order cancelled successfully.';
+            if (!$po) {
+                $error = 'Purchase order not found.';
+            } elseif (in_array($po['status'], ['Received', 'Cancelled'], true)) {
+                $error = 'This purchase order cannot be cancelled.';
+            } else {
+                $stmt = $con->prepare("
+                    UPDATE purchase_orders
+                    SET status = 'Cancelled'
+                    WHERE id = ?
+                ");
+                $stmt->execute([$poId]);
+                $success = 'Purchase order cancelled successfully.';
+            }
         }
     }
-}
+    /*
+    |--------------------------------------------------------------------------
+    | ADD INVOICE (AUTOMATIC GENERATION + FILE UPLOAD)
+    |--------------------------------------------------------------------------
+    */
+    elseif ($action === 'add_invoice') {
+        if (($_SESSION['role_name'] ?? '') !== 'Purchase') {
+            $error = 'Access Denied: Only Purchase team can add invoices.';
+        } else {
+            $invNo = trim($_POST['invoice_no'] ?? '');
+            $invDate = $_POST['invoice_date'] ?? date('Y-m-d');
+            $taxAmt = (float)($_POST['tax_amount'] ?? 0);
+            $poTotal = (float)($_POST['po_total'] ?? 0);
+            $grandTotal = $poTotal + $taxAmt;
+
+            // File Upload Logic
+            $docPath = null;
+            if (isset($_FILES['invoice_document']) && $_FILES['invoice_document']['error'] === UPLOAD_ERR_OK) {
+                // Main Canteen Management folder-kulla uploads/invoices/ folder create pannanum
+                $uploadDir = __DIR__ . '/../uploads/invoices/';
+                
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+
+                $fileName = time() . '_' . basename($_FILES['invoice_document']['name']);
+                $targetPath = $uploadDir . $fileName;
+
+                if (move_uploaded_file($_FILES['invoice_document']['tmp_name'], $targetPath)) {
+                    $docPath = 'uploads/invoices/' . $fileName;
+                }
+            }
+
+            $stmt = $con->prepare("
+                INSERT INTO invoices (po_id, invoice_no, invoice_date, total_amount, tax_amount, document_path, status, created_by) 
+                VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)
+            ");
+            $stmt->execute([$poId, $invNo, $invDate, $grandTotal, $taxAmt, $docPath, $_SESSION['user_id'] ?? null]);
+            $success = 'Invoice generated successfully and sent to Admin for approval.';
+        }
+    }
+    /*
+    |--------------------------------------------------------------------------
+    | MARK INVOICE AS PAID
+    |--------------------------------------------------------------------------
+    */
+    elseif ($action === 'mark_invoice_paid') {
+        if (($_SESSION['role_name'] ?? '') !== 'Purchase') {
+            $error = 'Access Denied: Only Purchase team can update payments.';
+        } else {
+            $stmt = $con->prepare("UPDATE invoices SET status = 'Paid' WHERE po_id = ? AND status = 'Approved'");
+            $stmt->execute([$poId]);
+            $success = 'Payment completed. Invoice marked as Paid.';
+        }
+    }
+} 
 
 /*
 |--------------------------------------------------------------------------
@@ -302,6 +342,15 @@ $statusClass = match ($po['status']) {
     default =>
         'bg-secondary'
 };
+
+/*
+|--------------------------------------------------------------------------
+| CHECK IF INVOICE EXISTS
+|--------------------------------------------------------------------------
+*/
+$invStmt = $con->prepare("SELECT invoice_no, status FROM invoices WHERE po_id = ? LIMIT 1");
+$invStmt->execute([$poId]);
+$invoice = $invStmt->fetch();
 
 /*
 |--------------------------------------------------------------------------
@@ -743,169 +792,160 @@ require_once __DIR__ . '/../includes/header.php';
 
 
             <!-- ACTIONS -->
-
+            <!-- ADMIN MATRUM PURCHASE IRUVARUKKUM INDHA BOX THERIYUM -->
+            <?php if (in_array($_SESSION['role_name'] ?? '', ['Super Admin', 'Purchase'], true)): ?>
+            
             <div class="content-card">
-
                 <div class="content-card-header">
-
                     <strong>
                         <i class="fa-solid fa-gears me-2"></i>
                         Purchase Order Actions
                     </strong>
-
                 </div>
 
-
                 <div class="content-card-body">
-
                     <div class="d-flex flex-wrap gap-2">
 
-
-                        <?php if ($po['status'] === 'Pending'): ?>
-
-                            <!-- APPROVE -->
-
+                        <!-- APPROVE (SUPER ADMIN ONLY) -->
+                        <?php if ($po['status'] === 'Pending' && ($_SESSION['role_name'] ?? '') === 'Super Admin'): ?>
                             <form method="post">
-
-                                <input
-                                    type="hidden"
-                                    name="action"
-                                    value="approve_po"
-                                >
-
-                                <input
-                                    type="hidden"
-                                    name="po_id"
-                                    value="<?= (int)$po['id'] ?>"
-                                >
-
-                                <button
-                                    type="submit"
-                                    class="btn btn-success"
-                                    onclick="return confirm('Approve this purchase order?');"
-                                >
-
-                                    <i class="fa-solid fa-check me-1"></i>
-
-                                    Approve PO
-
+                                <input type="hidden" name="action" value="approve_po">
+                                <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                                <button type="submit" class="btn btn-success" onclick="return confirm('Approve this purchase order?');">
+                                    <i class="fa-solid fa-check me-1"></i> Approve PO
                                 </button>
-
                             </form>
-
                         <?php endif; ?>
 
-
-                        <?php if ($po['status'] === 'Approved'): ?>
-
-                            <!-- MARK ORDERED -->
-
+                        <!-- MARK ORDERED (PURCHASE ONLY) -->
+                        <?php if ($po['status'] === 'Approved' && ($_SESSION['role_name'] ?? '') === 'Purchase'): ?>
                             <form method="post">
-
-                                <input
-                                    type="hidden"
-                                    name="action"
-                                    value="mark_ordered"
-                                >
-
-                                <input
-                                    type="hidden"
-                                    name="po_id"
-                                    value="<?= (int)$po['id'] ?>"
-                                >
-
-                                <button
-                                    type="submit"
-                                    class="btn btn-primary"
-                                    onclick="return confirm('Mark this purchase order as Ordered?');"
-                                >
-
-                                    <i class="fa-solid fa-cart-shopping me-1"></i>
-
-                                    Mark as Ordered
-
+                                <input type="hidden" name="action" value="mark_ordered">
+                                <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                                <button type="submit" class="btn btn-primary" onclick="return confirm('Mark this purchase order as Ordered?');">
+                                    <i class="fa-solid fa-cart-shopping me-1"></i> Mark as Ordered
                                 </button>
-
                             </form>
-
                         <?php endif; ?>
 
-
-                        <?php if (!in_array(
-                            $po['status'],
-                            ['Received', 'Cancelled'],
-                            true
-                        )): ?>
-
-                            <!-- CANCEL -->
-
+                        <!-- CANCEL (SUPER ADMIN ONLY) -->
+                        <?php if (!in_array($po['status'], ['Received', 'Cancelled'], true) && ($_SESSION['role_name'] ?? '') === 'Super Admin'): ?>
                             <form method="post">
-
-                                <input
-                                    type="hidden"
-                                    name="action"
-                                    value="cancel_po"
-                                >
-
-                                <input
-                                    type="hidden"
-                                    name="po_id"
-                                    value="<?= (int)$po['id'] ?>"
-                                >
-
-                                <button
-                                    type="submit"
-                                    class="btn btn-outline-danger"
-                                    onclick="return confirm('Are you sure you want to cancel this purchase order?');"
-                                >
-
-                                    <i class="fa-solid fa-xmark me-1"></i>
-
-                                    Cancel PO
-
+                                <input type="hidden" name="action" value="cancel_po">
+                                <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                                <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to cancel this purchase order?');">
+                                    <i class="fa-solid fa-xmark me-1"></i> Cancel PO
                                 </button>
-
                             </form>
-
                         <?php endif; ?>
 
-
+                        <!-- STATUS ALERTS & INVOICE BUTTON -->
                         <?php if ($po['status'] === 'Received'): ?>
-
-                            <div class="alert alert-success mb-0">
-
-                                <i class="fa-solid fa-circle-check me-2"></i>
-
-                                This purchase order has been received.
-
-                            </div>
-
+                            <?php if (!empty($invoice)): ?>
+                                <div class="alert alert-info mb-0 w-100 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fa-solid fa-file-invoice-dollar me-2"></i> 
+                                        Invoice <strong><?= e($invoice['invoice_no']) ?></strong> status: <strong><?= e($invoice['status']) ?></strong>
+                                    </div>
+                                    
+                                    <!-- MARK AS PAID BUTTON FOR PURCHASE -->
+                                    <?php if ($invoice['status'] === 'Approved' && ($_SESSION['role_name'] ?? '') === 'Purchase'): ?>
+                                        <form method="post" class="m-0">
+                                            <input type="hidden" name="action" value="mark_invoice_paid">
+                                            <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Confirm payment made to supplier? This will close the invoice.');">
+                                                <i class="fa-solid fa-money-bill-wave me-1"></i> Mark as Paid
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            <?php elseif (($_SESSION['role_name'] ?? '') === 'Purchase'): ?>
+                                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addInvoiceModal">
+                                    <i class="fa-solid fa-file-invoice me-1"></i> Generate Invoice
+                                </button>
+                            <?php else: ?>
+                                <div class="alert alert-success mb-0 w-100">
+                                    <i class="fa-solid fa-circle-check me-2"></i> Materials Received. Waiting for Purchase team to generate invoice.
+                                </div>
+                            <?php endif; ?>
                         <?php endif; ?>
-
 
                         <?php if ($po['status'] === 'Cancelled'): ?>
-
-                            <div class="alert alert-danger mb-0">
-
-                                <i class="fa-solid fa-ban me-2"></i>
-
-                                This purchase order has been cancelled.
-
+                            <div class="alert alert-danger mb-0 w-100">
+                                <i class="fa-solid fa-ban me-2"></i> This purchase order has been cancelled.
                             </div>
+                        <?php endif; ?>
 
+                        <!-- NO ACTION MESSAGE (IF APPLICABLE) -->
+                        <?php 
+                        if (
+                            ($po['status'] === 'Pending' && ($_SESSION['role_name'] ?? '') === 'Purchase') ||
+                            ($po['status'] === 'Approved' && ($_SESSION['role_name'] ?? '') === 'Super Admin') ||
+                            ($po['status'] === 'Ordered')
+                        ): ?>
+                            <span class="text-muted"><i class="fa-solid fa-hourglass-half me-1"></i> Waiting for next step in process.</span>
                         <?php endif; ?>
 
                     </div>
-
                 </div>
-
             </div>
+            <?php endif; ?>
 
         </div>
 
     </main>
 
 </div>
+<!-- ADD INVOICE MODAL -->
+<?php if ($po['status'] === 'Received' && empty($invoice) && ($_SESSION['role_name'] ?? '') === 'Purchase'): ?>
+<div class="modal fade" id="addInvoiceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Generate Invoice</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="add_invoice">
+                    <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                    <input type="hidden" name="po_total" value="<?= $grandTotal ?>">
+
+                    <div class="mb-3">
+                        <label class="form-label">Supplier Bill / Invoice Number <span class="text-danger">*</span></label>
+                        <input type="text" name="invoice_no" class="form-control" required placeholder="Ex: INV-1001">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Invoice Date <span class="text-danger">*</span></label>
+                        <input type="date" name="invoice_date" class="form-control" required value="<?= date('Y-m-d') ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tax Amount (₹)</label>
+                        <input type="number" name="tax_amount" class="form-control" step="0.01" min="0" value="0">
+                        <small class="text-muted">Enter tax amount if applicable. Leave 0 if none.</small>
+                    </div>
+
+                    <!-- NEW FIELD FOR FILE UPLOAD -->
+                    <div class="mb-3">
+                        <label class="form-label">Upload Bill Copy (Optional)</label>
+                        <input type="file" name="invoice_document" class="form-control" accept="image/*,.pdf">
+                        <small class="text-muted">Upload scan/photo of the physical bill.</small>
+                    </div>
+                    
+                    <div class="alert alert-light border mb-0">
+                        <strong>Base PO Amount: </strong> ₹<?= number_format($grandTotal, 2) ?><br>
+                        <small class="text-info">Total Invoice Amount = Base Amount + Tax Amount</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" onclick="return confirm('Generate this invoice? It will be sent to Admin for approval.');">Generate Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
