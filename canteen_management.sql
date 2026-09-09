@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 08, 2026 at 01:07 PM
+-- Generation Time: Sep 09, 2026 at 12:07 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -125,6 +125,26 @@ CREATE TABLE `food_transfers` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `invoices`
+--
+
+CREATE TABLE `invoices` (
+  `id` int(11) NOT NULL,
+  `po_id` int(11) NOT NULL,
+  `invoice_no` varchar(50) NOT NULL,
+  `invoice_date` date NOT NULL,
+  `total_amount` decimal(10,2) NOT NULL,
+  `tax_amount` decimal(10,2) DEFAULT 0.00,
+  `document_path` varchar(255) DEFAULT NULL,
+  `status` enum('Pending','Approved','Paid','Rejected') DEFAULT 'Pending',
+  `remarks` text DEFAULT NULL,
+  `created_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `kitchen_requests`
 --
 
@@ -185,6 +205,7 @@ CREATE TABLE `materials` (
   `material_name` varchar(150) NOT NULL,
   `category` varchar(100) DEFAULT NULL,
   `unit` varchar(50) NOT NULL,
+  `unit_price` decimal(10,2) NOT NULL DEFAULT 0.00,
   `minimum_stock` decimal(12,2) DEFAULT 0.00,
   `current_stock` decimal(12,2) DEFAULT 0.00,
   `status` enum('Enable','Disabled') DEFAULT 'Enable',
@@ -196,13 +217,13 @@ CREATE TABLE `materials` (
 -- Dumping data for table `materials`
 --
 
-INSERT INTO `materials` (`id`, `material_code`, `material_name`, `category`, `unit`, `minimum_stock`, `current_stock`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'MAT001', 'Rice', 'Grains', 'KG', 50.00, 10.00, 'Enable', '2026-09-03 13:56:45', '2026-09-08 12:28:21'),
-(2, 'MAT002', 'Wheat', 'Grains', 'KG', 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
-(3, 'MAT003', 'Cooking Oil', 'Oil', 'LTR', 20.00, 1015.00, 'Enable', '2026-09-03 13:56:45', '2026-09-05 11:55:24'),
-(4, 'MAT004', 'Salt', 'Grocery', 'KG', 10.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
-(5, 'MAT005', 'Vegetables', 'Vegetables', 'KG', 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
-(6, 'MAT006', 'Sugar', 'Grocery', 'KG', 5.00, 9.00, 'Enable', '2026-09-03 15:01:48', '2026-09-03 15:05:18');
+INSERT INTO `materials` (`id`, `material_code`, `material_name`, `category`, `unit`, `unit_price`, `minimum_stock`, `current_stock`, `status`, `created_at`, `updated_at`) VALUES
+(1, 'MAT001', 'Rice', 'Grains', 'KG', 150.00, 50.00, 10.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 15:03:23'),
+(2, 'MAT002', 'Wheat', 'Grains', 'KG', 0.00, 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
+(3, 'MAT003', 'Cooking Oil', 'Oil', 'LTR', 0.00, 20.00, 0.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 12:45:59'),
+(4, 'MAT004', 'Salt', 'Grocery', 'KG', 0.00, 10.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
+(5, 'MAT005', 'Vegetables', 'Vegetables', 'KG', 0.00, 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
+(6, 'MAT006', 'Sugar', 'Grocery', 'KG', 0.00, 5.00, 9.00, 'Enable', '2026-09-03 15:01:48', '2026-09-03 15:05:18');
 
 -- --------------------------------------------------------
 
@@ -304,7 +325,8 @@ CREATE TABLE `purchase_requests` (
 INSERT INTO `purchase_requests` (`id`, `request_no`, `requested_by`, `request_date`, `status`, `remarks`, `created_at`) VALUES
 (1, 'PR-20260903114200-489', 5, '2026-09-03', 'Approved', 'testing purchase', '2026-09-03 15:12:00'),
 (2, 'PR-20260905062846-863', 1, '2026-09-05', 'Approved', 'test cooking', '2026-09-05 09:58:46'),
-(6, 'PR-20260908121410-483', 5, '2026-09-08', 'Pending', 'Purchase request created from Low Stock in Material Master.', '2026-09-08 15:44:10');
+(6, 'PR-20260908121410-483', 5, '2026-09-08', 'Pending', 'Purchase request created from Low Stock in Material Master.', '2026-09-08 15:44:10'),
+(7, 'PR-20260909090335-316', 5, '2026-09-09', 'Approved', 'excel upload check', '2026-09-09 12:33:35');
 
 -- --------------------------------------------------------
 
@@ -328,7 +350,10 @@ INSERT INTO `purchase_request_items` (`id`, `request_id`, `material_id`, `reques
 (1, 1, 6, 10.00, 0.00),
 (2, 2, 3, 15.00, 0.00),
 (4, 6, 5, 30.00, 0.00),
-(5, 6, 4, 10.00, 0.00);
+(5, 6, 4, 10.00, 0.00),
+(6, 7, 5, 15.00, 0.00),
+(7, 7, 4, 20.00, 0.00),
+(8, 7, 2, 50.00, 0.00);
 
 -- --------------------------------------------------------
 
@@ -489,6 +514,12 @@ ALTER TABLE `food_transfers`
   ADD KEY `fk_ft_received_by` (`received_by`);
 
 --
+-- Indexes for table `invoices`
+--
+ALTER TABLE `invoices`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `kitchen_requests`
 --
 ALTER TABLE `kitchen_requests`
@@ -615,6 +646,12 @@ ALTER TABLE `food_transfers`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `invoices`
+--
+ALTER TABLE `invoices`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `kitchen_requests`
 --
 ALTER TABLE `kitchen_requests`
@@ -654,13 +691,13 @@ ALTER TABLE `purchase_order_items`
 -- AUTO_INCREMENT for table `purchase_requests`
 --
 ALTER TABLE `purchase_requests`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `purchase_request_items`
 --
 ALTER TABLE `purchase_request_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `roles`
