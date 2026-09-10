@@ -1,1115 +1,464 @@
 <?php
-
 declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/store_auth.php';
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
+$pageTitle = 'Kitchen Dashboard';
 
-// =========================================================
-// ACCESS CONTROL
-// =========================================================
+/*
+|--------------------------------------------------------------------------
+| ACCESS
+|--------------------------------------------------------------------------
+*/
 
-$allowedRoles = [
-    'Kitchen',
-    'Super Admin'
-];
+$allowedRoles = ['Kitchen', 'Super Admin'];
 
 if (
-    !in_array(
-        $_SESSION['role_name'] ?? '',
-        $allowedRoles,
-        true
-    )
+    !isset($_SESSION['userrole']) ||
+    !in_array($_SESSION['userrole'], $allowedRoles, true)
 ) {
     header('Location: ../index.php');
     exit;
 }
 
+$today = date('Y-m-d');
 
-$pageTitle = 'Kitchen Dashboard';
+$error = null;
 
+/*
+|--------------------------------------------------------------------------
+| DEFAULT COUNTS
+|--------------------------------------------------------------------------
+*/
 
-// =========================================================
-// DASHBOARD COUNTS
-// =========================================================
+$todayPlans = 0;
+$pendingApproval = 0;
+$waitingStore = 0;
+$materialsIssued = 0;
+$readyForPreparation = 0;
+$sentToCanteen = 0;
 
+$mealSummary = [];
 
-// ---------------------------------------------------------
-// ACTIVE MATERIALS
-// ---------------------------------------------------------
+/*
+|--------------------------------------------------------------------------
+| TODAY'S COOKING PLANS
+|--------------------------------------------------------------------------
+*/
 
-$stmt = $con->query("
-    SELECT COUNT(*)
-    FROM materials
-    WHERE status = 'Enable'
-");
+try {
 
-$totalMaterials = (int) $stmt->fetchColumn();
+    $stmt = $con->prepare("
+        SELECT COUNT(*)
+        FROM daily_cooking_plans
+        WHERE cooking_date = ?
+        AND status <> 'Cancelled'
+    ");
 
+    $stmt->execute([$today]);
 
-// ---------------------------------------------------------
-// MATERIALS ISSUED TO KITCHEN TODAY
-// ---------------------------------------------------------
+    $todayPlans = (int)$stmt->fetchColumn();
 
-$stmt = $con->query("
-    SELECT COALESCE(SUM(quantity), 0)
-    FROM stock_transactions
-    WHERE transaction_type = 'ISSUE_KITCHEN'
-      AND DATE(created_at) = CURDATE()
-");
+} catch (Throwable $e) {
 
-$todayIssued = (float) $stmt->fetchColumn();
+    $error = 'Unable to load cooking plan summary.';
+}
 
 
-// ---------------------------------------------------------
-// KITCHEN REQUESTS WAITING FOR CHEF
-// ---------------------------------------------------------
+/*
+|--------------------------------------------------------------------------
+| PENDING CHEF APPROVAL
+|--------------------------------------------------------------------------
+*/
 
-$stmt = $con->query("
-    SELECT COUNT(*)
-    FROM kitchen_requests
-    WHERE status = 'Submitted'
-");
+try {
 
-$pendingChefApproval = (int) $stmt->fetchColumn();
+    $stmt = $con->query("
+        SELECT COUNT(*)
+        FROM daily_cooking_plans
+        WHERE status = 'Pending Approval'
+    ");
 
+    $pendingApproval = (int)$stmt->fetchColumn();
 
-// ---------------------------------------------------------
-// REQUESTS WAITING FOR STORE
-// ---------------------------------------------------------
+} catch (Throwable $e) {
 
-$stmt = $con->query("
-    SELECT COUNT(*)
-    FROM kitchen_requests
-    WHERE status IN
-    (
-        'Chef Approved',
-        'Sent to Store',
-        'Partially Issued'
-    )
-");
+    $pendingApproval = 0;
+}
 
-$pendingStoreIssue = (int) $stmt->fetchColumn();
 
+/*
+|--------------------------------------------------------------------------
+| WAITING FOR STORE
+|--------------------------------------------------------------------------
+|
+| Chef has approved and sent the material request to Store.
+|
+*/
 
-// ---------------------------------------------------------
-// COMPLETED KITCHEN REQUESTS TODAY
-// ---------------------------------------------------------
+try {
 
-$stmt = $con->query("
-    SELECT COUNT(*)
-    FROM kitchen_requests
-    WHERE status = 'Completed'
-      AND request_date = CURDATE()
-");
+    $stmt = $con->query("
+        SELECT COUNT(*)
+        FROM kitchen_requests
+        WHERE plan_id IS NOT NULL
+        AND status IN ('Sent to Store', 'Partially Issued')
+    ");
 
-$completedRequests = (int) $stmt->fetchColumn();
+    $waitingStore = (int)$stmt->fetchColumn();
 
+} catch (Throwable $e) {
 
-// ---------------------------------------------------------
-// TODAY FOOD PREPARATIONS
-// ---------------------------------------------------------
+    $waitingStore = 0;
+}
 
-$stmt = $con->query("
-    SELECT COUNT(*)
-    FROM food_preparations
-    WHERE preparation_date = CURDATE()
-");
 
-$todayFoodPreparations = (int) $stmt->fetchColumn();
+/*
+|--------------------------------------------------------------------------
+| COMPLETED STORE ISSUES
+|--------------------------------------------------------------------------
+*/
 
+try {
 
-// ---------------------------------------------------------
-// TODAY FOOD QUANTITY
-// ---------------------------------------------------------
+    $stmt = $con->query("
+        SELECT COUNT(*)
+        FROM kitchen_requests
+        WHERE plan_id IS NOT NULL
+        AND status = 'Completed'
+    ");
 
-$stmt = $con->query("
-    SELECT COALESCE(SUM(prepared_qty), 0)
-    FROM food_preparations
-    WHERE preparation_date = CURDATE()
-");
+    $materialsIssued = (int)$stmt->fetchColumn();
 
-$todayPreparedQty = (float) $stmt->fetchColumn();
+} catch (Throwable $e) {
 
+    $materialsIssued = 0;
+}
 
-// ---------------------------------------------------------
-// FOOD SENT TO CANTEEN TODAY
-// ---------------------------------------------------------
 
-$stmt = $con->query("
-    SELECT COALESCE(SUM(quantity), 0)
-    FROM food_transfers
-    WHERE transfer_date = CURDATE()
-");
+/*
+|--------------------------------------------------------------------------
+| FOOD READY FOR PREPARATION
+|--------------------------------------------------------------------------
+|
+| A cooking plan item is ready when:
+|
+| 1. Store request is completed
+| 2. Food preparation has not yet been created
+|
+*/
 
-$todayFoodSent = (float) $stmt->fetchColumn();
+try {
 
+    $stmt = $con->query("
+        SELECT COUNT(*)
 
-// =========================================================
-// RECENT KITCHEN REQUESTS
-// =========================================================
+        FROM daily_cooking_plan_items dpi
 
-$stmt = $con->query("
-    SELECT
-        kr.id,
-        kr.request_no,
-        kr.request_date,
-        kr.status,
-        kr.cook_remarks,
-        kr.chef_remarks,
+        INNER JOIN daily_cooking_plans dcp
+            ON dcp.id = dpi.cooking_plan_id
 
-        u.employee_name
+        INNER JOIN kitchen_requests kr
+            ON kr.plan_id = dcp.id
+            AND kr.status = 'Completed'
 
-    FROM kitchen_requests kr
+        LEFT JOIN food_preparations fp
+            ON fp.plan_item_id = dpi.id
 
-    LEFT JOIN users u
-        ON u.id = kr.requested_by
+        WHERE dcp.status IN ('Sent to Store', 'Completed')
+        AND fp.id IS NULL
+    ");
 
-    ORDER BY kr.id DESC
+    $readyForPreparation = (int)$stmt->fetchColumn();
 
-    LIMIT 10
-");
+} catch (Throwable $e) {
 
-$recentRequests = $stmt->fetchAll();
+    $readyForPreparation = 0;
+}
 
 
-// =========================================================
-// RECENT FOOD PREPARATION
-// =========================================================
+/*
+|--------------------------------------------------------------------------
+| SENT TO CANTEEN
+|--------------------------------------------------------------------------
+*/
 
-$stmt = $con->query("
-    SELECT
+try {
 
-        fp.id,
-        fp.preparation_no,
-        fp.preparation_date,
-        fp.prepared_qty,
-        fp.status,
+    $stmt = $con->query("
+        SELECT COUNT(*)
+        FROM food_transfers
+        WHERE status = 'Sent'
+    ");
 
-        fi.food_name,
-        fi.unit
+    $sentToCanteen = (int)$stmt->fetchColumn();
 
-    FROM food_preparations fp
+} catch (Throwable $e) {
 
-    INNER JOIN food_items fi
-        ON fi.id = fp.food_id
+    $sentToCanteen = 0;
+}
 
-    ORDER BY fp.id DESC
 
-    LIMIT 10
-");
+/*
+|--------------------------------------------------------------------------
+| TODAY MEAL SUMMARY
+|--------------------------------------------------------------------------
+*/
 
-$recentFood = $stmt->fetchAll();
+try {
 
+    $stmt = $con->prepare("
+        SELECT
+            dcp.id,
+            dcp.cooking_date,
+            dcp.meal_type,
+            dcp.status,
 
-// =========================================================
-// LOW STOCK MATERIALS
-// =========================================================
+            COUNT(dpi.id) AS food_count,
 
-$stmt = $con->query("
-    SELECT
+            COALESCE(
+                SUM(dpi.required_plates),
+                0
+            ) AS total_plates
 
-        material_code,
-        material_name,
-        unit,
-        current_stock,
-        minimum_stock
+        FROM daily_cooking_plans dcp
 
-    FROM materials
+        LEFT JOIN daily_cooking_plan_items dpi
+            ON dpi.cooking_plan_id = dcp.id
 
-    WHERE status = 'Enable'
+        WHERE dcp.cooking_date = ?
 
-      AND current_stock <= minimum_stock
+        GROUP BY
+            dcp.id,
+            dcp.cooking_date,
+            dcp.meal_type,
+            dcp.status
 
-    ORDER BY current_stock ASC
+        ORDER BY
+            FIELD(
+                dcp.meal_type,
+                'Breakfast',
+                'Lunch',
+                'Snacks',
+                'Dinner'
+            )
+    ");
 
-    LIMIT 10
-");
+    $stmt->execute([$today]);
 
-$lowStockMaterials = $stmt->fetchAll();
+    $mealSummary = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (Throwable $e) {
+
+    $mealSummary = [];
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| RECENT COOKING PLANS
+|--------------------------------------------------------------------------
+*/
+
+$recentPlans = [];
+
+try {
+
+    $stmt = $con->query("
+        SELECT
+            dcp.id,
+            dcp.cooking_date,
+            dcp.meal_type,
+            dcp.status,
+            dcp.created_at,
+
+            COUNT(dpi.id) AS food_count,
+
+            COALESCE(
+                SUM(dpi.required_plates),
+                0
+            ) AS total_plates
+
+        FROM daily_cooking_plans dcp
+
+        LEFT JOIN daily_cooking_plan_items dpi
+            ON dpi.cooking_plan_id = dcp.id
+
+        WHERE dcp.status <> 'Cancelled'
+
+        GROUP BY
+            dcp.id,
+            dcp.cooking_date,
+            dcp.meal_type,
+            dcp.status,
+            dcp.created_at
+
+        ORDER BY
+            dcp.cooking_date DESC,
+            dcp.id DESC
+
+        LIMIT 10
+    ");
+
+    $recentPlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (Throwable $e) {
+
+    $recentPlans = [];
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| HELPER
+|--------------------------------------------------------------------------
+*/
+
+function dashboardStatusClass(string $status): string
+{
+    return match ($status) {
+
+        'Draft'
+            => 'bg-secondary',
+
+        'Pending Approval'
+            => 'bg-warning text-dark',
+
+        'Approved'
+            => 'bg-info text-dark',
+
+        'Sent to Store'
+            => 'bg-primary',
+
+        'Completed'
+            => 'bg-success',
+
+        'Cancelled'
+            => 'bg-danger',
+
+        default
+            => 'bg-secondary'
+    };
+}
+
+
+function dashboardMealClass(string $meal): string
+{
+    return match ($meal) {
+
+        'Breakfast'
+            => 'bg-warning text-dark',
+
+        'Lunch'
+            => 'bg-primary',
+
+        'Snacks'
+            => 'bg-info text-dark',
+
+        'Dinner'
+            => 'bg-dark',
+
+        default
+            => 'bg-secondary'
+    };
+}
 
 
 require_once __DIR__ . '/../includes/header.php';
-
 require_once __DIR__ . '/../includes/sidebar.php';
-
 require_once __DIR__ . '/../includes/topbar.php';
 
 ?>
 
 <div class="main-content">
 
-    <div class="page-body">
+<!--
+|--------------------------------------------------------------------------
+| HEADER
+|--------------------------------------------------------------------------
+-->
 
+<div class="d-flex justify-content-between align-items-center mb-4">
 
-    <!-- =====================================================
-         PAGE HEADER
-    ====================================================== -->
+    <div>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-1">
+            <i class="fa-solid fa-kitchen-set me-2"></i>
+            Kitchen Dashboard
+        </h4>
 
-        <div>
-
-            <h4 class="mb-1">
-                Kitchen Dashboard
-            </h4>
-
-            <p class="text-muted mb-0">
-                Manage Cook Requests, Chef Approval,
-                Food Preparation and Canteen Transfer.
-            </p>
-
-        </div>
-
-
-        <div class="d-flex gap-2">
-
-            <a
-                href="material_request.php"
-                class="btn btn-primary"
-            >
-
-                <i class="fa-solid fa-cart-plus me-1"></i>
-
-                Material Request
-
-            </a>
-
-
-            <a
-                href="food_preparation.php"
-                class="btn btn-success"
-            >
-
-                <i class="fa-solid fa-utensils me-1"></i>
-
-                Food Preparation
-
-            </a>
-
-        </div>
+        <p class="text-muted mb-0">
+            Cooking plan, material issue and food preparation overview.
+        </p>
 
     </div>
 
+    <div>
 
-
-    <!-- =====================================================
-         MAIN STATISTICS
-    ====================================================== -->
-
-    <div class="row g-3 mb-4">
-
-
-        <!-- MATERIALS -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-primary">
-                    <i class="fa-solid fa-boxes-stacked"></i>
-                </div>
-
-                <div>
-
-                    <div class="stat-label">
-                        Active Materials
-                    </div>
-
-                    <div class="stat-value">
-                        <?= $totalMaterials ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- CHEF APPROVAL -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-amber">
-                    <i class="fa-solid fa-user-check"></i>
-                </div>
-
-                <div>
-
-                    <div class="stat-label">
-                        Waiting for Chef
-                    </div>
-
-                    <div class="stat-value">
-                        <?= $pendingChefApproval ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- STORE ISSUE -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-purple">
-                    <i class="fa-solid fa-box-open"></i>
-                </div>
-
-                <div>
-
-                    <div class="stat-label">
-                        Waiting for Store
-                    </div>
-
-                    <div class="stat-value">
-                        <?= $pendingStoreIssue ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- TODAY ISSUE -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-green">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </div>
-
-                <div>
-
-                    <div class="stat-label">
-                        Materials Issued Today
-                    </div>
-
-                    <div class="stat-value">
-                        <?= number_format(
-                            $todayIssued,
-                            2
-                        ) ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
+        <span class="badge bg-light text-dark border">
+            <?= date('d-m-Y') ?>
+        </span>
 
     </div>
 
+</div>
 
 
-    <!-- =====================================================
-         FOOD STATISTICS
-    ====================================================== -->
+<!--
+|--------------------------------------------------------------------------
+| ERROR
+|--------------------------------------------------------------------------
+-->
 
-    <div class="row g-3 mb-4">
+<?php if ($error): ?>
 
+    <div class="alert alert-danger">
 
-        <!-- COMPLETED REQUESTS -->
+        <i class="fa-solid fa-circle-exclamation me-2"></i>
 
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-green">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>
-
-                <div>
-
-                    <div class="stat-label">
-                        Requests Completed Today
-                    </div>
-
-                    <div class="stat-value">
-                        <?= $completedRequests ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- FOOD PREPARATIONS -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-purple">
-                    <i class="fa-solid fa-fire-burner"></i>
-                </div>
-
-                <div>
-
-                    <div class="stat-label">
-                        Food Preparations Today
-                    </div>
-
-                    <div class="stat-value">
-                        <?= $todayFoodPreparations ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- PREPARED QUANTITY -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-primary">
-                    <i class="fa-solid fa-bowl-food"></i>
-                </div>
-
-                <div>
-
-                    <div class="stat-label">
-                        Food Prepared Today
-                    </div>
-
-                    <div class="stat-value">
-                        <?= number_format(
-                            $todayPreparedQty,
-                            2
-                        ) ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- SENT TO CANTEEN -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-amber">
-                    <i class="fa-solid fa-truck"></i>
-                </div>
-
-                <div>
-
-                    <div class="stat-label">
-                        Food Sent to Canteen
-                    </div>
-
-                    <div class="stat-value">
-                        <?= number_format(
-                            $todayFoodSent,
-                            2
-                        ) ?>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
+        <?= e($error) ?>
 
     </div>
 
+<?php endif; ?>
 
 
-    <!-- =====================================================
-         WORKFLOW QUICK LINKS
-    ====================================================== -->
+<!--
+|--------------------------------------------------------------------------
+| SUMMARY CARDS
+|--------------------------------------------------------------------------
+-->
 
-    <div class="content-card mb-4">
+<div class="row g-3 mb-4">
 
-        <div class="content-card-body">
 
-            <h5 class="mb-3">
-                Kitchen Workflow
-            </h5>
+    <!-- TODAY PLANS -->
 
+    <div class="col-xl-2 col-md-4 col-sm-6">
 
-            <div class="row g-3">
+        <div class="card shadow-sm border-0 h-100">
 
+            <div class="card-body">
 
-                <!-- COOK -->
-
-                <div class="col-lg-3 col-md-6">
-
-                    <a
-                        href="material_request.php"
-                        class="text-decoration-none"
-                    >
-
-                        <div
-                            class="border rounded p-3 h-100"
-                            style="border-color: var(--border) !important;"
-                        >
-
-                            <div class="fs-2 mb-2" style="color: var(--primary);">
-
-                                <i class="fa-solid fa-user-chef"></i>
-
-                            </div>
-
-                            <h6 style="color: var(--text);">
-                                1. Cook Request
-                            </h6>
-
-                            <p class="text-muted small mb-0">
-
-                                Cook selects cooking materials
-                                and sends the request to Chef.
-
-                            </p>
-
-                        </div>
-
-                    </a>
-
-                </div>
-
-
-
-                <!-- CHEF -->
-
-                <div class="col-lg-3 col-md-6">
-
-                    <a
-                        href="chef_approval.php"
-                        class="text-decoration-none"
-                    >
-
-                        <div
-                            class="border rounded p-3 h-100"
-                            style="border-color: var(--border) !important;"
-                        >
-
-                            <div class="fs-2 mb-2" style="color: var(--accent);">
-
-                                <i class="fa-solid fa-user-check"></i>
-
-                            </div>
-
-                            <h6 style="color: var(--text);">
-                                2. Chef Approval
-                            </h6>
-
-                            <p class="text-muted small mb-0">
-
-                                Chef reviews the request,
-                                adds or changes materials,
-                                then approves it.
-
-                            </p>
-
-                        </div>
-
-                    </a>
-
-                </div>
-
-
-
-                <!-- STORE -->
-
-                <div class="col-lg-3 col-md-6">
-
-                    <a
-                        href="../store/kitchen_requests.php"
-                        class="text-decoration-none"
-                    >
-
-                        <div
-                            class="border rounded p-3 h-100"
-                            style="border-color: var(--border) !important;"
-                        >
-
-                            <div class="fs-2 mb-2" style="color: var(--primary);">
-
-                                <i class="fa-solid fa-box-open"></i>
-
-                            </div>
-
-                            <h6 style="color: var(--text);">
-                                3. Store Issue
-                            </h6>
-
-                            <p class="text-muted small mb-0">
-
-                                Store issues the approved
-                                cooking materials to Kitchen.
-
-                            </p>
-
-                        </div>
-
-                    </a>
-
-                </div>
-
-
-
-                <!-- FOOD -->
-
-                <div class="col-lg-3 col-md-6">
-
-                    <a
-                        href="food_preparation.php"
-                        class="text-decoration-none"
-                    >
-
-                        <div
-                            class="border rounded p-3 h-100"
-                            style="border-color: var(--border) !important;"
-                        >
-
-                            <div class="fs-2 mb-2" style="color: #6d28d9;">
-
-                                <i class="fa-solid fa-fire-burner"></i>
-
-                            </div>
-
-                            <h6 style="color: var(--text);">
-                                4. Food Preparation
-                            </h6>
-
-                            <p class="text-muted small mb-0">
-
-                                Record prepared food and
-                                send food to Canteen.
-
-                            </p>
-
-                        </div>
-
-                    </a>
-
-                </div>
-
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-
-    <!-- =====================================================
-         RECENT REQUESTS + LOW STOCK
-    ====================================================== -->
-
-    <div class="row g-4">
-
-
-        <!-- RECENT REQUESTS -->
-
-        <div class="col-lg-8">
-
-            <div class="content-card h-100">
-
-                <div class="content-card-header">
+                <div class="d-flex justify-content-between">
 
                     <div>
 
-                        <h5 class="mb-1">
-                            Recent Kitchen Requests
-                        </h5>
-
                         <small class="text-muted">
-                            Cook and Chef request history
+                            Today's Plans
                         </small>
 
-                    </div>
-
-
-                    <a
-                        href="material_request.php"
-                        class="btn btn-sm btn-outline-primary"
-                    >
-                        View Requests
-                    </a>
-
-                </div>
-
-
-                <div class="table-responsive">
-
-                    <table class="table table-hover mb-0">
-
-                        <thead>
-
-                            <tr>
-
-                                <th>
-                                    Request No
-                                </th>
-
-                                <th>
-                                    Cook
-                                </th>
-
-                                <th>
-                                    Date
-                                </th>
-
-                                <th>
-                                    Status
-                                </th>
-
-                            </tr>
-
-                        </thead>
-
-
-                        <tbody>
-
-
-                        <?php if (
-                            empty($recentRequests)
-                        ): ?>
-
-                            <tr>
-
-                                <td
-                                    colspan="4"
-                                    class="text-center text-muted py-4"
-                                >
-
-                                    No kitchen requests found.
-
-                                </td>
-
-                            </tr>
-
-                        <?php else: ?>
-
-
-                            <?php foreach (
-                                $recentRequests
-                                as $request
-                            ): ?>
-
-                                <?php
-
-                                $requesterInitial = strtoupper(
-                                    substr(
-                                        trim((string)($request['employee_name'] ?? '-')),
-                                        0,
-                                        1
-                                    )
-                                );
-
-                                ?>
-
-                                <tr>
-
-                                    <td>
-
-                                        <strong>
-
-                                            <?= e(
-                                                $request['request_no']
-                                            ) ?>
-
-                                        </strong>
-
-                                    </td>
-
-
-                                    <td>
-
-                                        <div class="d-flex align-items-center gap-2">
-
-                                            <span class="row-avatar">
-                                                <?= e($requesterInitial) ?>
-                                            </span>
-
-                                            <span>
-
-                                                <?= e(
-                                                    $request['employee_name']
-                                                    ?? '-'
-                                                ) ?>
-
-                                            </span>
-
-                                        </div>
-
-                                    </td>
-
-
-                                    <td>
-
-                                        <?= e(
-                                            $request['request_date']
-                                        ) ?>
-
-                                    </td>
-
-
-                                    <td>
-
-
-                                    <?php
-
-                                    $status =
-                                        $request['status'];
-
-                                    $badgeClass =
-                                        'bg-secondary';
-
-
-                                    if (
-                                        $status ===
-                                        'Submitted'
-                                    ) {
-
-                                        $badgeClass =
-                                            'bg-warning text-dark';
-
-                                    } elseif (
-                                        $status ===
-                                        'Chef Approved'
-                                    ) {
-
-                                        $badgeClass =
-                                            'bg-primary';
-
-                                    } elseif (
-                                        $status ===
-                                        'Sent to Store'
-                                    ) {
-
-                                        $badgeClass =
-                                            'bg-info text-dark';
-
-                                    } elseif (
-                                        $status ===
-                                        'Partially Issued'
-                                    ) {
-
-                                        $badgeClass =
-                                            'bg-warning text-dark';
-
-                                    } elseif (
-                                        $status ===
-                                        'Completed'
-                                    ) {
-
-                                        $badgeClass =
-                                            'badge-enable';
-
-                                    } elseif (
-                                        $status ===
-                                        'Rejected'
-                                    ) {
-
-                                        $badgeClass =
-                                            'badge-disabled';
-
-                                    }
-
-                                    ?>
-
-
-                                        <span
-                                            class="badge <?= $badgeClass ?>"
-                                        >
-
-                                            <?= e(
-                                                $status
-                                            ) ?>
-
-                                        </span>
-
-                                    </td>
-
-                                </tr>
-
-                            <?php endforeach; ?>
-
-
-                        <?php endif; ?>
-
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- LOW STOCK -->
-
-        <div class="col-lg-4">
-
-            <div class="content-card h-100">
-
-                <div class="content-card-header">
-
-                    <div>
-
-                        <h5 class="mb-1">
-                            Low Stock
-                        </h5>
-
-                        <small class="text-muted">
-                            Materials below minimum level
-                        </small>
+                        <h3 class="mb-0">
+                            <?= $todayPlans ?>
+                        </h3>
 
                     </div>
 
-                </div>
-
-
-                <div class="list-group list-group-flush">
-
-
-                <?php if (
-                    empty($lowStockMaterials)
-                ): ?>
-
-
-                    <div
-                        class="text-center text-muted py-4"
-                    >
-
-                        <i
-                            class="fa-solid fa-circle-check fs-3 mb-2"
-                            style="color: var(--primary);"
-                        ></i>
-
-                        <br>
-
-                        No low stock materials.
-
+                    <div class="text-primary fs-3">
+                        <i class="fa-solid fa-calendar-day"></i>
                     </div>
-
-
-                <?php else: ?>
-
-
-                    <?php foreach (
-                        $lowStockMaterials
-                        as $material
-                    ): ?>
-
-                        <div
-                            class="list-group-item"
-                        >
-
-                            <div
-                                class="d-flex justify-content-between"
-                            >
-
-                                <div>
-
-                                    <strong>
-
-                                        <?= e(
-                                            $material['material_name']
-                                        ) ?>
-
-                                    </strong>
-
-                                    <br>
-
-                                    <small
-                                        class="text-muted"
-                                    >
-
-                                        <?= e(
-                                            $material['material_code']
-                                        ) ?>
-
-                                    </small>
-
-                                </div>
-
-
-                                <div
-                                    class="text-end"
-                                >
-
-                                    <span
-                                        class="badge badge-disabled"
-                                    >
-
-                                        <?= number_format(
-                                            (float)
-                                            $material['current_stock'],
-                                            2
-                                        ) ?>
-
-                                        <?= e(
-                                            $material['unit']
-                                        ) ?>
-
-                                    </span>
-
-                                    <br>
-
-                                    <small
-                                        class="text-muted"
-                                    >
-
-                                        Min:
-                                        <?= number_format(
-                                            (float)
-                                            $material['minimum_stock'],
-                                            2
-                                        ) ?>
-
-                                    </small>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    <?php endforeach; ?>
-
-
-                <?php endif; ?>
-
 
                 </div>
 
@@ -1120,201 +469,566 @@ require_once __DIR__ . '/../includes/topbar.php';
     </div>
 
 
+    <!-- PENDING APPROVAL -->
 
-    <!-- =====================================================
-         RECENT FOOD PREPARATION
-    ====================================================== -->
+    <div class="col-xl-2 col-md-4 col-sm-6">
 
-    <div class="content-card mt-4">
+        <div class="card shadow-sm border-0 h-100">
 
-        <div class="content-card-header">
+            <div class="card-body">
 
-            <div>
+                <div class="d-flex justify-content-between">
 
-                <h5 class="mb-1">
-                    Recent Food Preparation
+                    <div>
+
+                        <small class="text-muted">
+                            Chef Approval
+                        </small>
+
+                        <h3 class="mb-0 text-warning">
+                            <?= $pendingApproval ?>
+                        </h3>
+
+                    </div>
+
+                    <div class="text-warning fs-3">
+                        <i class="fa-solid fa-user-check"></i>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- WAITING STORE -->
+
+    <div class="col-xl-2 col-md-4 col-sm-6">
+
+        <div class="card shadow-sm border-0 h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between">
+
+                    <div>
+
+                        <small class="text-muted">
+                            Store Pending
+                        </small>
+
+                        <h3 class="mb-0 text-primary">
+                            <?= $waitingStore ?>
+                        </h3>
+
+                    </div>
+
+                    <div class="text-primary fs-3">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- MATERIALS ISSUED -->
+
+    <div class="col-xl-2 col-md-4 col-sm-6">
+
+        <div class="card shadow-sm border-0 h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between">
+
+                    <div>
+
+                        <small class="text-muted">
+                            Materials Issued
+                        </small>
+
+                        <h3 class="mb-0 text-success">
+                            <?= $materialsIssued ?>
+                        </h3>
+
+                    </div>
+
+                    <div class="text-success fs-3">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- READY TO COOK -->
+
+    <div class="col-xl-2 col-md-4 col-sm-6">
+
+        <div class="card shadow-sm border-0 h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between">
+
+                    <div>
+
+                        <small class="text-muted">
+                            Ready to Cook
+                        </small>
+
+                        <h3 class="mb-0 text-danger">
+                            <?= $readyForPreparation ?>
+                        </h3>
+
+                    </div>
+
+                    <div class="text-danger fs-3">
+                        <i class="fa-solid fa-fire-burner"></i>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SENT TO CANTEEN -->
+
+    <div class="col-xl-2 col-md-4 col-sm-6">
+
+        <div class="card shadow-sm border-0 h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between">
+
+                    <div>
+
+                        <small class="text-muted">
+                            Sent to Canteen
+                        </small>
+
+                        <h3 class="mb-0 text-info">
+                            <?= $sentToCanteen ?>
+                        </h3>
+
+                    </div>
+
+                    <div class="text-info fs-3">
+                        <i class="fa-solid fa-truck"></i>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!--
+|--------------------------------------------------------------------------
+| QUICK ACTIONS
+|--------------------------------------------------------------------------
+-->
+
+<div class="card shadow-sm mb-4">
+
+    <div class="card-header">
+
+        <h5 class="mb-0">
+            <i class="fa-solid fa-bolt me-2"></i>
+            Quick Actions
+        </h5>
+
+    </div>
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+
+                <a
+                    href="daily_cooking_plan.php"
+                    class="btn btn-outline-primary w-100 py-3"
+                >
+
+                    <i class="fa-solid fa-calendar-plus fa-lg me-2"></i>
+
+                    Daily Cooking Plan
+
+                </a>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <a
+                    href="chef_approval.php"
+                    class="btn btn-outline-warning w-100 py-3"
+                >
+
+                    <i class="fa-solid fa-user-check fa-lg me-2"></i>
+
+                    Chef Approval
+
+                    <?php if ($pendingApproval > 0): ?>
+
+                        <span class="badge bg-danger ms-1">
+                            <?= $pendingApproval ?>
+                        </span>
+
+                    <?php endif; ?>
+
+                </a>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <a
+                    href="food_preparation.php"
+                    class="btn btn-outline-success w-100 py-3"
+                >
+
+                    <i class="fa-solid fa-utensils fa-lg me-2"></i>
+
+                    Food Preparation
+
+                    <?php if ($readyForPreparation > 0): ?>
+
+                        <span class="badge bg-danger ms-1">
+                            <?= $readyForPreparation ?>
+                        </span>
+
+                    <?php endif; ?>
+
+                </a>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <a
+                    href="issue_history.php"
+                    class="btn btn-outline-secondary w-100 py-3"
+                >
+
+                    <i class="fa-solid fa-clock-rotate-left fa-lg me-2"></i>
+
+                    Issue History
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!--
+|--------------------------------------------------------------------------
+| TODAY'S COOKING PLAN
+|--------------------------------------------------------------------------
+-->
+
+<div class="card shadow-sm mb-4">
+
+    <div class="card-header">
+
+        <h5 class="mb-0">
+
+            <i class="fa-solid fa-calendar-day me-2"></i>
+
+            Today's Cooking Plan
+
+        </h5>
+
+    </div>
+
+    <div class="card-body">
+
+        <?php if (empty($mealSummary)): ?>
+
+            <div class="text-center py-4">
+
+                <i class="fa-solid fa-calendar-xmark fa-3x text-muted mb-3"></i>
+
+                <h5>
+                    No cooking plan for today
                 </h5>
 
-                <small class="text-muted">
-                    Food prepared by Kitchen
-                </small>
+                <p class="text-muted mb-3">
+                    Create a daily cooking plan for today's meals.
+                </p>
+
+                <a
+                    href="daily_cooking_plan.php"
+                    class="btn btn-primary"
+                >
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Create Cooking Plan
+                </a>
 
             </div>
 
+        <?php else: ?>
 
-            <a
-                href="food_preparation.php"
-                class="btn btn-sm btn-outline-primary"
-            >
+            <div class="table-responsive">
 
-                Food Preparation
+                <table class="table table-bordered table-hover align-middle">
 
-            </a>
+                    <thead class="table-light">
 
-        </div>
+                        <tr>
 
+                            <th>#</th>
 
-        <div class="table-responsive">
+                            <th>Meal</th>
 
-            <table class="table table-hover mb-0">
+                            <th>Food Items</th>
 
-                <thead>
+                            <th>Total Plates</th>
 
-                    <tr>
+                            <th>Status</th>
 
-                        <th>
-                            Preparation No
-                        </th>
+                            <th>Action</th>
 
-                        <th>
-                            Food
-                        </th>
+                        </tr>
 
-                        <th>
-                            Quantity
-                        </th>
+                    </thead>
 
-                        <th>
-                            Date
-                        </th>
+                    <tbody>
 
-                        <th>
-                            Status
-                        </th>
-
-                    </tr>
-
-                </thead>
-
-
-                <tbody>
-
-
-                <?php if (
-                    empty($recentFood)
-                ): ?>
-
-                    <tr>
-
-                        <td
-                            colspan="5"
-                            class="text-center text-muted py-4"
-                        >
-
-                            No food preparation records found.
-
-                        </td>
-
-                    </tr>
-
-                <?php else: ?>
-
-
-                    <?php foreach (
-                        $recentFood
-                        as $food
-                    ): ?>
+                    <?php foreach ($mealSummary as $index => $plan): ?>
 
                         <tr>
 
                             <td>
-
-                                <strong>
-
-                                    <?= e(
-                                        $food['preparation_no']
-                                    ) ?>
-
-                                </strong>
-
+                                <?= $index + 1 ?>
                             </td>
-
 
                             <td>
 
-                                <?= e(
-                                    $food['food_name']
-                                ) ?>
+                                <span class="badge <?= dashboardMealClass(
+                                    (string)$plan['meal_type']
+                                ) ?>">
 
-                            </td>
-
-
-                            <td>
-
-                                <span
-                                    class="badge badge-enable"
-                                >
-
-                                    <?= number_format(
-                                        (float)
-                                        $food['prepared_qty'],
-                                        2
-                                    ) ?>
-
-                                    <?= e(
-                                        $food['unit']
-                                    ) ?>
+                                    <?= e($plan['meal_type']) ?>
 
                                 </span>
 
                             </td>
 
+                            <td>
+
+                                <?= (int)$plan['food_count'] ?>
+
+                                <?= (int)$plan['food_count'] === 1
+                                    ? 'food'
+                                    : 'foods' ?>
+
+                            </td>
+
+                            <td>
+
+                                <strong>
+
+                                    <?= number_format(
+                                        (float)$plan['total_plates'],
+                                        0
+                                    ) ?>
+
+                                </strong>
+
+                                plates
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge <?= dashboardStatusClass(
+                                    (string)$plan['status']
+                                ) ?>">
+
+                                    <?= e($plan['status']) ?>
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                <a
+                                    href="daily_cooking_plan.php?edit=<?= (int)$plan['id'] ?>"
+                                    class="btn btn-sm btn-outline-primary"
+                                >
+
+                                    <i class="fa-solid fa-eye"></i>
+
+                                    View
+
+                                </a>
+
+                            </td>
+
+                        </tr>
+
+                    <?php endforeach; ?>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        <?php endif; ?>
+
+    </div>
+
+</div>
+
+
+<!--
+|--------------------------------------------------------------------------
+| RECENT COOKING PLANS
+|--------------------------------------------------------------------------
+-->
+
+<div class="card shadow-sm">
+
+    <div class="card-header">
+
+        <h5 class="mb-0">
+
+            <i class="fa-solid fa-clock-rotate-left me-2"></i>
+
+            Recent Cooking Plans
+
+        </h5>
+
+    </div>
+
+    <div class="card-body">
+
+        <?php if (empty($recentPlans)): ?>
+
+            <div class="text-center text-muted py-4">
+
+                No cooking plans found.
+
+            </div>
+
+        <?php else: ?>
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered table-hover align-middle">
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th>#</th>
+
+                            <th>Date</th>
+
+                            <th>Meal</th>
+
+                            <th>Foods</th>
+
+                            <th>Plates</th>
+
+                            <th>Status</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                    <?php foreach ($recentPlans as $index => $plan): ?>
+
+                        <tr>
+
+                            <td>
+                                <?= $index + 1 ?>
+                            </td>
 
                             <td>
 
                                 <?= e(
-                                    $food['preparation_date']
+                                    date(
+                                        'd-m-Y',
+                                        strtotime(
+                                            $plan['cooking_date']
+                                        )
+                                    )
                                 ) ?>
 
                             </td>
 
+                            <td>
+
+                                <span class="badge <?= dashboardMealClass(
+                                    (string)$plan['meal_type']
+                                ) ?>">
+
+                                    <?= e($plan['meal_type']) ?>
+
+                                </span>
+
+                            </td>
 
                             <td>
 
-                                <?php
+                                <?= (int)$plan['food_count'] ?>
 
-                                $foodStatus =
-                                    $food['status'];
+                            </td>
 
-                                $foodBadge =
-                                    'bg-secondary';
+                            <td>
 
+                                <?= number_format(
+                                    (float)$plan['total_plates'],
+                                    0
+                                ) ?>
 
-                                if (
-                                    $foodStatus ===
-                                    'Prepared'
-                                ) {
+                            </td>
 
-                                    $foodBadge =
-                                        'bg-warning text-dark';
+                            <td>
 
-                                } elseif (
-                                    $foodStatus ===
-                                    'Sent to Canteen'
-                                ) {
+                                <span class="badge <?= dashboardStatusClass(
+                                    (string)$plan['status']
+                                ) ?>">
 
-                                    $foodBadge =
-                                        'bg-info text-dark';
-
-                                } elseif (
-                                    $foodStatus ===
-                                    'Completed'
-                                ) {
-
-                                    $foodBadge =
-                                        'badge-enable';
-                                }
-
-                                ?>
-
-
-                                <span
-                                    class="badge <?= $foodBadge ?>"
-                                >
-
-                                    <?= e(
-                                        $foodStatus
-                                    ) ?>
+                                    <?= e($plan['status']) ?>
 
                                 </span>
 
@@ -1324,26 +1038,18 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                     <?php endforeach; ?>
 
+                    </tbody>
 
-                <?php endif; ?>
+                </table>
 
+            </div>
 
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
+        <?php endif; ?>
 
     </div>
 
 </div>
 
+</div>
 
-<?php
-
-require_once __DIR__ . '/../includes/footer.php';
-
-?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

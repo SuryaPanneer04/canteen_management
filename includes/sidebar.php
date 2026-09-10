@@ -257,7 +257,7 @@ $isCanteen = ($role === 'Canteen');
         ====================================================== -->
 
         
-
+ 
 
         <?php if ($isAdmin || $isKitchen): ?>
 
@@ -265,87 +265,95 @@ $isCanteen = ($role === 'Canteen');
                 KITCHEN
             </div>
 
-           <!-- <a
-                class="nav-link"
-                href="<?= $isAdmin ? '../kitchen/dashboard.php' : 'dashboard.php' ?>"
-            >
+            <li class="nav-item">
 
-                <i class="fa-solid fa-fire-burner"></i>
+                <a
+                    href="dashboard.php"
+                    class="nav-link <?= $currentPage === 'dashboard.php' ? 'active' : '' ?>"
+                >
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Kitchen Dashboard</span>
+                </a>
 
-                <span>
-                    Kitchen Dashboard
-                </span>
-
-            </a> -->
-
-
-            <a
-                class="nav-link"
-                href="<?= $isAdmin ? '../kitchen/material_request.php' : 'material_request.php' ?>"
-            >
-
-                <i class="fa-solid fa-cart-plus"></i>
-
-                <span>
-                    Material Request
-                </span>
-
-            </a>
+            </li>
 
 
-            <a
-                class="nav-link"
-                href="<?= $isAdmin ? '../kitchen/issue_history.php' : 'issue_history.php' ?>"
-            >
+            <!-- FOOD MENU & RECIPE -->
 
-                <i class="fa-solid fa-clock-rotate-left"></i>
+            <li class="nav-item">
 
-                <span>
-                    Issue History
-                </span>
+                <a
+                    href="food_menu.php"
+                    class="nav-link <?= $currentPage === 'food_menu.php' ? 'active' : '' ?>"
+                >
+                    <i class="fa-solid fa-bowl-food"></i>
+                    <span>Food Menu & Recipe</span>
+                </a>
 
-            </a>
+            </li>
 
 
-               <a
-                class="nav-link"
-                href="<?= $isAdmin ? '../kitchen/chef_approval.php' : 'chef_approval.php' ?>"
-            >
+            <!-- DAILY COOKING PLAN -->
 
-                <i class="fa-solid fa-clock-rotate-left"></i>
+            <li class="nav-item">
 
-                <span>
-                    Chef Approve
-                </span>
+                <a
+                    href="daily_cooking_plan.php"
+                    class="nav-link <?= $currentPage === 'daily_cooking_plan.php' ? 'active' : '' ?>"
+                >
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <span>Daily Cooking Plan</span>
+                </a>
 
-            </a>
-             <a
-                class="nav-link"
-                href="<?= $isAdmin ? '../kitchen/chef_approval.php' : 'chef_approval.php' ?>"
-            >
+            </li>
 
-                <i class="fa-solid fa-clock-rotate-left"></i>
 
-                <span>
-                    Chef Approve
-                </span>
+            <!-- CHEF APPROVAL -->
 
-            </a>
+            <li class="nav-item">
 
-            <a
-                class="nav-link"
-                href="<?= $isAdmin ? '../kitchen/food_preparation.php' : 'food_preparation.php' ?>"
-            >
+                <a
+                    href="chef_approval.php"
+                    class="nav-link <?= $currentPage === 'chef_approval.php' ? 'active' : '' ?>"
+                >
+                    <i class="fa-solid fa-user-check"></i>
+                    <span>Chef Approval</span>
+                </a>
 
-                <i class="fa-solid fa-fire-burner"></i>
+            </li>
 
-                <span>
-                   Food Preparation
-                </span>
 
-            </a>
+            <!-- FOOD PREPARATION -->
 
-        <?php endif; ?>
+            <li class="nav-item">
+
+                <a
+                    href="food_preparation.php"
+                    class="nav-link <?= $currentPage === 'food_preparation.php' ? 'active' : '' ?>"
+                >
+                    <i class="fa-solid fa-fire-burner"></i>
+                    <span>Food Preparation</span>
+                </a>
+
+            </li>
+
+
+            <!-- MATERIAL ISSUE HISTORY -->
+
+            <li class="nav-item">
+
+                <a
+                    href="issue_history.php"
+                    class="nav-link <?= $currentPage === 'issue_history.php' ? 'active' : '' ?>"
+                >
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>Issue History</span>
+                </a>
+
+            </li>
+
+            <?php endif; ?>
+
 
 
         <!-- =====================================================

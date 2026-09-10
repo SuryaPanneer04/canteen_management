@@ -51,10 +51,34 @@ INSTALLATION
 DEFAULT LOGIN
 -------------
 Email:
-admin@canteen.local
+admin@gmail.com
 
 Password:
 admin123
+
+Email:
+kitchen@gmail.com
+
+Password:
+kitchen123
+
+Email:
+store@gmail.com
+
+Password:
+store123
+
+Email:
+Purchase@gmail.com
+
+Password:
+Purchase123
+
+Email:
+canteen@gmail.com
+
+Password:
+canteen123
 
 IMPORTANT:
 ----------

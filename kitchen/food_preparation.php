@@ -1,499 +1,477 @@
 <?php
-
 declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/store_auth.php';
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
+$pageTitle = 'Food Preparation';
 
-// =========================================================
-// ACCESS CONTROL
-// =========================================================
+$error = null;
+$success = flash('success');
 
-$allowedRoles = [
-    'Kitchen',
-    'Chef',
-    'Super Admin'
-];
+$userId = (int)($_SESSION['user_id'] ?? 0);
 
-if (
-    !in_array(
-        $_SESSION['role_name'] ?? '',
-        $allowedRoles,
-        true
-    )
-) {
+/*
+|--------------------------------------------------------------------------
+| ACCESS
+|--------------------------------------------------------------------------
+*/
+
+$allowedRoles = ['Kitchen', 'Super Admin'];
+
+if (!isset($_SESSION['userrole']) || !in_array($_SESSION['userrole'], $allowedRoles, true)) {
     header('Location: ../index.php');
     exit;
 }
 
+/*
+|--------------------------------------------------------------------------
+| GENERATE TRANSFER NUMBER
+|--------------------------------------------------------------------------
+*/
 
-$pageTitle = 'Food Preparation';
+function generateTransferNo(PDO $con): string
+{
+    $prefix = 'FT-' . date('Ym') . '-';
 
-$success = '';
-$error = '';
+    $stmt = $con->prepare("
+        SELECT transfer_no
+        FROM food_transfers
+        WHERE transfer_no LIKE ?
+        ORDER BY id DESC
+        LIMIT 1
+    ");
 
-$loginUserId = (int)($_SESSION['user_id'] ?? 0);
+    $stmt->execute([$prefix . '%']);
 
+    $last = $stmt->fetchColumn();
 
-// =========================================================
-// SEND FOOD TO CANTEEN
-// =========================================================
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST'
-    &&
-    isset($_POST['send_to_canteen'])
-) {
-
-    $preparationId =
-        (int)($_POST['preparation_id'] ?? 0);
-
-    $sendQty =
-        (float)($_POST['send_qty'] ?? 0);
-
-    $remarks =
-        trim($_POST['transfer_remarks'] ?? '');
-
-
-    if ($preparationId <= 0) {
-
-        $error =
-            'Invalid food preparation record.';
-
-    } elseif ($sendQty <= 0) {
-
-        $error =
-            'Please enter a valid quantity.';
-
-    } elseif ($loginUserId <= 0) {
-
-        $error =
-            'Invalid logged-in user.';
-
+    if ($last) {
+        $number = (int)substr((string)$last, strlen($prefix));
+        $number++;
     } else {
+        $number = 1;
+    }
 
-        try {
+    return $prefix . str_pad((string)$number, 4, '0', STR_PAD_LEFT);
+}
 
-            $con->beginTransaction();
+/*
+|--------------------------------------------------------------------------
+| GENERATE PREPARATION NUMBER
+|--------------------------------------------------------------------------
+*/
 
+function generatePreparationNo(PDO $con): string
+{
+    $prefix = 'FP-' . date('Ym') . '-';
 
-            // =================================================
-            // GET AND LOCK PREPARATION
-            // =================================================
+    $stmt = $con->prepare("
+        SELECT preparation_no
+        FROM food_preparations
+        WHERE preparation_no LIKE ?
+        ORDER BY id DESC
+        LIMIT 1
+    ");
 
-            $stmt = $con->prepare("
-                SELECT
-                    fp.id,
-                    fp.preparation_no,
-                    fp.food_id,
-                    fp.prepared_qty,
-                    fp.status,
-                    fi.food_name,
-                    fi.unit
+    $stmt->execute([$prefix . '%']);
 
-                FROM food_preparations fp
+    $last = $stmt->fetchColumn();
 
-                INNER JOIN food_items fi
-                    ON fi.id = fp.food_id
+    if ($last) {
+        $number = (int)substr((string)$last, strlen($prefix));
+        $number++;
+    } else {
+        $number = 1;
+    }
 
-                WHERE fp.id = ?
+    return $prefix . str_pad((string)$number, 4, '0', STR_PAD_LEFT);
+}
 
-                FOR UPDATE
-            ");
+/*
+|--------------------------------------------------------------------------
+| SEND PREPARED FOOD TO CANTEEN
+|--------------------------------------------------------------------------
+*/
 
-            $stmt->execute([
-                $preparationId
-            ]);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-            $preparation =
-                $stmt->fetch(PDO::FETCH_ASSOC);
+    $action = $_POST['action'] ?? '';
 
+    if ($action === 'prepare_food') {
 
-            if (!$preparation) {
+        $planItemId = (int)($_POST['plan_item_id'] ?? 0);
+        $preparedQty = (float)($_POST['prepared_qty'] ?? 0);
+        $remarks = trim($_POST['remarks'] ?? '');
 
-                throw new RuntimeException(
-                    'Food preparation record not found.'
-                );
-            }
+        if ($planItemId <= 0) {
+            $error = 'Invalid cooking plan item.';
+        } elseif ($preparedQty <= 0) {
+            $error = 'Prepared quantity must be greater than zero.';
+        } else {
 
+            try {
 
-            // =================================================
-            // CHECK STATUS
-            // =================================================
+                $con->beginTransaction();
 
-            if (
-                $preparation['status'] ===
-                'Sent to Canteen'
-            ) {
-
-                throw new RuntimeException(
-                    'All food from this preparation has already been sent to Canteen.'
-                );
-            }
-
-
-            // =================================================
-            // PREPARED QUANTITY
-            // =================================================
-
-            $preparedQty =
-                (float)$preparation['prepared_qty'];
-
-
-            // =================================================
-            // GET TOTAL ALREADY SENT
-            //
-            // We calculate this from food_transfers.
-            // No sent_qty column is required.
-            // =================================================
-
-            $stmt = $con->prepare("
-                SELECT
-                    COALESCE(SUM(quantity), 0)
-
-                FROM food_transfers
-
-                WHERE preparation_id = ?
-            ");
-
-            $stmt->execute([
-                $preparationId
-            ]);
-
-            $alreadySent =
-                (float)$stmt->fetchColumn();
-
-
-            // =================================================
-            // CALCULATE REMAINING
-            // =================================================
-
-            $remainingQty =
-                $preparedQty - $alreadySent;
-
-
-            if ($remainingQty <= 0) {
-
-                throw new RuntimeException(
-                    'All prepared food has already been sent to Canteen.'
-                );
-            }
-
-
-            // =================================================
-            // PREVENT OVER TRANSFER
-            // =================================================
-
-            if ($sendQty > $remainingQty) {
-
-                throw new RuntimeException(
-                    'Cannot send more than the remaining quantity. '
-                    .
-                    'Remaining quantity: '
-                    .
-                    number_format(
-                        $remainingQty,
-                        2
-                    )
-                    .
-                    ' '
-                    .
-                    $preparation['unit']
-                );
-            }
-
-
-            // =================================================
-            // CREATE TRANSFER NUMBER
-            // =================================================
-
-            $transferNo =
-                'FT-'
-                .
-                date('YmdHis')
-                .
-                '-'
-                .
-                random_int(100, 999);
-
-
-            // =================================================
-            // INSERT FOOD TRANSFER
-            // =================================================
-
-            $stmt = $con->prepare("
-                INSERT INTO food_transfers
-                (
-                    transfer_no,
-                    preparation_id,
-                    food_id,
-                    quantity,
-                    transfer_date,
-                    sent_by,
-                    status,
-                    remarks
-                )
-
-                VALUES
-                (
-                    ?,
-                    ?,
-                    ?,
-                    ?,
-                    CURDATE(),
-                    ?,
-                    'Sent',
-                    ?
-                )
-            ");
-
-            $stmt->execute([
-                $transferNo,
-                $preparationId,
-                $preparation['food_id'],
-                $sendQty,
-                $loginUserId,
-                $remarks !== ''
-                    ? $remarks
-                    : null
-            ]);
-
-
-            // =================================================
-            // CALCULATE NEW TOTAL SENT
-            // =================================================
-
-            $newSentQty =
-                $alreadySent + $sendQty;
-
-
-            // =================================================
-            // UPDATE PREPARATION STATUS
-            // =================================================
-
-            if (
-                $newSentQty >=
-                $preparedQty
-            ) {
+                /*
+                |--------------------------------------------------------------------------
+                | GET PLAN ITEM
+                |--------------------------------------------------------------------------
+                */
 
                 $stmt = $con->prepare("
-                    UPDATE food_preparations
+                    SELECT
+                        dpi.id AS plan_item_id,
+                        dpi.required_plates,
+                        dpi.food_id,
 
-                    SET status = 'Sent to Canteen'
+                        dcp.id AS plan_id,
+                        dcp.cooking_date,
+                        dcp.meal_type,
+                        dcp.status AS plan_status,
 
-                    WHERE id = ?
+                        fi.food_name,
+                        fi.unit
+
+                    FROM daily_cooking_plan_items dpi
+
+                    INNER JOIN daily_cooking_plans dcp
+                        ON dcp.id = dpi.cooking_plan_id
+
+                    INNER JOIN food_items fi
+                        ON fi.id = dpi.food_id
+
+                    WHERE dpi.id = ?
+                    LIMIT 1
+                ");
+
+                $stmt->execute([$planItemId]);
+
+                $planItem = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$planItem) {
+                    throw new RuntimeException('Cooking plan item not found.');
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | PLAN MUST BE SENT TO STORE
+                |--------------------------------------------------------------------------
+                */
+
+                if (!in_array(
+                    $planItem['plan_status'],
+                    ['Sent to Store', 'Completed'],
+                    true
+                )) {
+                    throw new RuntimeException(
+                        'This cooking plan is not ready for food preparation.'
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | CHECK MATERIAL REQUEST
+                |--------------------------------------------------------------------------
+                |
+                | Chef approval creates the kitchen request.
+                | Store must completely issue the materials before cooking.
+                |
+                */
+
+                $stmt = $con->prepare("
+                    SELECT
+                        id,
+                        request_no,
+                        status
+
+                    FROM kitchen_requests
+
+                    WHERE plan_id = ?
+
+                    AND status = 'Completed'
+
+                    ORDER BY id DESC
+
+                    LIMIT 1
+                ");
+
+                $stmt->execute([(int)$planItem['plan_id']]);
+
+                $request = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$request) {
+                    throw new RuntimeException(
+                        'Materials have not been completely issued by Store yet.'
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | CHECK DUPLICATE PREPARATION
+                |--------------------------------------------------------------------------
+                */
+
+                $stmt = $con->prepare("
+                    SELECT id
+                    FROM food_preparations
+                    WHERE plan_item_id = ?
+                    AND status IN ('Prepared', 'Sent to Canteen')
+                    LIMIT 1
+                ");
+
+                $stmt->execute([$planItemId]);
+
+                if ($stmt->fetch()) {
+                    throw new RuntimeException(
+                        'Food preparation has already been created for this item.'
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | PREPARATION NUMBER
+                |--------------------------------------------------------------------------
+                */
+
+                $preparationNo = generatePreparationNo($con);
+
+                /*
+                |--------------------------------------------------------------------------
+                | CREATE FOOD PREPARATION
+                |--------------------------------------------------------------------------
+                */
+
+                $stmt = $con->prepare("
+                    INSERT INTO food_preparations
+                    (
+                        preparation_no,
+                        food_id,
+                        preparation_date,
+                        prepared_qty,
+                        planned_qty,
+                        plan_item_id,
+                        request_id,
+                        status,
+                        prepared_by,
+                        remarks
+                    )
+                    VALUES
+                    (
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        'Prepared',
+                        ?,
+                        ?
+                    )
                 ");
 
                 $stmt->execute([
-                    $preparationId
+                    $preparationNo,
+                    (int)$planItem['food_id'],
+                    date('Y-m-d'),
+                    $preparedQty,
+                    (float)$planItem['required_plates'],
+                    $planItemId,
+                    (int)$request['id'],
+                    $userId > 0 ? $userId : null,
+                    $remarks !== '' ? $remarks : null
                 ]);
-            }
 
+                $preparationId = (int)$con->lastInsertId();
 
-            $con->commit();
+                /*
+                |--------------------------------------------------------------------------
+                | TRANSFER NUMBER
+                |--------------------------------------------------------------------------
+                */
 
+                $transferNo = generateTransferNo($con);
 
-            $success =
-                'Food sent to Canteen successfully. '
-                .
-                'Transfer No: '
-                .
-                $transferNo;
+                /*
+                |--------------------------------------------------------------------------
+                | CREATE FOOD TRANSFER
+                |--------------------------------------------------------------------------
+                */
 
-        } catch (Throwable $e) {
+                $stmt = $con->prepare("
+                    INSERT INTO food_transfers
+                    (
+                        transfer_no,
+                        preparation_id,
+                        food_id,
+                        quantity,
+                        transfer_date,
+                        sent_by,
+                        status
+                    )
+                    VALUES
+                    (
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        NOW(),
+                        ?,
+                        'Sent'
+                    )
+                ");
 
-            if ($con->inTransaction()) {
+                $stmt->execute([
+                    $transferNo,
+                    $preparationId,
+                    (int)$planItem['food_id'],
+                    $preparedQty,
+                    $userId > 0 ? $userId : null
+                ]);
 
-                $con->rollBack();
-            }
+                /*
+                |--------------------------------------------------------------------------
+                | UPDATE PREPARATION STATUS
+                |--------------------------------------------------------------------------
+                */
 
-            $error =
-                $e->getMessage();
-        }
-    }
-}
+                $stmt = $con->prepare("
+                    UPDATE food_preparations
+                    SET status = 'Sent to Canteen'
+                    WHERE id = ?
+                ");
 
+                $stmt->execute([$preparationId]);
 
-// =========================================================
-// CREATE FOOD PREPARATION
-// =========================================================
+                /*
+                |--------------------------------------------------------------------------
+                | UPDATE PLAN STATUS
+                |--------------------------------------------------------------------------
+                */
 
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST'
-    &&
-    isset($_POST['save_preparation'])
-) {
+                $stmt = $con->prepare("
+                    UPDATE daily_cooking_plans dcp
 
-    $foodId =
-        (int)($_POST['food_id'] ?? 0);
+                    SET dcp.status = CASE
+                        WHEN NOT EXISTS (
+                            SELECT 1
+                            FROM daily_cooking_plan_items dpi2
+                            WHERE dpi2.cooking_plan_id = dcp.id
+                            AND NOT EXISTS (
+                                SELECT 1
+                                FROM food_preparations fp2
+                                WHERE fp2.plan_item_id = dpi2.id
+                                AND fp2.status IN ('Prepared', 'Sent to Canteen', 'Completed')
+                            )
+                        )
+                        THEN 'Completed'
 
-    $preparedQty =
-        (float)($_POST['prepared_qty'] ?? 0);
+                        ELSE 'Sent to Store'
+                    END
 
-    $remarks =
-        trim(
-            $_POST['preparation_remarks'] ?? ''
-        );
+                    WHERE dcp.id = ?
+                ");
 
+                $stmt->execute([
+                    (int)$planItem['plan_id']
+                ]);
 
-    if ($foodId <= 0) {
+                $con->commit();
 
-        $error =
-            'Please select a food item.';
-
-    } elseif ($preparedQty <= 0) {
-
-        $error =
-            'Please enter a valid prepared quantity.';
-
-    } elseif ($loginUserId <= 0) {
-
-        $error =
-            'Invalid logged-in user.';
-
-    } else {
-
-        try {
-
-            // =================================================
-            // CHECK FOOD
-            // =================================================
-
-            $stmt = $con->prepare("
-                SELECT
-                    id,
-                    food_code,
-                    food_name,
-                    unit
-
-                FROM food_items
-
-                WHERE id = ?
-
-                AND status = 'Enable'
-
-                LIMIT 1
-            ");
-
-            $stmt->execute([
-                $foodId
-            ]);
-
-            $food =
-                $stmt->fetch(PDO::FETCH_ASSOC);
-
-
-            if (!$food) {
-
-                throw new RuntimeException(
-                    'Selected food item does not exist or is disabled.'
+                flash(
+                    'success',
+                    $planItem['food_name'] .
+                    ' prepared and sent to Canteen successfully.'
                 );
+
+                header('Location: food_preparation.php');
+                exit;
+
+            } catch (Throwable $e) {
+
+                if ($con->inTransaction()) {
+                    $con->rollBack();
+                }
+
+                $error = $e->getMessage();
             }
-
-
-            // =================================================
-            // GENERATE UNIQUE PREPARATION NUMBER
-            // =================================================
-
-            $preparationNo =
-                'FP-'
-                .
-                date('YmdHis')
-                .
-                '-'
-                .
-                random_int(100, 999);
-
-
-            // =================================================
-            // INSERT PREPARATION
-            // =================================================
-
-            $stmt = $con->prepare("
-                INSERT INTO food_preparations
-                (
-                    preparation_no,
-                    food_id,
-                    preparation_date,
-                    prepared_qty,
-                    status,
-                    prepared_by,
-                    remarks
-                )
-
-                VALUES
-                (
-                    ?,
-                    ?,
-                    CURDATE(),
-                    ?,
-                    'Prepared',
-                    ?,
-                    ?
-                )
-            ");
-
-            $stmt->execute([
-                $preparationNo,
-                $foodId,
-                $preparedQty,
-                $loginUserId,
-                $remarks !== ''
-                    ? $remarks
-                    : null
-            ]);
-
-
-            $success =
-                'Food preparation recorded successfully. '
-                .
-                'Preparation No: '
-                .
-                $preparationNo;
-
-        } catch (Throwable $e) {
-
-            $error =
-                $e->getMessage();
         }
     }
 }
 
-
-// =========================================================
-// FOOD ITEMS
-// =========================================================
+/*
+|--------------------------------------------------------------------------
+| GET READY FOOD ITEMS
+|--------------------------------------------------------------------------
+|
+| Only cooking plans whose Store request is COMPLETED are shown.
+|
+*/
 
 $stmt = $con->query("
     SELECT
-        id,
-        food_code,
-        food_name,
-        unit
+        dpi.id AS plan_item_id,
+        dpi.required_plates,
 
-    FROM food_items
+        dcp.id AS plan_id,
+        dcp.cooking_date,
+        dcp.meal_type,
+        dcp.status AS plan_status,
 
-    WHERE status = 'Enable'
+        fi.id AS food_id,
+        fi.food_name,
+        fi.unit,
+
+        kr.request_no,
+        kr.status AS request_status,
+
+        fp.id AS preparation_id,
+        fp.preparation_no,
+        fp.prepared_qty,
+        fp.status AS preparation_status
+
+    FROM daily_cooking_plan_items dpi
+
+    INNER JOIN daily_cooking_plans dcp
+        ON dcp.id = dpi.cooking_plan_id
+
+    INNER JOIN food_items fi
+        ON fi.id = dpi.food_id
+
+    INNER JOIN kitchen_requests kr
+        ON kr.plan_id = dcp.id
+        AND kr.status = 'Completed'
+
+    LEFT JOIN food_preparations fp
+        ON fp.plan_item_id = dpi.id
+
+    WHERE dcp.status IN ('Sent to Store', 'Completed')
 
     ORDER BY
-        food_name ASC
+        dcp.cooking_date DESC,
+        FIELD(
+            dcp.meal_type,
+            'Breakfast',
+            'Lunch',
+            'Snacks',
+            'Dinner'
+        ),
+        dpi.id ASC
 ");
 
-$foodItems =
-    $stmt->fetchAll(PDO::FETCH_ASSOC);
+$foodItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-
-// =========================================================
-// PREPARED FOOD
-//
-// sent_qty is calculated from food_transfers.
-// =========================================================
+/*
+|--------------------------------------------------------------------------
+| RECENT PREPARATION HISTORY
+|--------------------------------------------------------------------------
+*/
 
 $stmt = $con->query("
     SELECT
-
         fp.id,
         fp.preparation_no,
         fp.preparation_date,
@@ -501,370 +479,514 @@ $stmt = $con->query("
         fp.status,
         fp.remarks,
 
-        fi.food_code,
         fi.food_name,
         fi.unit,
 
-        u.employee_name AS prepared_by_name,
+        dcp.meal_type,
+        dcp.cooking_date,
 
-        COALESCE(
-            (
-                SELECT
-                    SUM(ft.quantity)
-
-                FROM food_transfers ft
-
-                WHERE
-                    ft.preparation_id = fp.id
-            ),
-            0
-        ) AS sent_qty
+        ft.transfer_no,
+        ft.quantity AS transferred_qty,
+        ft.status AS transfer_status
 
     FROM food_preparations fp
 
     INNER JOIN food_items fi
         ON fi.id = fp.food_id
 
-    LEFT JOIN users u
-        ON u.id = fp.prepared_by
+    LEFT JOIN daily_cooking_plan_items dpi
+        ON dpi.id = fp.plan_item_id
 
-    WHERE
-        fp.preparation_date >=
-        DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+    LEFT JOIN daily_cooking_plans dcp
+        ON dcp.id = dpi.cooking_plan_id
 
-    ORDER BY
-        fp.id DESC
+    LEFT JOIN food_transfers ft
+        ON ft.preparation_id = fp.id
+
+    ORDER BY fp.id DESC
+
+    LIMIT 50
 ");
 
-$preparations =
-    $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-
-// =========================================================
-// FOOD SENT TO CANTEEN
-// =========================================================
-
-$stmt = $con->query("
-    SELECT
-
-        ft.transfer_no,
-        ft.quantity,
-        ft.transfer_date,
-        ft.status,
-        ft.remarks,
-
-        fi.food_name,
-        fi.unit
-
-    FROM food_transfers ft
-
-    INNER JOIN food_items fi
-        ON fi.id = ft.food_id
-
-    WHERE
-        ft.transfer_date >=
-        DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-
-    ORDER BY
-        ft.id DESC
-
-    LIMIT 20
-");
-
-$transfers =
-    $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-
-// =========================================================
-// SUMMARY STATS (last 7 days)
-// =========================================================
-
-$totalPreparedQty = 0.0;
-$totalSentQty = 0.0;
-$pendingCount = 0;
-
-foreach ($preparations as $p) {
-
-    $totalPreparedQty += (float)$p['prepared_qty'];
-    $totalSentQty += (float)$p['sent_qty'];
-
-    if (
-        (float)$p['prepared_qty']
-        -
-        (float)$p['sent_qty']
-        > 0
-    ) {
-        $pendingCount++;
-    }
-}
-
-
-require_once __DIR__ . '/../includes/header.php';
-
-require_once __DIR__ . '/../includes/sidebar.php';
-
-require_once __DIR__ . '/../includes/topbar.php';
+$history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 
+<?php require_once __DIR__ . '/../includes/header.php'; ?>
 
-<div class="main-content">
-
-<div class="page-body">
-
-
-    <!-- =====================================================
-         HEADER
-    ====================================================== -->
-
-    <div class="page-header">
-
-        <div>
-
-            <h4 class="page-header-title">
-                Food Preparation
-            </h4>
-
-            <p class="page-header-subtitle">
-
-                Record prepared food and send it
-                from Kitchen to Canteen.
-
-            </p>
-
-        </div>
+<div class="container-fluid">
 
 
-        <a
-            href="dashboard.php"
-            class="btn btn-outline-secondary"
-        >
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="mb-1">Food Preparation</h3>
+        <p class="text-muted mb-0">
+            Prepare approved food and send it to Canteen.
+        </p>
+    </div>
+</div>
 
-            <i
-                class="fa-solid fa-arrow-left me-1"
-            ></i>
+<?php if ($error): ?>
+    <div class="alert alert-danger">
+        <?= htmlspecialchars($error) ?>
+    </div>
+<?php endif; ?>
 
-            Dashboard
+<?php if ($success): ?>
+    <div class="alert alert-success">
+        <?= htmlspecialchars($success) ?>
+    </div>
+<?php endif; ?>
 
-        </a>
+<!--
+|--------------------------------------------------------------------------
+| READY FOR PREPARATION
+|--------------------------------------------------------------------------
+-->
+
+<div class="card shadow-sm mb-4">
+
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-utensils"></i>
+            Ready for Preparation
+        </h5>
+    </div>
+
+    <div class="card-body">
+
+        <?php if (!$foodItems): ?>
+
+            <div class="text-center py-5">
+
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+
+                <h5>No food pending for preparation</h5>
+
+                <p class="text-muted mb-0">
+                    Food will appear here after the Store completely issues
+                    the required materials.
+                </p>
+
+            </div>
+
+        <?php else: ?>
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered table-hover align-middle">
+
+                    <thead class="table-light">
+
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Meal</th>
+                            <th>Food</th>
+                            <th>Planned Plates</th>
+                            <th>Store Request</th>
+                            <th>Preparation</th>
+                            <th width="180">Action</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                    <?php foreach ($foodItems as $index => $item): ?>
+
+                        <tr>
+
+                            <td>
+                                <?= $index + 1 ?>
+                            </td>
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    date(
+                                        'd-m-Y',
+                                        strtotime($item['cooking_date'])
+                                    )
+                                ) ?>
+                            </td>
+
+                            <td>
+
+                                <?php
+                                $mealClass = match ($item['meal_type']) {
+                                    'Breakfast' => 'badge bg-warning text-dark',
+                                    'Lunch' => 'badge bg-primary',
+                                    'Snacks' => 'badge bg-info text-dark',
+                                    'Dinner' => 'badge bg-dark',
+                                    default => 'badge bg-secondary'
+                                };
+                                ?>
+
+                                <span class="<?= $mealClass ?>">
+                                    <?= htmlspecialchars($item['meal_type']) ?>
+                                </span>
+
+                            </td>
+
+                            <td>
+                                <strong>
+                                    <?= htmlspecialchars($item['food_name']) ?>
+                                </strong>
+                            </td>
+
+                            <td>
+                                <?= number_format(
+                                    (float)$item['required_plates'],
+                                    0
+                                ) ?>
+                                plates
+                            </td>
+
+                            <td>
+                                <span class="badge bg-success">
+                                    <?= htmlspecialchars($item['request_no']) ?>
+                                </span>
+
+                                <br>
+
+                                <small class="text-success">
+                                    Materials Issued
+                                </small>
+                            </td>
+
+                            <td>
+
+                                <?php if ($item['preparation_id']): ?>
+
+                                    <?php if ($item['preparation_status'] === 'Sent to Canteen'): ?>
+
+                                        <span class="badge bg-success">
+                                            Sent to Canteen
+                                        </span>
+
+                                    <?php elseif ($item['preparation_status'] === 'Completed'): ?>
+
+                                        <span class="badge bg-primary">
+                                            Completed
+                                        </span>
+
+                                    <?php else: ?>
+
+                                        <span class="badge bg-warning text-dark">
+                                            Prepared
+                                        </span>
+
+                                    <?php endif; ?>
+
+                                <?php else: ?>
+
+                                    <span class="badge bg-secondary">
+                                        Not Prepared
+                                    </span>
+
+                                <?php endif; ?>
+
+                            </td>
+
+                            <td>
+
+                                <?php if (!$item['preparation_id']): ?>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-primary btn-sm"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#prepareModal<?= (int)$item['plan_item_id'] ?>"
+                                    >
+                                        <i class="fas fa-fire"></i>
+                                        Prepare Food
+                                    </button>
+
+                                <?php else: ?>
+
+                                    <span class="text-muted">
+                                        Already processed
+                                    </span>
+
+                                <?php endif; ?>
+
+                            </td>
+
+                        </tr>
+
+                    <?php endforeach; ?>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        <?php endif; ?>
 
     </div>
 
-
-    <!-- =====================================================
-         ALERTS
-    ====================================================== -->
-
-    <?php if ($success): ?>
-
-        <div
-            class="alert alert-success alert-dismissible fade show"
-        >
-
-            <i
-                class="fa-solid fa-circle-check me-2"
-            ></i>
-
-            <?= e($success) ?>
+</div>
 
 
-            <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="alert"
-            ></button>
+<!--
+|--------------------------------------------------------------------------
+| PREPARATION HISTORY
+|--------------------------------------------------------------------------
+-->
 
-        </div>
+<div class="card shadow-sm">
 
-    <?php endif; ?>
+    <div class="card-header">
 
-
-    <?php if ($error): ?>
-
-        <div
-            class="alert alert-danger alert-dismissible fade show"
-        >
-
-            <i
-                class="fa-solid fa-circle-exclamation me-2"
-            ></i>
-
-            <?= e($error) ?>
-
-
-            <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="alert"
-            ></button>
-
-        </div>
-
-    <?php endif; ?>
-
-
-    <!-- =====================================================
-         SUMMARY STATS
-    ====================================================== -->
-
-    <div class="row g-3 mb-4">
-
-        <div class="col-md-4">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-primary">
-                    <i class="fa-solid fa-fire-burner"></i>
-                </div>
-
-                <div>
-                    <div class="stat-label">Prepared (7 days)</div>
-                    <div class="stat-value">
-                        <?= number_format($totalPreparedQty, 2) ?>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div class="col-md-4">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-green">
-                    <i class="fa-solid fa-truck"></i>
-                </div>
-
-                <div>
-                    <div class="stat-label">Sent to Canteen (7 days)</div>
-                    <div class="stat-value">
-                        <?= number_format($totalSentQty, 2) ?>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div class="col-md-4">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-amber">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                </div>
-
-                <div>
-                    <div class="stat-label">Pending Transfer</div>
-                    <div class="stat-value">
-                        <?= (int)$pendingCount ?>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
+        <h5 class="mb-0">
+            <i class="fas fa-history"></i>
+            Preparation History
+        </h5>
 
     </div>
 
+    <div class="card-body">
 
-    <!-- =====================================================
-         PREPARATION FORM
-    ====================================================== -->
+        <?php if (!$history): ?>
 
-    <div class="content-card mb-4">
+            <div class="text-center text-muted py-4">
+                No preparation history available.
+            </div>
 
-        <div class="content-card-header">
+        <?php else: ?>
 
-            <h5 class="mb-0">
+            <div class="table-responsive">
 
-                <i
-                    class="fa-solid fa-fire-burner me-2"
-                ></i>
+                <table class="table table-bordered table-hover">
 
-                Record Food Preparation
+                    <thead class="table-light">
 
-            </h5>
+                        <tr>
+                            <th>Preparation No</th>
+                            <th>Date</th>
+                            <th>Meal</th>
+                            <th>Food</th>
+                            <th>Prepared Qty</th>
+                            <th>Transfer No</th>
+                            <th>Status</th>
+                        </tr>
 
-        </div>
+                    </thead>
+
+                    <tbody>
+
+                    <?php foreach ($history as $row): ?>
+
+                        <tr>
+
+                            <td>
+                                <strong>
+                                    <?= htmlspecialchars($row['preparation_no']) ?>
+                                </strong>
+                            </td>
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    date(
+                                        'd-m-Y',
+                                        strtotime($row['preparation_date'])
+                                    )
+                                ) ?>
+                            </td>
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $row['meal_type'] ?? '-'
+                                ) ?>
+                            </td>
+
+                            <td>
+                                <?= htmlspecialchars($row['food_name']) ?>
+                            </td>
+
+                            <td>
+                                <?= number_format(
+                                    (float)$row['prepared_qty'],
+                                    2
+                                ) ?>
+
+                                <?= htmlspecialchars($row['unit']) ?>
+                            </td>
+
+                            <td>
+                                <?= htmlspecialchars(
+                                    $row['transfer_no'] ?? '-'
+                                ) ?>
+                            </td>
+
+                            <td>
+
+                                <?php if (
+                                    ($row['transfer_status'] ?? '') === 'Received'
+                                ): ?>
+
+                                    <span class="badge bg-success">
+                                        Received by Canteen
+                                    </span>
+
+                                <?php elseif (
+                                    ($row['transfer_status'] ?? '') === 'Sent'
+                                ): ?>
+
+                                    <span class="badge bg-warning text-dark">
+                                        Sent to Canteen
+                                    </span>
+
+                                <?php elseif (
+                                    $row['status'] === 'Completed'
+                                ): ?>
+
+                                    <span class="badge bg-primary">
+                                        Completed
+                                    </span>
+
+                                <?php else: ?>
+
+                                    <span class="badge bg-secondary">
+                                        <?= htmlspecialchars($row['status']) ?>
+                                    </span>
+
+                                <?php endif; ?>
+
+                            </td>
+
+                        </tr>
+
+                    <?php endforeach; ?>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        <?php endif; ?>
+
+    </div>
+
+</div>
 
 
-        <div class="content-card-body">
+</div>
 
-            <form method="post">
+<!--
+|--------------------------------------------------------------------------
+| PREPARE FOOD MODALS
+|--------------------------------------------------------------------------
+-->
 
-                <div class="row g-3">
+<?php foreach ($foodItems as $item): ?>
 
 
-                    <!-- FOOD -->
+<?php if ($item['preparation_id']) {
+    continue;
+} ?>
 
-                    <div class="col-md-5">
+<div
+    class="modal fade"
+    id="prepareModal<?= (int)$item['plan_item_id'] ?>"
+    tabindex="-1"
+    aria-hidden="true"
+>
 
-                        <label
-                            class="form-label"
-                        >
+    <div class="modal-dialog">
 
-                            Food Item
-                            <span class="text-danger">*</span>
+        <div class="modal-content">
 
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+                    Prepare Food
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+            <form method="POST">
+
+                <div class="modal-body">
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="prepare_food"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="plan_item_id"
+                        value="<?= (int)$item['plan_item_id'] ?>"
+                    >
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Food
                         </label>
 
-
-                        <select
-                            name="food_id"
-                            class="form-select"
-                            required
+                        <input
+                            type="text"
+                            class="form-control"
+                            value="<?= htmlspecialchars($item['food_name']) ?>"
+                            readonly
                         >
-
-                            <option value="">
-                                Select Food
-                            </option>
-
-
-                            <?php foreach (
-                                $foodItems
-                                as $food
-                            ): ?>
-
-                                <option
-                                    value="<?= (int)$food['id'] ?>"
-                                >
-
-                                    <?= e(
-                                        $food['food_name']
-                                    ) ?>
-
-                                    -
-
-                                    <?= e(
-                                        $food['food_code']
-                                    ) ?>
-
-                                </option>
-
-                            <?php endforeach; ?>
-
-                        </select>
 
                     </div>
 
+                    <div class="row">
 
-                    <!-- QUANTITY -->
+                        <div class="col-md-6 mb-3">
 
-                    <div class="col-md-3">
+                            <label class="form-label">
+                                Meal
+                            </label>
 
-                        <label
-                            class="form-label"
-                        >
+                            <input
+                                type="text"
+                                class="form-control"
+                                value="<?= htmlspecialchars($item['meal_type']) ?>"
+                                readonly
+                            >
 
-                            Prepared Quantity
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+
+                            <label class="form-label">
+                                Planned Plates
+                            </label>
+
+                            <input
+                                type="text"
+                                class="form-control"
+                                value="<?= number_format(
+                                    (float)$item['required_plates'],
+                                    0
+                                ) ?>"
+                                readonly
+                            >
+
+                        </div>
+
+                    </div>
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Actual Prepared Quantity
                             <span class="text-danger">*</span>
-
                         </label>
-
 
                         <input
                             type="number"
@@ -872,55 +994,61 @@ require_once __DIR__ . '/../includes/topbar.php';
                             class="form-control"
                             min="0.01"
                             step="0.01"
+                            value="<?= htmlspecialchars(
+                                (string)$item['required_plates']
+                            ) ?>"
                             required
                         >
 
+                        <small class="text-muted">
+                            Enter the actual quantity prepared by the Kitchen.
+                        </small>
+
                     </div>
 
+                    <div class="mb-3">
 
-                    <!-- REMARKS -->
-
-                    <div class="col-md-4">
-
-                        <label
-                            class="form-label"
-                        >
-
+                        <label class="form-label">
                             Remarks
-
                         </label>
 
-
-                        <input
-                            type="text"
-                            name="preparation_remarks"
+                        <textarea
+                            name="remarks"
                             class="form-control"
-                            maxlength="255"
+                            rows="3"
                             placeholder="Optional remarks"
-                        >
+                        ></textarea>
 
                     </div>
 
+                    <div class="alert alert-info mb-0">
 
-                    <!-- BUTTON -->
+                        <i class="fas fa-info-circle"></i>
 
-                    <div class="col-12">
-
-                        <button
-                            type="submit"
-                            name="save_preparation"
-                            class="btn btn-primary"
-                        >
-
-                            <i
-                                class="fa-solid fa-floppy-disk me-1"
-                            ></i>
-
-                            Save Preparation
-
-                        </button>
+                        After saving, the prepared food will automatically
+                        be marked as <strong>Sent to Canteen</strong>.
 
                     </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
+                        <i class="fas fa-paper-plane"></i>
+                        Prepare & Send to Canteen
+                    </button>
 
                 </div>
 
@@ -930,859 +1058,10 @@ require_once __DIR__ . '/../includes/topbar.php';
 
     </div>
 
-
-    <!-- =====================================================
-         PREPARED FOOD
-    ====================================================== -->
-
-    <div class="content-card mb-4">
-
-        <div class="content-card-header">
-
-            <div>
-
-                <h5 class="mb-0">
-                    Prepared Food
-                </h5>
-
-                <small class="text-muted">
-
-                    Food prepared during the last 7 days
-
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <div class="content-card-body p-0">
-
-            <div class="table-responsive">
-
-                <table
-                    class="table table-hover align-middle mb-0"
-                >
-
-                    <thead class="table-light">
-
-                        <tr>
-
-                            <th>
-                                Preparation No
-                            </th>
-
-                            <th>
-                                Food
-                            </th>
-
-                            <th>
-                                Prepared
-                            </th>
-
-                            <th>
-                                Sent
-                            </th>
-
-                            <th>
-                                Remaining
-                            </th>
-
-                            <th>
-                                Date
-                            </th>
-
-                            <th>
-                                Status
-                            </th>
-
-                            <th>
-                                Action
-                            </th>
-
-                        </tr>
-
-                    </thead>
-
-
-                    <tbody>
-
-
-                    <?php if (
-                        empty($preparations)
-                    ): ?>
-
-                        <tr>
-
-                            <td
-                                colspan="8"
-                                class="text-center text-muted py-4"
-                            >
-
-                                No food preparation records found.
-
-                            </td>
-
-                        </tr>
-
-                    <?php else: ?>
-
-
-                        <?php foreach (
-                            $preparations
-                            as $preparation
-                        ): ?>
-
-
-                            <?php
-
-                            $prepared =
-                                (float)
-                                $preparation['prepared_qty'];
-
-                            $sent =
-                                (float)
-                                $preparation['sent_qty'];
-
-                            $remaining =
-                                max(
-                                    0,
-                                    $prepared - $sent
-                                );
-
-                            ?>
-
-
-                            <tr>
-
-
-                                <!-- PREPARATION NO -->
-
-                                <td>
-
-                                    <strong>
-
-                                        <?= e(
-                                            $preparation[
-                                                'preparation_no'
-                                            ]
-                                        ) ?>
-
-                                    </strong>
-
-                                </td>
-
-
-                                <!-- FOOD -->
-
-                                <td>
-
-                                    <div class="food-cell">
-
-                                        <span class="food-icon">
-                                            <i class="fa-solid fa-utensils"></i>
-                                        </span>
-
-                                        <div>
-
-                                            <strong>
-
-                                                <?= e(
-                                                    $preparation[
-                                                        'food_name'
-                                                    ]
-                                                ) ?>
-
-                                            </strong>
-
-                                            <br>
-
-                                            <small
-                                                class="text-muted"
-                                            >
-
-                                                <?= e(
-                                                    $preparation[
-                                                        'food_code'
-                                                    ]
-                                                ) ?>
-
-                                            </small>
-
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-
-                                <!-- PREPARED -->
-
-                                <td>
-
-                                    <?= number_format(
-                                        $prepared,
-                                        2
-                                    ) ?>
-
-                                    <?= e(
-                                        $preparation[
-                                            'unit'
-                                        ]
-                                    ) ?>
-
-                                </td>
-
-
-                                <!-- SENT -->
-
-                                <td>
-
-                                    <?= number_format(
-                                        $sent,
-                                        2
-                                    ) ?>
-
-                                    <?= e(
-                                        $preparation[
-                                            'unit'
-                                        ]
-                                    ) ?>
-
-                                </td>
-
-
-                                <!-- REMAINING -->
-
-                                <td>
-
-                                    <?php if (
-                                        $remaining > 0
-                                    ): ?>
-
-                                        <span
-                                            class="badge remaining-pill"
-                                        >
-
-                                            <?= number_format(
-                                                $remaining,
-                                                2
-                                            ) ?>
-
-                                            <?= e(
-                                                $preparation[
-                                                    'unit'
-                                                ]
-                                            ) ?>
-
-                                        </span>
-
-                                    <?php else: ?>
-
-                                        <span
-                                            class="badge remaining-pill is-zero"
-                                        >
-
-                                            0
-
-                                            <?= e(
-                                                $preparation[
-                                                    'unit'
-                                                ]
-                                            ) ?>
-
-                                        </span>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-
-                                <!-- DATE -->
-
-                                <td>
-
-                                    <?= e(
-                                        $preparation[
-                                            'preparation_date'
-                                        ]
-                                    ) ?>
-
-                                </td>
-
-
-                                <!-- STATUS -->
-
-                                <td>
-
-                                    <?php
-
-                                    $status =
-                                        $preparation['status'];
-
-                                    if (
-                                        $status ===
-                                        'Sent to Canteen'
-                                    ):
-
-                                    ?>
-
-                                        <span
-                                            class="badge badge-sent"
-                                        >
-
-                                            Sent to Canteen
-
-                                        </span>
-
-                                    <?php else: ?>
-
-                                        <span
-                                            class="badge badge-pending"
-                                        >
-
-                                            Prepared
-
-                                        </span>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-
-                                <!-- ACTION -->
-
-                                <td>
-
-                                    <?php if (
-                                        $remaining > 0
-                                    ): ?>
-
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-primary"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#sendModal<?= (int)$preparation['id'] ?>"
-                                        >
-
-                                            <i
-                                                class="fa-solid fa-truck me-1"
-                                            ></i>
-
-                                            Send to Canteen
-
-                                        </button>
-
-                                    <?php else: ?>
-
-                                        <span
-                                            class="text-success"
-                                        >
-
-                                            <i
-                                                class="fa-solid fa-circle-check"
-                                            ></i>
-
-                                            Sent
-
-                                        </span>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                            </tr>
-
-
-                            <!-- =================================================
-                                 SEND MODAL
-                            ================================================== -->
-
-                            <div
-                                class="modal fade app-modal"
-                                id="sendModal<?= (int)$preparation['id'] ?>"
-                                tabindex="-1"
-                                aria-hidden="true"
-                            >
-
-                                <div
-                                    class="modal-dialog"
-                                >
-
-                                    <div
-                                        class="modal-content"
-                                    >
-
-
-                                        <div
-                                            class="modal-header"
-                                        >
-
-                                            <h5
-                                                class="modal-title"
-                                            >
-
-                                                <i
-                                                    class="fa-solid fa-truck me-2"
-                                                ></i>
-
-                                                Send Food to Canteen
-
-                                            </h5>
-
-
-                                            <button
-                                                type="button"
-                                                class="btn-close"
-                                                data-bs-dismiss="modal"
-                                            ></button>
-
-                                        </div>
-
-
-                                        <form method="post">
-
-                                            <div
-                                                class="modal-body"
-                                            >
-
-
-                                                <div
-                                                    class="mb-3"
-                                                >
-
-                                                    <label
-                                                        class="form-label"
-                                                    >
-
-                                                        Preparation No
-
-                                                    </label>
-
-
-                                                    <input
-                                                        type="text"
-                                                        class="form-control"
-                                                        value="<?= e($preparation['preparation_no']) ?>"
-                                                        readonly
-                                                    >
-
-                                                </div>
-
-
-                                                <div
-                                                    class="mb-3"
-                                                >
-
-                                                    <label
-                                                        class="form-label"
-                                                    >
-
-                                                        Food
-
-                                                    </label>
-
-
-                                                    <input
-                                                        type="text"
-                                                        class="form-control"
-                                                        value="<?= e($preparation['food_name']) ?>"
-                                                        readonly
-                                                    >
-
-                                                </div>
-
-
-                                                <div
-                                                    class="row g-3 mb-3"
-                                                >
-
-                                                    <div
-                                                        class="col-md-6"
-                                                    >
-
-                                                        <label
-                                                            class="form-label"
-                                                        >
-
-                                                            Prepared
-
-                                                        </label>
-
-
-                                                        <input
-                                                            type="text"
-                                                            class="form-control"
-                                                            value="<?= number_format($prepared, 2) . ' ' . $preparation['unit'] ?>"
-                                                            readonly
-                                                        >
-
-                                                    </div>
-
-
-                                                    <div
-                                                        class="col-md-6"
-                                                    >
-
-                                                        <label
-                                                            class="form-label"
-                                                        >
-
-                                                            Remaining
-
-                                                        </label>
-
-
-                                                        <input
-                                                            type="text"
-                                                            class="form-control"
-                                                            value="<?= number_format($remaining, 2) . ' ' . $preparation['unit'] ?>"
-                                                            readonly
-                                                        >
-
-                                                    </div>
-
-                                                </div>
-
-
-                                                <div
-                                                    class="mb-3"
-                                                >
-
-                                                    <label
-                                                        class="form-label"
-                                                    >
-
-                                                        Quantity to Send
-                                                        <span class="text-danger">*</span>
-
-                                                    </label>
-
-
-                                                    <input
-                                                        type="number"
-                                                        name="send_qty"
-                                                        class="form-control"
-                                                        min="0.01"
-                                                        max="<?= htmlspecialchars((string)$remaining) ?>"
-                                                        step="0.01"
-                                                        required
-                                                    >
-
-
-                                                    <small
-                                                        class="text-muted"
-                                                    >
-
-                                                        Maximum:
-
-                                                        <?= number_format(
-                                                            $remaining,
-                                                            2
-                                                        ) ?>
-
-                                                        <?= e(
-                                                            $preparation[
-                                                                'unit'
-                                                            ]
-                                                        ) ?>
-
-                                                    </small>
-
-                                                </div>
-
-
-                                                <div
-                                                    class="mb-3"
-                                                >
-
-                                                    <label
-                                                        class="form-label"
-                                                    >
-
-                                                        Remarks
-
-                                                    </label>
-
-
-                                                    <textarea
-                                                        name="transfer_remarks"
-                                                        class="form-control"
-                                                        rows="3"
-                                                        maxlength="255"
-                                                        placeholder="Optional remarks"
-                                                    ></textarea>
-
-                                                </div>
-
-
-                                                <input
-                                                    type="hidden"
-                                                    name="preparation_id"
-                                                    value="<?= (int)$preparation['id'] ?>"
-                                                >
-
-                                            </div>
-
-
-                                            <div
-                                                class="modal-footer"
-                                            >
-
-                                                <button
-                                                    type="button"
-                                                    class="btn btn-secondary"
-                                                    data-bs-dismiss="modal"
-                                                >
-
-                                                    Cancel
-
-                                                </button>
-
-
-                                                <button
-                                                    type="submit"
-                                                    name="send_to_canteen"
-                                                    class="btn btn-primary"
-                                                >
-
-                                                    <i
-                                                        class="fa-solid fa-truck me-1"
-                                                    ></i>
-
-                                                    Send to Canteen
-
-                                                </button>
-
-                                            </div>
-
-                                        </form>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-
-                        <?php endforeach; ?>
-
-
-                    <?php endif; ?>
-
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- =====================================================
-         TRANSFER HISTORY
-    ====================================================== -->
-
-    <div class="content-card">
-
-        <div class="content-card-header">
-
-            <h5 class="mb-0">
-
-                <i
-                    class="fa-solid fa-clock-rotate-left me-2"
-                ></i>
-
-                Food Transfer History
-
-            </h5>
-
-        </div>
-
-
-        <div class="content-card-body p-0">
-
-            <div class="table-responsive">
-
-                <table
-                    class="table table-hover align-middle mb-0"
-                >
-
-                    <thead class="table-light">
-
-                        <tr>
-
-                            <th>
-                                Transfer No
-                            </th>
-
-                            <th>
-                                Food
-                            </th>
-
-                            <th>
-                                Quantity
-                            </th>
-
-                            <th>
-                                Date
-                            </th>
-
-                            <th>
-                                Status
-                            </th>
-
-                            <th>
-                                Remarks
-                            </th>
-
-                        </tr>
-
-                    </thead>
-
-
-                    <tbody>
-
-
-                    <?php if (
-                        empty($transfers)
-                    ): ?>
-
-                        <tr>
-
-                            <td
-                                colspan="6"
-                                class="text-center text-muted py-4"
-                            >
-
-                                No food transfers found.
-
-                            </td>
-
-                        </tr>
-
-                    <?php else: ?>
-
-
-                        <?php foreach (
-                            $transfers
-                            as $transfer
-                        ): ?>
-
-                            <tr>
-
-                                <td>
-
-                                    <strong>
-
-                                        <?= e(
-                                            $transfer[
-                                                'transfer_no'
-                                            ]
-                                        ) ?>
-
-                                    </strong>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?= e(
-                                        $transfer[
-                                            'food_name'
-                                        ]
-                                    ) ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?= number_format(
-                                        (float)
-                                        $transfer[
-                                            'quantity'
-                                        ],
-                                        2
-                                    ) ?>
-
-                                    <?= e(
-                                        $transfer[
-                                            'unit'
-                                        ]
-                                    ) ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?= e(
-                                        $transfer[
-                                            'transfer_date'
-                                        ]
-                                    ) ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <span
-                                        class="badge badge-sent"
-                                    >
-
-                                        <?= e(
-                                            $transfer[
-                                                'status'
-                                            ]
-                                        ) ?>
-
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?= e(
-                                        $transfer[
-                                            'remarks'
-                                        ] ?? ''
-                                    ) ?>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-
-                    <?php endif; ?>
-
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
 </div>
 
-</div>
+<?php endforeach; ?>
 
-
-<?php
-
-require_once __DIR__ . '/../includes/footer.php';
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>
 
 ?>
