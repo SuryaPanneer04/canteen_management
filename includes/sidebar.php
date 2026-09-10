@@ -154,7 +154,7 @@ $isCanteen = ($role === 'Canteen');
 
              <li class="nav-item">
                 <a href="../store/stock.php" class="nav-link">
-                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <i class="fa-solid fa-table-columns"></i>
                     <span>Stock</span>
                 </a>
             </li>
@@ -168,7 +168,7 @@ $isCanteen = ($role === 'Canteen');
 
              <li class="nav-item">
                 <a href="../store/categories.php" class="nav-link">
-                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <i class="fa-solid fa-layer-group"></i>
                     <span>Categories</span>
                 </a>
             </li>
@@ -302,6 +302,19 @@ $isCanteen = ($role === 'Canteen');
 
                 <span>
                     Issue History
+                </span>
+
+            </a>
+
+             <a
+                class="nav-link"
+                href="<?= $isAdmin ? '../kitchen/chef_approval.php' : 'chef_approval.php' ?>"
+            >
+
+                <i class="fa-solid fa-clock-rotate-left"></i>
+
+                <span>
+                    Chef Approve
                 </span>
 
             </a>
