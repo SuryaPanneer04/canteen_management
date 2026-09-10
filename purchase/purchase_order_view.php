@@ -230,7 +230,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'Invoice rejected.';
         }
     }
+    elseif ($action === 'reject_invoice') {
+        if (($_SESSION['role_name'] ?? '') !== 'Super Admin') {
+            $error = 'Access Denied: Only Admin can reject invoices.';
+        } else {
+            $stmt = $con->prepare("UPDATE invoices SET status = 'Rejected', approved_by = ?, approved_at = NOW() WHERE po_id = ? AND status = 'Pending'");
+            $stmt->execute([$_SESSION['user_id'] ?? null, $poId]);
+            $success = 'Invoice rejected.';
+        }
+    }
+    /*
+    |--------------------------------------------------------------------------
+    | DELETE REJECTED INVOICE (PURCHASE TEAM)
+    |--------------------------------------------------------------------------
+    */
+    elseif ($action === 'delete_invoice') {
+        if (($_SESSION['role_name'] ?? '') !== 'Purchase') {
+            $error = 'Access Denied: Only Purchase team can delete rejected invoices.';
+        } else {
+            $stmt = $con->prepare("DELETE FROM invoices WHERE po_id = ? AND status = 'Rejected'");
+            $stmt->execute([$poId]);
+            $success = 'Rejected invoice deleted. You can now generate a new invoice.';
+        }
+    }
 }
+
   
 
 /*
@@ -892,6 +916,17 @@ require_once __DIR__ . '/../includes/header.php';
                                                 <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
                                                 <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Confirm payment made to supplier? This will close the invoice.');">
                                                     <i class="fa-solid fa-money-bill-wave me-1"></i> Mark as Paid
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <!-- DELETE REJECTED INVOICE BUTTON FOR PURCHASE -->
+                                        <?php if ($invoice['status'] === 'Rejected' && ($_SESSION['role_name'] ?? '') === 'Purchase'): ?>
+                                            <form method="post" class="m-0">
+                                                <input type="hidden" name="action" value="delete_invoice">
+                                                <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this rejected invoice and create a new one?');">
+                                                    <i class="fa-solid fa-trash me-1"></i> Delete & Re-Upload
                                                 </button>
                                             </form>
                                         <?php endif; ?>
