@@ -5,7 +5,7 @@
         </button>
         <div>
             <div class="topbar-title"><?= e($pageTitle ?? 'Dashboard') ?></div>
-            <div class="topbar-subtitle">Canteen Management System</div>
+            <div class="topbar-subtitle">Canteen</div>
         </div>
     </div>
 

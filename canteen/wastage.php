@@ -238,6 +238,9 @@ $stmt = $con->query("
     INNER JOIN food_items fi
         ON fi.id = cfs.food_id
 
+    -- INDHA LINE THAAN PUDHUSA ADD PANNIRUKOM
+    WHERE cfs.status = 'Closed'
+
     ORDER BY
         cfs.serving_date DESC,
         cfs.id DESC
@@ -802,6 +805,9 @@ require_once '../includes/topbar.php';
                     <!-- Reason -->
                     <div class="mb-3">
 
+                        <!-- Reason -->
+                    <div class="mb-3">
+
                         <label class="form-label">
                             Reason
                         </label>
@@ -811,6 +817,10 @@ require_once '../includes/topbar.php';
 
                             <option value="">
                                 -- Select Reason --
+                            </option>
+
+                            <option value="Staff Consumption">
+                                Staff Consumption
                             </option>
 
                             <option value="Excess Food">
