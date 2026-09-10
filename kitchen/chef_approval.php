@@ -552,25 +552,185 @@ if (
             }
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | VALIDATE CHEF QUANTITIES
-            |--------------------------------------------------------------------------
-            */
+           /*
+|--------------------------------------------------------------------------
+| VALIDATE CHEF QUANTITIES
+|--------------------------------------------------------------------------
+|
+| Chef can change only the materials automatically calculated
+| from the recipes of this cooking plan.
+|
+*/
 
-            if (
-                !is_array($materialIds)
-                ||
-                !is_array($approvedQty)
-            ) {
+if (
+    !is_array($materialIds)
+    ||
+    !is_array($approvedQty)
+) {
 
-                throw new RuntimeException(
-                    'No material quantities received.'
-                );
-            }
+    throw new RuntimeException(
+        'No material quantities received.'
+    );
+}
 
 
-            $approvedMaterials = [];
+/*
+|--------------------------------------------------------------------------
+| BUILD ALLOWED MATERIAL LIST
+|--------------------------------------------------------------------------
+|
+| Only materials calculated from the selected food recipes
+| can be submitted.
+|
+*/
+
+$allowedMaterialIds = [];
+
+foreach ($calculatedMaterials as $calculatedMaterial) {
+
+    $allowedMaterialIds[
+        (int)$calculatedMaterial['material_id']
+    ] = true;
+}
+
+
+$approvedMaterials = [];
+
+
+foreach (
+    $materialIds
+    as $index => $materialId
+) {
+
+    $materialId =
+        (int)$materialId;
+
+    $qty =
+        (float)(
+            $approvedQty[$index]
+            ?? 0
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | IGNORE INVALID MATERIAL ROW
+    |--------------------------------------------------------------------------
+    */
+
+    if ($materialId <= 0) {
+
+        continue;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MATERIAL MUST BELONG TO THIS PLAN
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        !isset(
+            $allowedMaterialIds[$materialId]
+        )
+    ) {
+
+        throw new RuntimeException(
+            'Invalid material selected for this cooking plan.'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | QUANTITY VALIDATION
+    |--------------------------------------------------------------------------
+    */
+
+    if ($qty < 0) {
+
+        throw new RuntimeException(
+            'Material quantity cannot be negative.'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ZERO QUANTITY
+    |--------------------------------------------------------------------------
+    |
+    | Chef may remove a material by setting quantity to 0.
+    |
+    */
+
+    if ($qty <= 0) {
+
+        continue;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDATE MATERIAL
+    |--------------------------------------------------------------------------
+    */
+
+    $stmt =
+        $con->prepare("
+            SELECT
+                id,
+                material_name,
+                unit
+            FROM materials
+            WHERE id = ?
+              AND status = 'Enable'
+            LIMIT 1
+        ");
+
+    $stmt->execute([
+        $materialId
+    ]);
+
+
+    $material =
+        $stmt->fetch(
+            PDO::FETCH_ASSOC
+        );
+
+
+    if (!$material) {
+
+        throw new RuntimeException(
+            'One of the selected materials is invalid.'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADD FINAL CHEF QUANTITY
+    |--------------------------------------------------------------------------
+    */
+
+    $approvedMaterials[] = [
+
+        'material_id' =>
+            $materialId,
+
+        'qty' =>
+            $qty,
+
+        'remarks' =>
+            trim(
+                $materialRemarks[
+                    $index
+                ] ?? ''
+            )
+
+    ];
+}
 
 
             foreach (

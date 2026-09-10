@@ -1,16 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
-require_once __DIR__ . '/../includes/store_auth.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
-
-$pageTitle = 'Food Preparation';
-
-$error = null;
-$success = flash('success');
-
-$userId = (int)($_SESSION['user_id'] ?? 0);
 
 /*
 |--------------------------------------------------------------------------
@@ -18,12 +12,30 @@ $userId = (int)($_SESSION['user_id'] ?? 0);
 |--------------------------------------------------------------------------
 */
 
-$allowedRoles = ['Kitchen', 'Super Admin'];
+$allowedRoles = [
+    'Kitchen',
+    'Chef',
+    'Super Admin'
+];
 
-if (!isset($_SESSION['userrole']) || !in_array($_SESSION['userrole'], $allowedRoles, true)) {
+if (
+    !in_array(
+        $_SESSION['role_name'] ?? '',
+        $allowedRoles,
+        true
+    )
+) {
     header('Location: ../index.php');
     exit;
 }
+
+
+$pageTitle = 'Food Preparation';
+
+$success = '';
+$error = '';
+
+$loginUserId = (int)($_SESSION['user_id'] ?? 0);
 
 /*
 |--------------------------------------------------------------------------
