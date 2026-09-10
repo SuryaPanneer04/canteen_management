@@ -1066,8 +1066,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const formData = new FormData();
             formData.append('request_id', requestId);
 
-            // API Call
-            fetch('ajax_get_request_items.php', {
+           fetch('ajax_get_request_items.php', {
                 method: 'POST',
                 body: formData
             })
@@ -1092,22 +1091,24 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <input type="text" class="form-control" value="${item.material_code} - ${item.material_name} (${item.unit})" readonly>
                             </td>
                             <td>
-                                <input type="number" name="ordered_qty[]" class="form-control qty-input" min="0.01" step="0.01" value="${qty}" required>
+                                <input type="number" name="ordered_qty[]" class="form-control qty-input bg-light" min="0.01" step="0.01" value="${qty}" required readonly>
                             </td>
                             <td>
-                                <input type="number" name="unit_rate[]" class="form-control rate-input" min="0" step="0.01" value="${rate}" required>
+                                <input type="number" name="unit_rate[]" class="form-control rate-input bg-light" min="0" step="0.01" value="${rate}" required readonly>
                             </td>
                             <td>
                                 <input type="text" class="form-control total-input" value="${total}" readonly>
                             </td>
                             <td>
-                                <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-item" disabled>
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </td>
                         `;
+                        
+                        // INGE THAAN NEENGA MISS PANNUNA CODE IRUKKU
                         itemsBody.appendChild(tr);
-                    });
+                    }); 
                     
                     // Total ah update pandrom
                     calculateGrandTotal();
