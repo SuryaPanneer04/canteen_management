@@ -152,26 +152,9 @@ require_once __DIR__ . '/../includes/header.php';
                                             <span class="badge <?= $badgeClass ?>"><?= e($inv['status']) ?></span>
                                         </td>
                                         <td class="text-center">
-                                            <?php if ($inv['status'] === 'Pending'): ?>
-                                                <div class="d-flex justify-content-center gap-1">
-                                                    <form method="post" class="d-inline">
-                                                        <input type="hidden" name="action" value="approve">
-                                                        <input type="hidden" name="invoice_id" value="<?= (int)$inv['id'] ?>">
-                                                        <button type="submit" class="btn btn-sm btn-success" title="Approve" onclick="return confirm('Approve this invoice for payment?');">
-                                                            <i class="fa-solid fa-check"></i>
-                                                        </button>
-                                                    </form>
-                                                    <form method="post" class="d-inline">
-                                                        <input type="hidden" name="action" value="reject">
-                                                        <input type="hidden" name="invoice_id" value="<?= (int)$inv['id'] ?>">
-                                                        <button type="submit" class="btn btn-sm btn-danger" title="Reject" onclick="return confirm('Reject this invoice?');">
-                                                            <i class="fa-solid fa-xmark"></i>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            <?php else: ?>
-                                                <span class="text-muted">-</span>
-                                            <?php endif; ?>
+                                            <a href="../purchase/purchase_order_view.php?id=<?= (int)$inv['po_id'] ?>" class="btn btn-sm btn-outline-primary" title="View Details">
+                                                <i class="fa-solid fa-eye"></i> View
+                                            </a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

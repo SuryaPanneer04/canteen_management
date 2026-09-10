@@ -212,7 +212,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'Payment completed. Invoice marked as Paid.';
         }
     }
-} 
+    elseif ($action === 'approve_invoice') {
+        if (($_SESSION['role_name'] ?? '') !== 'Super Admin') {
+            $error = 'Access Denied: Only Admin can approve invoices.';
+        } else {
+            $stmt = $con->prepare("UPDATE invoices SET status = 'Approved', approved_by = ?, approved_at = NOW() WHERE po_id = ? AND status = 'Pending'");
+            $stmt->execute([$_SESSION['user_id'] ?? null, $poId]);
+            $success = 'Invoice approved successfully. Purchase team can now process payment.';
+        }
+    }
+    elseif ($action === 'reject_invoice') {
+        if (($_SESSION['role_name'] ?? '') !== 'Super Admin') {
+            $error = 'Access Denied: Only Admin can reject invoices.';
+        } else {
+            $stmt = $con->prepare("UPDATE invoices SET status = 'Rejected', approved_by = ?, approved_at = NOW() WHERE po_id = ? AND status = 'Pending'");
+            $stmt->execute([$_SESSION['user_id'] ?? null, $poId]);
+            $success = 'Invoice rejected.';
+        }
+    }
+}
+  
 
 /*
 |--------------------------------------------------------------------------
@@ -792,7 +811,6 @@ require_once __DIR__ . '/../includes/header.php';
 
 
             <!-- ACTIONS -->
-            <!-- ADMIN MATRUM PURCHASE IRUVARUKKUM INDHA BOX THERIYUM -->
             <?php if (in_array($_SESSION['role_name'] ?? '', ['Super Admin', 'Purchase'], true)): ?>
             
             <div class="content-card">
@@ -839,7 +857,7 @@ require_once __DIR__ . '/../includes/header.php';
                             </form>
                         <?php endif; ?>
 
-                        <!-- STATUS ALERTS & INVOICE BUTTON -->
+                       <!-- STATUS ALERTS & INVOICE BUTTON -->
                         <?php if ($po['status'] === 'Received'): ?>
                             <?php if (!empty($invoice)): ?>
                                 <div class="alert alert-info mb-0 w-100 d-flex justify-content-between align-items-center">
@@ -848,16 +866,36 @@ require_once __DIR__ . '/../includes/header.php';
                                         Invoice <strong><?= e($invoice['invoice_no']) ?></strong> status: <strong><?= e($invoice['status']) ?></strong>
                                     </div>
                                     
-                                    <!-- MARK AS PAID BUTTON FOR PURCHASE -->
-                                    <?php if ($invoice['status'] === 'Approved' && ($_SESSION['role_name'] ?? '') === 'Purchase'): ?>
-                                        <form method="post" class="m-0">
-                                            <input type="hidden" name="action" value="mark_invoice_paid">
-                                            <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
-                                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Confirm payment made to supplier? This will close the invoice.');">
-                                                <i class="fa-solid fa-money-bill-wave me-1"></i> Mark as Paid
-                                            </button>
-                                        </form>
-                                    <?php endif; ?>
+                                    <div class="d-flex gap-2">
+                                        <!-- APPROVE/REJECT BUTTONS FOR ADMIN -->
+                                        <?php if ($invoice['status'] === 'Pending' && ($_SESSION['role_name'] ?? '') === 'Super Admin'): ?>
+                                            <form method="post" class="m-0">
+                                                <input type="hidden" name="action" value="approve_invoice">
+                                                <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve this invoice for payment?');">
+                                                    <i class="fa-solid fa-check me-1"></i> Approve
+                                                </button>
+                                            </form>
+                                            <form method="post" class="m-0">
+                                                <input type="hidden" name="action" value="reject_invoice">
+                                                <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject this invoice?');">
+                                                    <i class="fa-solid fa-xmark me-1"></i> Reject
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <!-- MARK AS PAID BUTTON FOR PURCHASE -->
+                                        <?php if ($invoice['status'] === 'Approved' && ($_SESSION['role_name'] ?? '') === 'Purchase'): ?>
+                                            <form method="post" class="m-0">
+                                                <input type="hidden" name="action" value="mark_invoice_paid">
+                                                <input type="hidden" name="po_id" value="<?= (int)$po['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Confirm payment made to supplier? This will close the invoice.');">
+                                                    <i class="fa-solid fa-money-bill-wave me-1"></i> Mark as Paid
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             <?php elseif (($_SESSION['role_name'] ?? '') === 'Purchase'): ?>
                                 <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addInvoiceModal">
