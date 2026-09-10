@@ -114,6 +114,7 @@ $isCanteen = ($role === 'Canteen');
         <span>
             Invoice Approvals
         </span>
+    </a>
 
           <a 
         class="nav-link <?= $currentPage === 'canteen_report.php' ? 'active' : '' ?>" 
@@ -125,8 +126,9 @@ $isCanteen = ($role === 'Canteen');
         <span>
             Canteen Report
         </span>
-
-            <a
+    
+    </a>
+        <a
                 class="nav-link <?= $currentPage === 'roles.php' ? 'active' : '' ?>"
                 href="../admin/roles.php"
             >

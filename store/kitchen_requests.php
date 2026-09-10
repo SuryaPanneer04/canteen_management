@@ -607,7 +607,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </h4>
 
                 <div class="text-muted">
-                    Review Chef-approved requests and issue materials to Kitchen.
+                    Issue approved kitchen materials to Kitchen.
                 </div>
 
             </div>

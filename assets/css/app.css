@@ -1014,3 +1014,23 @@ a { text-decoration: none; }
 #stockTabsContent .tab-pane.active {
     display: block;
 }
+
+/* =========================================================
+   MAIN CONTENT - SIDEBAR OFFSET
+========================================================= */
+
+.main-content {
+    margin-left: 250px;
+    padding: 20px;
+    width: calc(100% - 250px);
+    min-height: 100vh;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+        padding: 15px;
+    }
+}

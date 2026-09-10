@@ -35,7 +35,7 @@ $pageTitle = 'Food Preparation';
 $success = '';
 $error = '';
 
-$loginUserId = (int)($_SESSION['user_id'] ?? 0);
+$userId = (int)($_SESSION['user_id'] ?? 0);
 
 /*
 |--------------------------------------------------------------------------
@@ -230,7 +230,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     SELECT id
                     FROM food_preparations
                     WHERE plan_item_id = ?
-                    AND status IN ('Prepared', 'Sent to Canteen')
                     LIMIT 1
                 ");
 
@@ -525,7 +524,10 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <?php require_once __DIR__ . '/../includes/header.php'; ?>
+<?php require_once __DIR__ . '/../includes/sidebar.php'; ?>
+<?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
+<main class="main-content">
 <div class="container-fluid">
 
 
@@ -886,6 +888,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
 </div>
+</main>
 
 <!--
 |--------------------------------------------------------------------------
@@ -996,7 +999,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="mb-3">
 
                         <label class="form-label">
-                            Actual Prepared Quantity
+                            Actual Prepared Plates
                             <span class="text-danger">*</span>
                         </label>
 
@@ -1013,7 +1016,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         >
 
                         <small class="text-muted">
-                            Enter the actual quantity prepared by the Kitchen.
+                            Enter the actual number of plates prepared by the Kitchen.
                         </small>
 
                     </div>
@@ -1075,5 +1078,3 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <?php endforeach; ?>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
-
-?>
