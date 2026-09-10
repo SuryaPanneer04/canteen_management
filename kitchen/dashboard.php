@@ -1,11 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
-require_once __DIR__ . '/../includes/store_auth.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-$pageTitle = 'Kitchen Dashboard';
 
 /*
 |--------------------------------------------------------------------------
@@ -13,19 +13,25 @@ $pageTitle = 'Kitchen Dashboard';
 |--------------------------------------------------------------------------
 */
 
-$allowedRoles = ['Kitchen', 'Super Admin'];
+$allowedRoles = [
+    'Kitchen',
+    'Super Admin'
+];
 
 if (
-    !isset($_SESSION['userrole']) ||
-    !in_array($_SESSION['userrole'], $allowedRoles, true)
+    !in_array(
+        $_SESSION['role_name'] ?? '',
+        $allowedRoles,
+        true
+    )
 ) {
     header('Location: ../index.php');
     exit;
 }
 
-$today = date('Y-m-d');
 
-$error = null;
+$pageTitle = 'Kitchen Dashboard';
+$today = date('Y-m-d');
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +47,9 @@ $readyForPreparation = 0;
 $sentToCanteen = 0;
 
 $mealSummary = [];
+$recentPlans = [];
+
+$error = null;
 
 /*
 |--------------------------------------------------------------------------
@@ -262,7 +271,7 @@ try {
 |--------------------------------------------------------------------------
 */
 
-$recentPlans = [];
+
 
 try {
 

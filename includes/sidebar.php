@@ -275,7 +275,7 @@ $isCanteen = ($role === 'Canteen');
                 KITCHEN
             </div>
 
-            <li class="nav-item">
+           <!-- <li class="nav-item">
 
                 <a
                     href="dashboard.php"
@@ -285,7 +285,7 @@ $isCanteen = ($role === 'Canteen');
                     <span>Kitchen Dashboard</span>
                 </a>
 
-            </li>
+            </li> -->
 
 
             <!-- FOOD MENU & RECIPE -->

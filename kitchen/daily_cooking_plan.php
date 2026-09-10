@@ -227,6 +227,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
             }
 
+            // Prevent duplicate active plan for the same date and meal
+                $checkPlan = $con->prepare("
+                    SELECT id
+                    FROM daily_cooking_plans
+                    WHERE cooking_date = ?
+                    AND meal_type = ?
+                    AND status <> 'Cancelled'
+                    LIMIT 1
+                ");
+
+                $checkPlan->execute([
+                    $cookingDate,
+                    $mealType
+                ]);
+
+                $existingPlan = $checkPlan->fetch(PDO::FETCH_ASSOC);
+
+                if ($existingPlan) {
+                    throw new RuntimeException(
+                        'A cooking plan already exists for ' .
+                        $mealType .
+                        ' on ' .
+                        date('d-m-Y', strtotime($cookingDate)) .
+                        '. Please use the existing plan.'
+                    );
+                }
 
             /*
             |--------------------------------------------------------------------------
