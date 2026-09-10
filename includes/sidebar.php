@@ -115,8 +115,16 @@ $isCanteen = ($role === 'Canteen');
             Invoice Approvals
         </span>
 
-    
+          <a 
+        class="nav-link <?= $currentPage === 'canteen_report.php' ? 'active' : '' ?>" 
+        href="../admin/canteen_report.php"
+    >
 
+        <i class="fa-solid fa-tags"></i>
+        
+        <span>
+            Canteen Report
+        </span>
 
             <a
                 class="nav-link <?= $currentPage === 'roles.php' ? 'active' : '' ?>"
@@ -130,6 +138,8 @@ $isCanteen = ($role === 'Canteen');
                 </span>
 
             </a>
+
+            
             
 
         <?php endif; ?>
