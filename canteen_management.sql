@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 09, 2026 at 12:07 PM
+-- Generation Time: Sep 10, 2026 at 06:37 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -168,7 +168,7 @@ CREATE TABLE `kitchen_requests` (
 --
 
 INSERT INTO `kitchen_requests` (`id`, `request_no`, `requested_by`, `request_date`, `status`, `cook_remarks`, `chef_remarks`, `approved_by`, `approved_at`, `sent_to_store_at`, `created_at`, `updated_at`) VALUES
-(1, 'KR-20260907-0001', 3, '2026-09-07', 'Submitted', 'testing', NULL, NULL, NULL, NULL, '2026-09-07 11:01:50', NULL);
+(1, 'KR-20260907-0001', 3, '2026-09-07', 'Completed', 'testing', 'Testing chef approve', 3, '2026-09-09 16:09:57', '2026-09-09 16:09:57', '2026-09-07 11:01:50', '2026-09-09 16:45:30');
 
 -- --------------------------------------------------------
 
@@ -191,7 +191,8 @@ CREATE TABLE `kitchen_request_items` (
 --
 
 INSERT INTO `kitchen_request_items` (`id`, `request_id`, `material_id`, `requested_qty`, `approved_qty`, `issued_qty`, `remarks`) VALUES
-(1, 1, 2, 20.00, 0.00, 0.00, NULL);
+(1, 1, 2, 20.00, 20.00, 20.00, NULL),
+(2, 1, 4, 0.00, 10.00, 10.00, 'testing');
 
 -- --------------------------------------------------------
 
@@ -218,12 +219,12 @@ CREATE TABLE `materials` (
 --
 
 INSERT INTO `materials` (`id`, `material_code`, `material_name`, `category`, `unit`, `unit_price`, `minimum_stock`, `current_stock`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'MAT001', 'Rice', 'Grains', 'KG', 150.00, 50.00, 10.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 15:03:23'),
-(2, 'MAT002', 'Wheat', 'Grains', 'KG', 0.00, 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
-(3, 'MAT003', 'Cooking Oil', 'Oil', 'LTR', 0.00, 20.00, 0.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 12:45:59'),
-(4, 'MAT004', 'Salt', 'Grocery', 'KG', 0.00, 10.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
-(5, 'MAT005', 'Vegetables', 'Vegetables', 'KG', 0.00, 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', NULL),
-(6, 'MAT006', 'Sugar', 'Grocery', 'KG', 0.00, 5.00, 9.00, 'Enable', '2026-09-03 15:01:48', '2026-09-03 15:05:18');
+(1, 'MAT001', 'Rice', 'Grains', 'KG', 150.00, 50.00, 10.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 15:51:07'),
+(2, 'MAT002', 'Wheat', 'Grains', 'KG', 70.00, 30.00, 10.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 16:43:59'),
+(3, 'MAT003', 'Cooking Oil', 'Oil', 'LTR', 120.00, 20.00, 0.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 15:51:07'),
+(4, 'MAT004', 'Salt', 'Grocery', 'KG', 30.00, 10.00, 5.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 16:45:30'),
+(5, 'MAT005', 'Vegetables', 'Vegetables', 'KG', 100.00, 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 15:51:07'),
+(6, 'MAT006', 'Sugar', 'Grocery', 'KG', 40.00, 5.00, 9.00, 'Enable', '2026-09-03 15:01:48', '2026-09-09 15:51:07');
 
 -- --------------------------------------------------------
 
@@ -406,7 +407,10 @@ INSERT INTO `stock_transactions` (`id`, `material_id`, `transaction_type`, `quan
 (2, 6, 'ISSUE_KITCHEN', 1.00, NULL, NULL, 'testing  Issue Material', NULL, '2026-09-03 15:05:18'),
 (3, 3, 'PURCHASE', 15.00, 'PO-202609-0001', NULL, 'Purchase Order Receiving', 1, '2026-09-05 10:14:53'),
 (4, 3, 'PURCHASE', 1000.00, NULL, NULL, '', NULL, '2026-09-05 11:55:24'),
-(5, 1, 'PURCHASE', 10.00, NULL, NULL, 'testing', NULL, '2026-09-08 12:28:21');
+(5, 1, 'PURCHASE', 10.00, NULL, NULL, 'testing', NULL, '2026-09-08 12:28:21'),
+(6, 4, 'ISSUE_KITCHEN', 5.00, 'KR-20260907-0001', 1, 'Material issued to Kitchen - Salt', 5, '2026-09-09 16:42:26'),
+(7, 2, 'ISSUE_KITCHEN', 20.00, 'KR-20260907-0001', 1, 'Material issued to Kitchen - Wheat', 5, '2026-09-09 16:43:59'),
+(8, 4, 'ISSUE_KITCHEN', 5.00, 'KR-20260907-0001', 1, 'Material issued to Kitchen - Salt', 5, '2026-09-09 16:45:30');
 
 -- --------------------------------------------------------
 
@@ -661,7 +665,7 @@ ALTER TABLE `kitchen_requests`
 -- AUTO_INCREMENT for table `kitchen_request_items`
 --
 ALTER TABLE `kitchen_request_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `materials`
@@ -709,7 +713,7 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT for table `stock_transactions`
 --
 ALTER TABLE `stock_transactions`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `suppliers`

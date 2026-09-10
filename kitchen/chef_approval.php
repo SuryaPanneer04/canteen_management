@@ -7,13 +7,14 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 
-// =========================================================
-// ACCESS CONTROL
-// =========================================================
-//
-// If Chef has a separate role, "Chef" is allowed.
-// If Chef uses the Kitchen login, "Kitchen" is allowed.
-//
+/*
+|--------------------------------------------------------------------------
+| ACCESS CONTROL
+|--------------------------------------------------------------------------
+| Do not change the existing login system.
+| Kitchen, Chef and Super Admin can access this page.
+|--------------------------------------------------------------------------
+*/
 
 $allowedRoles = [
     'Kitchen',
@@ -39,36 +40,222 @@ $success = '';
 $error = '';
 
 
-// =========================================================
-// APPROVE REQUEST
-// =========================================================
+/*
+|--------------------------------------------------------------------------
+| LOGGED-IN USER
+|--------------------------------------------------------------------------
+*/
+
+$loginUserId = (int)($_SESSION['user_id'] ?? 0);
+
+if (
+    $loginUserId <= 0
+    &&
+    !empty($_SESSION['user_data'])
+    &&
+    is_array($_SESSION['user_data'])
+) {
+
+    foreach (
+        ['id', 'user_id', 'userid']
+        as $key
+    ) {
+
+        if (
+            isset(
+                $_SESSION['user_data'][$key]
+            )
+        ) {
+
+            $loginUserId =
+                (int)$_SESSION['user_data'][$key];
+
+            break;
+        }
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CREATE NEW COOKING PLAN TABLES IF NOT EXISTS
+|--------------------------------------------------------------------------
+| These tables are used by the new Kitchen flow.
+|--------------------------------------------------------------------------
+*/
+
+$con->exec("
+    CREATE TABLE IF NOT EXISTS daily_cooking_plans (
+
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+        cooking_date DATE NOT NULL,
+
+        meal_type ENUM(
+            'Breakfast',
+            'Lunch',
+            'Snacks',
+            'Dinner'
+        ) NOT NULL,
+
+        status ENUM(
+            'Draft',
+            'Pending Approval',
+            'Approved',
+            'Sent to Store',
+            'Completed',
+            'Cancelled'
+        ) NOT NULL DEFAULT 'Draft',
+
+        created_by INT UNSIGNED DEFAULT NULL,
+
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at DATETIME DEFAULT NULL
+            ON UPDATE CURRENT_TIMESTAMP,
+
+        PRIMARY KEY (id),
+
+        KEY idx_dcp_date (
+            cooking_date
+        ),
+
+        KEY idx_dcp_status (
+            status
+        )
+
+    )
+    ENGINE=InnoDB
+    DEFAULT CHARSET=utf8mb4
+    COLLATE=utf8mb4_general_ci
+");
+
+
+$con->exec("
+    CREATE TABLE IF NOT EXISTS daily_cooking_plan_items (
+
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+        cooking_plan_id INT UNSIGNED NOT NULL,
+
+        food_id INT UNSIGNED NOT NULL,
+
+        required_plates INT UNSIGNED NOT NULL DEFAULT 1,
+
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        PRIMARY KEY (id),
+
+        KEY idx_dcpi_plan (
+            cooking_plan_id
+        ),
+
+        KEY idx_dcpi_food (
+            food_id
+        )
+
+    )
+    ENGINE=InnoDB
+    DEFAULT CHARSET=utf8mb4
+    COLLATE=utf8mb4_general_ci
+");
+
+
+/*
+|--------------------------------------------------------------------------
+| CREATE RECIPE TABLE IF NOT EXISTS
+|--------------------------------------------------------------------------
+*/
+
+$con->exec("
+    CREATE TABLE IF NOT EXISTS food_recipes (
+
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+        food_id INT UNSIGNED NOT NULL,
+
+        material_id INT UNSIGNED NOT NULL,
+
+        quantity_per_plate DECIMAL(12,4) NOT NULL DEFAULT 0.0000,
+
+        created_by INT UNSIGNED DEFAULT NULL,
+
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at DATETIME DEFAULT NULL
+            ON UPDATE CURRENT_TIMESTAMP,
+
+        PRIMARY KEY (id),
+
+        UNIQUE KEY uq_food_material (
+            food_id,
+            material_id
+        ),
+
+        KEY idx_fr_food (
+            food_id
+        ),
+
+        KEY idx_fr_material (
+            material_id
+        )
+
+    )
+    ENGINE=InnoDB
+    DEFAULT CHARSET=utf8mb4
+    COLLATE=utf8mb4_general_ci
+");
+
+
+/*
+|--------------------------------------------------------------------------
+| APPROVE COOKING PLAN
+|--------------------------------------------------------------------------
+|
+| IMPORTANT:
+|
+| When Chef clicks "Send to Store":
+|
+| 1. Daily cooking plan is locked.
+| 2. Food items are checked.
+| 3. Recipe materials are loaded.
+| 4. Material quantity is calculated.
+| 5. Chef can modify the quantity.
+| 6. kitchen_requests is created.
+| 7. kitchen_request_items are created.
+| 8. Request is sent to Store.
+|
+|--------------------------------------------------------------------------
+*/
 
 if (
     $_SERVER['REQUEST_METHOD'] === 'POST'
     &&
-    isset($_POST['approve_request'])
+    isset($_POST['approve_plan'])
 ) {
 
-    $requestId =
-        (int) ($_POST['request_id'] ?? 0);
+    $planId =
+        (int)($_POST['plan_id'] ?? 0);
 
     $chefRemarks =
-        trim($_POST['chef_remarks'] ?? '');
-
-    $itemIds =
-        $_POST['item_id'] ?? [];
-
-    $approvedQty =
-        $_POST['approved_qty'] ?? [];
+        trim(
+            $_POST['chef_remarks'] ?? ''
+        );
 
     $materialIds =
         $_POST['material_id'] ?? [];
 
+    $approvedQty =
+        $_POST['approved_qty'] ?? [];
 
-    if ($requestId <= 0) {
+    $materialRemarks =
+        $_POST['material_remarks'] ?? [];
+
+
+    if ($planId <= 0) {
 
         $error =
-            'Invalid kitchen request.';
+            'Invalid cooking plan.';
 
     } else {
 
@@ -77,191 +264,565 @@ if (
             $con->beginTransaction();
 
 
-            // =================================================
-            // LOCK REQUEST
-            // =================================================
+            /*
+            |--------------------------------------------------------------------------
+            | LOCK COOKING PLAN
+            |--------------------------------------------------------------------------
+            */
 
-            $stmt = $con->prepare("
-                SELECT
-                    id,
-                    request_no,
-                    requested_by,
-                    status
-                FROM kitchen_requests
-                WHERE id = ?
-                FOR UPDATE
-            ");
+            $stmt =
+                $con->prepare("
+                    SELECT
+                        id,
+                        cooking_date,
+                        meal_type,
+                        status
+                    FROM daily_cooking_plans
+                    WHERE id = ?
+                    FOR UPDATE
+                ");
 
             $stmt->execute([
-                $requestId
+                $planId
             ]);
 
-            $request =
-                $stmt->fetch(PDO::FETCH_ASSOC);
-
-
-            if (!$request) {
-
-                throw new RuntimeException(
-                    'Kitchen request not found.'
+            $plan =
+                $stmt->fetch(
+                    PDO::FETCH_ASSOC
                 );
-            }
 
 
-            if (
-                $request['status'] !== 'Submitted'
-            ) {
+            if (!$plan) {
 
                 throw new RuntimeException(
-                    'This request has already been processed.'
-                );
-            }
-
-
-            // =================================================
-            // VALIDATE REQUEST ITEMS
-            // =================================================
-
-            if (
-                !is_array($itemIds)
-                ||
-                !is_array($approvedQty)
-                ||
-                !is_array($materialIds)
-            ) {
-
-                throw new RuntimeException(
-                    'No material details received.'
+                    'Cooking plan not found.'
                 );
             }
 
 
             /*
-             * Get the original Cook request items.
-             */
+            |--------------------------------------------------------------------------
+            | ONLY PENDING APPROVAL
+            |--------------------------------------------------------------------------
+            */
 
-            $stmt = $con->prepare("
-                SELECT
-                    id,
-                    material_id,
-                    requested_qty
-                FROM kitchen_request_items
-                WHERE request_id = ?
-                FOR UPDATE
-            ");
-
-            $stmt->execute([
-                $requestId
-            ]);
-
-            $originalItems =
-                $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-
-            $originalById = [];
-
-            foreach (
-                $originalItems
-                as $original
+            if (
+                $plan['status'] !==
+                'Pending Approval'
             ) {
 
-                $originalById[
-                    (int) $original['id']
-                ] = $original;
+                throw new RuntimeException(
+                    'This cooking plan has already been processed.'
+                );
             }
 
 
-            // =================================================
-            // UPDATE ORIGINAL ITEMS
-            // =================================================
+            /*
+            |--------------------------------------------------------------------------
+            | GET PLAN FOOD ITEMS
+            |--------------------------------------------------------------------------
+            */
 
-            $updateItem =
+            $stmt =
                 $con->prepare("
-                    UPDATE kitchen_request_items
+                    SELECT
 
-                    SET
-                        approved_qty = ?,
-                        remarks = ?
+                        dcpi.id AS plan_item_id,
 
-                    WHERE id = ?
-                      AND request_id = ?
+                        dcpi.food_id,
+
+                        dcpi.required_plates,
+
+                        fi.food_name,
+                        fi.food_code
+
+                    FROM daily_cooking_plan_items dcpi
+
+                    INNER JOIN food_items fi
+                        ON fi.id = dcpi.food_id
+
+                    WHERE dcpi.cooking_plan_id = ?
+
+                    ORDER BY
+                        dcpi.id ASC
+
+                    FOR UPDATE
                 ");
+
+            $stmt->execute([
+                $planId
+            ]);
+
+            $planFoods =
+                $stmt->fetchAll(
+                    PDO::FETCH_ASSOC
+                );
+
+
+            if (!$planFoods) {
+
+                throw new RuntimeException(
+                    'No food items found in this cooking plan.'
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | BUILD AUTOMATIC MATERIAL CALCULATION
+            |--------------------------------------------------------------------------
+            |
+            | Example:
+            |
+            | Rice = 0.10 KG per plate
+            | Plates = 200
+            |
+            | 0.10 × 200 = 20 KG
+            |
+            |--------------------------------------------------------------------------
+            */
+
+            $calculatedMaterials = [];
+
+
+            foreach ($planFoods as $food) {
+
+                $foodId =
+                    (int)$food['food_id'];
+
+                $plates =
+                    (int)$food['required_plates'];
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | GET RECIPE
+                |--------------------------------------------------------------------------
+                */
+
+                $stmt =
+                    $con->prepare("
+                        SELECT
+
+                            fr.material_id,
+
+                            fr.quantity_per_plate,
+
+                            m.material_code,
+                            m.material_name,
+                            m.unit,
+                            m.current_stock
+
+                        FROM food_recipes fr
+
+                        INNER JOIN materials m
+                            ON m.id = fr.material_id
+
+                        WHERE fr.food_id = ?
+
+                          AND m.status = 'Enable'
+
+                        ORDER BY
+                            m.material_name ASC
+                    ");
+
+                $stmt->execute([
+                    $foodId
+                ]);
+
+                $recipe =
+                    $stmt->fetchAll(
+                        PDO::FETCH_ASSOC
+                    );
+
+
+                if (!$recipe) {
+
+                    throw new RuntimeException(
+                        'Recipe not found for ' .
+                        $food['food_name'] .
+                        '. Please assign materials per plate first.'
+                    );
+                }
+
+
+                foreach (
+                    $recipe
+                    as $recipeItem
+                ) {
+
+                    $materialId =
+                        (int)$recipeItem['material_id'];
+
+                    $perPlate =
+                        (float)$recipeItem[
+                            'quantity_per_plate'
+                        ];
+
+                    $totalQty =
+                        $perPlate * $plates;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | COMBINE SAME MATERIAL
+                    |--------------------------------------------------------------------------
+                    |
+                    | Example:
+                    |
+                    | Idly uses Rice 10 KG
+                    | Vada uses Rice 5 KG
+                    |
+                    | Store should receive:
+                    |
+                    | Rice = 15 KG
+                    |
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        !isset(
+                            $calculatedMaterials[
+                                $materialId
+                            ]
+                        )
+                    ) {
+
+                        $calculatedMaterials[
+                            $materialId
+                        ] = [
+
+                            'material_id' =>
+                                $materialId,
+
+                            'material_code' =>
+                                $recipeItem[
+                                    'material_code'
+                                ],
+
+                            'material_name' =>
+                                $recipeItem[
+                                    'material_name'
+                                ],
+
+                            'unit' =>
+                                $recipeItem[
+                                    'unit'
+                                ],
+
+                            'current_stock' =>
+                                (float)$recipeItem[
+                                    'current_stock'
+                                ],
+
+                            'calculated_qty' =>
+                                0,
+
+                            'food_details' =>
+                                []
+
+                        ];
+                    }
+
+
+                    $calculatedMaterials[
+                        $materialId
+                    ]['calculated_qty'] +=
+                        $totalQty;
+
+
+                    $calculatedMaterials[
+                        $materialId
+                    ]['food_details'][] = [
+
+                        'food_name' =>
+                            $food['food_name'],
+
+                        'plates' =>
+                            $plates,
+
+                        'per_plate' =>
+                            $perPlate,
+
+                        'total' =>
+                            $totalQty
+
+                    ];
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDATE CHEF QUANTITIES
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                !is_array($materialIds)
+                ||
+                !is_array($approvedQty)
+            ) {
+
+                throw new RuntimeException(
+                    'No material quantities received.'
+                );
+            }
+
+
+            $approvedMaterials = [];
 
 
             foreach (
-                $itemIds
-                as $index => $itemId
+                $materialIds
+                as $index => $materialId
             ) {
 
-                $itemId =
-                    (int) $itemId;
+                $materialId =
+                    (int)$materialId;
 
                 $qty =
-                    (float) (
+                    (float)(
                         $approvedQty[$index]
                         ?? 0
                     );
 
 
-                if (
-                    !isset(
-                        $originalById[$itemId]
-                    )
-                ) {
+                if ($materialId <= 0) {
 
                     continue;
                 }
 
 
-                $original =
-                    $originalById[$itemId];
-
-
-                $requestedQty =
-                    (float)
-                    $original['requested_qty'];
-
-
-                // ---------------------------------------------
-                // APPROVED QTY CANNOT BE NEGATIVE
-                // ---------------------------------------------
-
                 if ($qty < 0) {
 
                     throw new RuntimeException(
-                        'Approved quantity cannot be negative.'
+                        'Material quantity cannot be negative.'
                     );
                 }
 
 
-                // ---------------------------------------------
-                // CHEF CAN ADD MORE, BUT WE WARN IF MORE
-                // THAN REQUESTED.
-                //
-                // We allow it because your requirement says:
-                // "Chef can add some materials if he wants."
-                // ---------------------------------------------
+                /*
+                |--------------------------------------------------------------------------
+                | CHEF MAY CHANGE CALCULATED QUANTITY
+                |--------------------------------------------------------------------------
+                */
+
+                if ($qty <= 0) {
+
+                    continue;
+                }
 
 
-                $itemRemark =
-                    trim(
-                        $_POST['item_remarks'][$index]
-                        ?? ''
+                /*
+                |--------------------------------------------------------------------------
+                | VALIDATE MATERIAL
+                |--------------------------------------------------------------------------
+                */
+
+                $stmt =
+                    $con->prepare("
+                        SELECT
+                            id,
+                            material_name,
+                            unit
+                        FROM materials
+                        WHERE id = ?
+
+                          AND status = 'Enable'
+
+                        LIMIT 1
+                    ");
+
+                $stmt->execute([
+                    $materialId
+                ]);
+
+                $material =
+                    $stmt->fetch(
+                        PDO::FETCH_ASSOC
                     );
 
 
-                $updateItem->execute([
-                    $qty,
-                    $itemRemark ?: null,
-                    $itemId,
-                    $requestId
-                ]);
+                if (!$material) {
+
+                    throw new RuntimeException(
+                        'One of the selected materials is invalid.'
+                    );
+                }
+
+
+                $approvedMaterials[] = [
+
+                    'material_id' =>
+                        $materialId,
+
+                    'qty' =>
+                        $qty,
+
+                    'remarks' =>
+                        trim(
+                            $materialRemarks[
+                                $index
+                            ] ?? ''
+                        )
+
+                ];
             }
 
 
-            // =================================================
-            // ADD NEW MATERIALS FROM CHEF
-            // =================================================
+            /*
+            |--------------------------------------------------------------------------
+            | AT LEAST ONE MATERIAL REQUIRED
+            |--------------------------------------------------------------------------
+            */
+
+            if (!$approvedMaterials) {
+
+                throw new RuntimeException(
+                    'Please approve at least one material.'
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | GENERATE REQUEST NUMBER
+            |--------------------------------------------------------------------------
+            */
+
+            $requestDate =
+                $plan['cooking_date'];
+
+            $datePart =
+                date(
+                    'Ymd',
+                    strtotime($requestDate)
+                );
+
+
+            $stmt =
+                $con->prepare("
+                    SELECT
+                        request_no
+
+                    FROM kitchen_requests
+
+                    WHERE request_no LIKE ?
+
+                    ORDER BY id DESC
+
+                    LIMIT 1
+                ");
+
+
+            $stmt->execute([
+                'KR-' .
+                $datePart .
+                '-%'
+            ]);
+
+
+            $lastRequestNo =
+                $stmt->fetchColumn();
+
+
+            if ($lastRequestNo) {
+
+                $lastNumber =
+                    (int)substr(
+                        (string)$lastRequestNo,
+                        -4
+                    );
+
+                $nextNumber =
+                    $lastNumber + 1;
+
+            } else {
+
+                $nextNumber = 1;
+            }
+
+
+            $requestNo =
+                'KR-' .
+                $datePart .
+                '-' .
+                str_pad(
+                    (string)$nextNumber,
+                    4,
+                    '0',
+                    STR_PAD_LEFT
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CREATE KITCHEN REQUEST
+            |--------------------------------------------------------------------------
+            |
+            | This is what Store already understands.
+            |--------------------------------------------------------------------------
+            */
+
+            $stmt =
+                $con->prepare("
+                    INSERT INTO kitchen_requests
+                    (
+                        request_no,
+                        requested_by,
+                        request_date,
+                        status,
+                        cook_remarks,
+                        chef_remarks,
+                        approved_by,
+                        approved_at,
+                        sent_to_store_at
+                    )
+                    VALUES
+                    (
+                        ?,
+                        ?,
+                        ?,
+                        'Sent to Store',
+                        ?,
+                        ?,
+                        ?,
+                        NOW(),
+                        NOW()
+                    )
+                ");
+
+
+            $stmt->execute([
+
+                $requestNo,
+
+                $loginUserId,
+
+                $requestDate,
+
+                'Daily Cooking Plan - ' .
+                $plan['meal_type'],
+
+                $chefRemarks !== ''
+                    ? $chefRemarks
+                    : null,
+
+                $loginUserId
+
+            ]);
+
+
+            $requestId =
+                (int)$con->lastInsertId();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | INSERT MATERIAL REQUEST ITEMS
+            |--------------------------------------------------------------------------
+            */
 
             $insertItem =
                 $con->prepare("
@@ -278,7 +839,7 @@ if (
                     (
                         ?,
                         ?,
-                        0,
+                        ?,
                         ?,
                         0,
                         ?
@@ -287,149 +848,68 @@ if (
 
 
             foreach (
-                $materialIds
-                as $index => $materialId
+                $approvedMaterials
+                as $item
             ) {
 
-                $materialId =
-                    (int) $materialId;
+                $insertItem->execute([
 
-                $qty =
-                    (float) (
-                        $approvedQty[$index]
-                        ?? 0
-                    );
+                    $requestId,
 
+                    $item['material_id'],
 
-                /*
-                 * Existing rows already contain item_id.
-                 *
-                 * New rows have item_id = 0.
-                 */
+                    $item['qty'],
 
-                $currentItemId =
-                    (int) (
-                        $itemIds[$index]
-                        ?? 0
-                    );
+                    $item['qty'],
+
+                    $item['remarks'] !== ''
+                        ? $item['remarks']
+                        : null
+
+                ]);
+            }
 
 
-                if (
-                    $currentItemId > 0
-                ) {
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE DAILY COOKING PLAN
+            |--------------------------------------------------------------------------
+            */
 
-                    continue;
-                }
+            $stmt =
+                $con->prepare("
+                    UPDATE daily_cooking_plans
 
+                    SET
+                        status = 'Sent to Store',
+                        updated_at = NOW()
 
-                if (
-                    $materialId <= 0
-                    ||
-                    $qty <= 0
-                ) {
-
-                    continue;
-                }
-
-
-                // ---------------------------------------------
-                // CHECK MATERIAL EXISTS
-                // ---------------------------------------------
-
-                $stmt = $con->prepare("
-                    SELECT
-                        id
-                    FROM materials
                     WHERE id = ?
-                      AND status = 'Enable'
                 ");
 
-                $stmt->execute([
-                    $materialId
-                ]);
-
-                if (!$stmt->fetchColumn()) {
-
-                    throw new RuntimeException(
-                        'Selected material is invalid.'
-                    );
-                }
-
-
-                $itemRemark =
-                    trim(
-                        $_POST['item_remarks'][$index]
-                        ?? ''
-                    );
-
-
-                $insertItem->execute([
-                    $requestId,
-                    $materialId,
-                    $qty,
-                    $itemRemark ?: null
-                ]);
-            }
-
-
-            // =================================================
-            // CHECK AT LEAST ONE APPROVED MATERIAL
-            // =================================================
-
-            $stmt = $con->prepare("
-                SELECT COUNT(*)
-                FROM kitchen_request_items
-                WHERE request_id = ?
-                  AND approved_qty > 0
-            ");
 
             $stmt->execute([
-                $requestId
+                $planId
             ]);
 
-            $approvedItemCount =
-                (int) $stmt->fetchColumn();
 
-
-            if ($approvedItemCount <= 0) {
-
-                throw new RuntimeException(
-                    'Please approve at least one material.'
-                );
-            }
-
-
-            // =================================================
-            // UPDATE REQUEST
-            // =================================================
-
-            $stmt = $con->prepare("
-                UPDATE kitchen_requests
-
-                SET
-                    status = 'Chef Approved',
-                    chef_remarks = ?,
-                    approved_by = ?,
-                    approved_at = NOW(),
-                    sent_to_store_at = NOW()
-
-                WHERE id = ?
-            ");
-
-            $stmt->execute([
-                $chefRemarks ?: null,
-                $_SESSION['user_id'],
-                $requestId
-            ]);
-
+            /*
+            |--------------------------------------------------------------------------
+            | COMMIT
+            |--------------------------------------------------------------------------
+            */
 
             $con->commit();
 
 
             $success =
-                'Request '
-                . $request['request_no']
-                . ' approved and sent to Store.';
+                'Cooking plan for ' .
+                $plan['meal_type'] .
+                ' approved successfully. ' .
+                'Material request ' .
+                $requestNo .
+                ' has been sent to Store.';
+
 
         } catch (Throwable $e) {
 
@@ -440,6 +920,7 @@ if (
                 $con->rollBack();
             }
 
+
             $error =
                 $e->getMessage();
         }
@@ -447,49 +928,58 @@ if (
 }
 
 
-// =========================================================
-// REJECT REQUEST
-// =========================================================
+/*
+|--------------------------------------------------------------------------
+| REJECT COOKING PLAN
+|--------------------------------------------------------------------------
+*/
 
 if (
     $_SERVER['REQUEST_METHOD'] === 'POST'
     &&
-    isset($_POST['reject_request'])
+    isset($_POST['reject_plan'])
 ) {
 
-    $requestId =
-        (int) ($_POST['request_id'] ?? 0);
+    $planId =
+        (int)($_POST['plan_id'] ?? 0);
 
     $chefRemarks =
-        trim($_POST['chef_remarks'] ?? '');
+        trim(
+            $_POST['chef_remarks'] ?? ''
+        );
 
 
-    if ($requestId <= 0) {
+    if ($planId <= 0) {
 
         $error =
-            'Invalid kitchen request.';
+            'Invalid cooking plan.';
 
     } else {
 
         try {
 
-            $stmt = $con->prepare("
-                UPDATE kitchen_requests
+            /*
+            | The daily_cooking_plans status enum does not have Rejected.
+            |
+            | We use Cancelled so the plan cannot be sent to Store.
+            */
 
-                SET
-                    status = 'Rejected',
-                    chef_remarks = ?,
-                    approved_by = ?,
-                    approved_at = NOW()
+            $stmt =
+                $con->prepare("
+                    UPDATE daily_cooking_plans
 
-                WHERE id = ?
-                  AND status = 'Submitted'
-            ");
+                    SET
+                        status = 'Cancelled',
+                        updated_at = NOW()
+
+                    WHERE id = ?
+
+                      AND status = 'Pending Approval'
+                ");
+
 
             $stmt->execute([
-                $chefRemarks ?: 'Rejected by Chef',
-                $_SESSION['user_id'],
-                $requestId
+                $planId
             ]);
 
 
@@ -498,13 +988,13 @@ if (
             ) {
 
                 throw new RuntimeException(
-                    'Request was already processed.'
+                    'This cooking plan has already been processed.'
                 );
             }
 
 
             $success =
-                'Kitchen request rejected.';
+                'Cooking plan rejected by Chef.';
 
         } catch (Throwable $e) {
 
@@ -515,61 +1005,298 @@ if (
 }
 
 
-// =========================================================
-// GET PENDING REQUESTS
-// =========================================================
+/*
+|--------------------------------------------------------------------------
+| GET PENDING COOKING PLANS
+|--------------------------------------------------------------------------
+*/
 
-$stmt = $con->query("
-    SELECT
+$stmt =
+    $con->query("
+        SELECT
 
-        kr.id,
-        kr.request_no,
-        kr.request_date,
-        kr.status,
-        kr.cook_remarks,
+            dcp.id,
+            dcp.cooking_date,
+            dcp.meal_type,
+            dcp.status,
+            dcp.created_at,
 
-        u.employee_name,
-        u.employee_code
+            COUNT(dcpi.id)
+                AS food_count,
 
-    FROM kitchen_requests kr
+            COALESCE(
+                SUM(dcpi.required_plates),
+                0
+            )
+                AS total_plates
 
-    INNER JOIN users u
-        ON u.id = kr.requested_by
+        FROM daily_cooking_plans dcp
 
-    WHERE kr.status = 'Submitted'
+        LEFT JOIN daily_cooking_plan_items dcpi
+            ON dcpi.cooking_plan_id = dcp.id
 
-    ORDER BY
-        kr.id DESC
-");
+        WHERE dcp.status = 'Pending Approval'
 
-$requests =
-    $stmt->fetchAll(PDO::FETCH_ASSOC);
+        GROUP BY
+
+            dcp.id,
+            dcp.cooking_date,
+            dcp.meal_type,
+            dcp.status,
+            dcp.created_at
+
+        ORDER BY
+
+            dcp.cooking_date ASC,
+
+            FIELD(
+                dcp.meal_type,
+                'Breakfast',
+                'Lunch',
+                'Snacks',
+                'Dinner'
+            ),
+
+            dcp.id ASC
+    ");
 
 
-// =========================================================
-// GET MATERIAL MASTER
-// =========================================================
+$plans =
+    $stmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
 
-$stmt = $con->query("
-    SELECT
 
-        id,
-        material_code,
-        material_name,
-        unit,
-        current_stock
+/*
+|--------------------------------------------------------------------------
+| GET DETAILS FOR EACH PLAN
+|--------------------------------------------------------------------------
+*/
 
-    FROM materials
+$planDetails = [];
 
-    WHERE status = 'Enable'
 
-    ORDER BY
-        material_name ASC
-");
+foreach ($plans as $plan) {
 
-$materials =
-    $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $planId =
+        (int)$plan['id'];
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET FOOD ITEMS
+    |--------------------------------------------------------------------------
+    */
+
+    $stmt =
+        $con->prepare("
+            SELECT
+
+                dcpi.id,
+                dcpi.food_id,
+                dcpi.required_plates,
+
+                fi.food_code,
+                fi.food_name,
+                fi.unit
+
+            FROM daily_cooking_plan_items dcpi
+
+            INNER JOIN food_items fi
+                ON fi.id = dcpi.food_id
+
+            WHERE dcpi.cooking_plan_id = ?
+
+            ORDER BY
+                fi.food_name ASC
+        ");
+
+
+    $stmt->execute([
+        $planId
+    ]);
+
+
+    $foods =
+        $stmt->fetchAll(
+            PDO::FETCH_ASSOC
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MATERIAL CALCULATION
+    |--------------------------------------------------------------------------
+    */
+
+    $materialsForPlan = [];
+
+
+    foreach ($foods as $food) {
+
+        $foodId =
+            (int)$food['food_id'];
+
+        $plates =
+            (int)$food['required_plates'];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET RECIPE MATERIALS
+        |--------------------------------------------------------------------------
+        */
+
+        $stmt =
+            $con->prepare("
+                SELECT
+
+                    fr.material_id,
+
+                    fr.quantity_per_plate,
+
+                    m.material_code,
+                    m.material_name,
+                    m.unit,
+                    m.current_stock
+
+                FROM food_recipes fr
+
+                INNER JOIN materials m
+                    ON m.id = fr.material_id
+
+                WHERE fr.food_id = ?
+
+                  AND m.status = 'Enable'
+
+                ORDER BY
+                    m.material_name ASC
+            ");
+
+
+        $stmt->execute([
+            $foodId
+        ]);
+
+
+        $recipe =
+            $stmt->fetchAll(
+                PDO::FETCH_ASSOC
+            );
+
+
+        foreach (
+            $recipe
+            as $recipeItem
+        ) {
+
+            $materialId =
+                (int)$recipeItem['material_id'];
+
+
+            $perPlate =
+                (float)$recipeItem[
+                    'quantity_per_plate'
+                ];
+
+
+            $calculatedQty =
+                $perPlate * $plates;
+
+
+            if (
+                !isset(
+                    $materialsForPlan[
+                        $materialId
+                    ]
+                )
+            ) {
+
+                $materialsForPlan[
+                    $materialId
+                ] = [
+
+                    'material_id' =>
+                        $materialId,
+
+                    'material_code' =>
+                        $recipeItem[
+                            'material_code'
+                        ],
+
+                    'material_name' =>
+                        $recipeItem[
+                            'material_name'
+                        ],
+
+                    'unit' =>
+                        $recipeItem[
+                            'unit'
+                        ],
+
+                    'current_stock' =>
+                        (float)$recipeItem[
+                            'current_stock'
+                        ],
+
+                    'calculated_qty' =>
+                        0,
+
+                    'food_details' =>
+                        []
+
+                ];
+            }
+
+
+            $materialsForPlan[
+                $materialId
+            ]['calculated_qty'] +=
+                $calculatedQty;
+
+
+            $materialsForPlan[
+                $materialId
+            ]['food_details'][] = [
+
+                'food_name' =>
+                    $food['food_name'],
+
+                'plates' =>
+                    $plates,
+
+                'per_plate' =>
+                    $perPlate,
+
+                'total' =>
+                    $calculatedQty
+
+            ];
+        }
+    }
+
+
+    $planDetails[
+        $planId
+    ] = [
+
+        'foods' =>
+            $foods,
+
+        'materials' =>
+            array_values(
+                $materialsForPlan
+            )
+
+    ];
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| HEADER
+|--------------------------------------------------------------------------
+*/
 
 require_once __DIR__ . '/../includes/header.php';
 
@@ -582,1004 +1309,886 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 <div class="main-content">
 
-
-    <!-- =====================================================
-         PAGE HEADER
-    ====================================================== -->
-
-    <div
-        class="d-flex justify-content-between align-items-center mb-4"
-    >
-
-        <div>
-
-            <h4 class="mb-1">
-
-                Chef Approval
-
-            </h4>
+    <div class="page-body">
 
 
-            <p class="text-muted mb-0">
+        <!-- =====================================================
+             PAGE HEADER
+        ====================================================== -->
 
-                Review Cook requests, modify materials
-                and send the final request to Store.
+        <div
+            class="d-flex justify-content-between align-items-center mb-4"
+        >
 
-            </p>
+            <div>
+
+                <h4 class="mb-1">
+
+                    Chef Approval
+
+                </h4>
+
+
+                <p class="text-muted mb-0">
+
+                    Review the daily cooking plan,
+                    verify automatically calculated materials,
+                    make changes if required and send to Store.
+
+                </p>
+
+            </div>
+
+
+            <a
+                href="dashboard.php"
+                class="btn btn-outline-secondary"
+            >
+
+                <i
+                    class="fa-solid fa-arrow-left me-1"
+                ></i>
+
+                Dashboard
+
+            </a>
 
         </div>
 
 
-        <a
-            href="dashboard.php"
-            class="btn btn-outline-secondary"
-        >
+        <!-- =====================================================
+             ALERTS
+        ====================================================== -->
 
-            <i
-                class="fa-solid fa-arrow-left me-1"
-            ></i>
-
-            Dashboard
-
-        </a>
-
-    </div>
-
-
-
-    <!-- =====================================================
-         ALERTS
-    ====================================================== -->
-
-    <?php if ($success): ?>
-
-        <div
-            class="alert alert-success alert-dismissible fade show"
-        >
-
-            <i
-                class="fa-solid fa-circle-check me-2"
-            ></i>
-
-            <?= e($success) ?>
-
-
-            <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="alert"
-            ></button>
-
-        </div>
-
-    <?php endif; ?>
-
-
-    <?php if ($error): ?>
-
-        <div
-            class="alert alert-danger alert-dismissible fade show"
-        >
-
-            <i
-                class="fa-solid fa-circle-exclamation me-2"
-            ></i>
-
-            <?= e($error) ?>
-
-
-            <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="alert"
-            ></button>
-
-        </div>
-
-    <?php endif; ?>
-
-
-
-    <!-- =====================================================
-         REQUEST LIST
-    ====================================================== -->
-
-    <?php foreach (
-        $requests
-        as $request
-    ): ?>
-
-
-        <?php
-
-        $stmt = $con->prepare("
-            SELECT
-
-                kri.id AS item_id,
-
-                kri.material_id,
-
-                kri.requested_qty,
-
-                kri.approved_qty,
-
-                kri.issued_qty,
-
-                kri.remarks,
-
-                m.material_code,
-
-                m.material_name,
-
-                m.unit,
-
-                m.current_stock
-
-            FROM kitchen_request_items kri
-
-            INNER JOIN materials m
-                ON m.id = kri.material_id
-
-            WHERE kri.request_id = ?
-
-            ORDER BY
-                kri.id ASC
-        ");
-
-        $stmt->execute([
-            $request['id']
-        ]);
-
-        $requestItems =
-            $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        ?>
-
-
-        <div
-            class="card border-0 shadow-sm mb-4"
-        >
-
-            <!-- =================================================
-                 REQUEST HEADER
-            ================================================== -->
+        <?php if ($success !== ''): ?>
 
             <div
-                class="card-header bg-white py-3"
+                class="alert alert-success alert-dismissible fade show"
+            >
+
+                <i
+                    class="fa-solid fa-circle-check me-2"
+                ></i>
+
+                <?= e($success) ?>
+
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                ></button>
+
+            </div>
+
+        <?php endif; ?>
+
+
+        <?php if ($error !== ''): ?>
+
+            <div
+                class="alert alert-danger alert-dismissible fade show"
+            >
+
+                <i
+                    class="fa-solid fa-circle-exclamation me-2"
+                ></i>
+
+                <?= e($error) ?>
+
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                ></button>
+
+            </div>
+
+        <?php endif; ?>
+
+
+        <!-- =====================================================
+             NO PENDING PLANS
+        ====================================================== -->
+
+        <?php if (!$plans): ?>
+
+            <div
+                class="card border-0 shadow-sm"
             >
 
                 <div
-                    class="d-flex justify-content-between align-items-center"
+                    class="card-body text-center py-5"
                 >
 
-                    <div>
+                    <i
+                        class="fa-solid fa-clipboard-check fa-3x text-muted mb-3"
+                    ></i>
 
-                        <h5 class="mb-1">
 
-                            <?= e(
-                                $request['request_no']
-                            ) ?>
+                    <h5>
 
-                        </h5>
+                        No Cooking Plans Pending Approval
 
+                    </h5>
+
+
+                    <p class="text-muted mb-0">
+
+                        New daily cooking plans will appear here
+                        when they are submitted by the Kitchen.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+        <?php else: ?>
+
+
+            <!-- =================================================
+                 PENDING PLANS
+            ================================================== -->
+
+            <?php foreach ($plans as $plan): ?>
+
+
+                <?php
+
+                $planId =
+                    (int)$plan['id'];
+
+                $details =
+                    $planDetails[
+                        $planId
+                    ] ?? [];
+
+                $foods =
+                    $details['foods'] ?? [];
+
+                $calculatedMaterials =
+                    $details['materials'] ?? [];
+
+                ?>
+
+
+                <div
+                    class="card border-0 shadow-sm mb-4"
+                >
+
+
+                    <!-- =========================================
+                         PLAN HEADER
+                    ========================================== -->
+
+                    <div
+                        class="card-header bg-white py-3"
+                    >
 
                         <div
-                            class="text-muted small"
+                            class="row align-items-center"
                         >
 
-                            Cook:
 
-                            <strong>
+                            <div class="col-md-7">
 
-                                <?= e(
-                                    $request['employee_name']
-                                ) ?>
+                                <h5 class="mb-1">
 
-                            </strong>
+                                    <i
+                                        class="fa-solid fa-utensils me-2"
+                                    ></i>
 
+                                    <?= e(
+                                        $plan['meal_type']
+                                    ) ?>
 
-                            <?php if (
-                                !empty(
-                                    $request['employee_code']
-                                )
-                            ): ?>
-
-                                |
-
-                                Employee Code:
-
-                                <?= e(
-                                    $request['employee_code']
-                                ) ?>
-
-                            <?php endif; ?>
+                                </h5>
 
 
-                            |
+                                <div
+                                    class="text-muted small"
+                                >
 
-                            Date:
+                                    Cooking Date:
 
-                            <?= e(
-                                $request['request_date']
-                            ) ?>
+                                    <strong>
+
+                                        <?= e(
+                                            date(
+                                                'd-m-Y',
+                                                strtotime(
+                                                    $plan['cooking_date']
+                                                )
+                                            )
+                                        ) ?>
+
+                                    </strong>
+
+
+                                    &nbsp; | &nbsp;
+
+                                    Total Plates:
+
+                                    <strong>
+
+                                        <?= number_format(
+                                            (int)$plan['total_plates']
+                                        ) ?>
+
+                                    </strong>
+
+
+                                    &nbsp; | &nbsp;
+
+                                    Food Items:
+
+                                    <strong>
+
+                                        <?= (int)$plan['food_count'] ?>
+
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <div
+                                class="col-md-5 text-md-end mt-2 mt-md-0"
+                            >
+
+                                <span
+                                    class="badge bg-warning text-dark px-3 py-2"
+                                >
+
+                                    <i
+                                        class="fa-solid fa-clock me-1"
+                                    ></i>
+
+                                    Waiting for Chef
+
+                                </span>
+
+                            </div>
 
                         </div>
 
                     </div>
 
 
-                    <span
-                        class="badge bg-warning text-dark"
-                    >
-
-                        Waiting for Chef
-
-                    </span>
-
-                </div>
-
-            </div>
+                    <div class="card-body">
 
 
+                        <!-- =====================================
+                             FOOD PLAN
+                        ====================================== -->
 
-            <!-- =================================================
-                 REQUEST BODY
-            ================================================== -->
+                        <div class="mb-4">
 
-            <div class="card-body">
+                            <h6 class="mb-3">
 
+                                <i
+                                    class="fa-solid fa-bowl-food me-2"
+                                ></i>
 
-                <!-- COOK REMARKS -->
+                                Food to Cook
 
-                <?php if (
-                    !empty(
-                        $request['cook_remarks']
-                    )
-                ): ?>
-
-                    <div
-                        class="alert alert-info"
-                    >
-
-                        <strong>
-                            Cook Remarks:
-                        </strong>
-
-                        <br>
-
-                        <?= nl2br(
-                            e(
-                                $request['cook_remarks']
-                            )
-                        ) ?>
-
-                    </div>
-
-                <?php endif; ?>
+                            </h6>
 
 
-
-                <!-- =================================================
-                     APPROVAL FORM
-                ================================================== -->
-
-                <form
-                    method="post"
-                >
-
-                    <input
-                        type="hidden"
-                        name="request_id"
-                        value="<?= (int) $request['id'] ?>"
-                    >
-
-
-                    <div
-                        class="table-responsive"
-                    >
-
-                        <table
-                            class="table table-bordered align-middle"
-                            id="items_<?= (int) $request['id'] ?>"
-                        >
-
-                            <thead
-                                class="table-light"
+                            <div
+                                class="table-responsive"
                             >
 
-                                <tr>
+                                <table
+                                    class="table table-bordered align-middle mb-0"
+                                >
 
-                                    <th
-                                        style="width:5%"
+                                    <thead
+                                        class="table-light"
                                     >
-                                        #
-                                    </th>
 
-                                    <th
-                                        style="width:25%"
-                                    >
-                                        Material
-                                    </th>
+                                        <tr>
 
-                                    <th
-                                        style="width:12%"
-                                    >
-                                        Current Stock
-                                    </th>
+                                            <th>
+                                                #
+                                            </th>
 
-                                    <th
-                                        style="width:12%"
-                                    >
-                                        Cook Requested
-                                    </th>
+                                            <th>
+                                                Food Code
+                                            </th>
 
-                                    <th
-                                        style="width:15%"
-                                    >
-                                        Chef Approved
-                                    </th>
+                                            <th>
+                                                Food
+                                            </th>
 
-                                    <th
-                                        style="width:20%"
-                                    >
-                                        Remarks
-                                    </th>
+                                            <th>
+                                                Required Plates
+                                            </th>
 
-                                    <th
-                                        style="width:8%"
-                                    >
-                                        Action
-                                    </th>
+                                        </tr>
 
-                                </tr>
-
-                            </thead>
+                                    </thead>
 
 
-                            <tbody>
+                                    <tbody>
 
 
-                            <?php foreach (
-                                $requestItems
-                                as $index => $item
+                                        <?php foreach (
+                                            $foods
+                                            as $foodIndex => $food
+                                        ): ?>
+
+
+                                            <tr>
+
+                                                <td>
+
+                                                    <?= $foodIndex + 1 ?>
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    <?= e(
+                                                        $food['food_code']
+                                                    ) ?>
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    <strong>
+
+                                                        <?= e(
+                                                            $food['food_name']
+                                                        ) ?>
+
+                                                    </strong>
+
+                                                </td>
+
+
+                                                <td>
+
+                                                    <span
+                                                        class="badge bg-primary"
+                                                    >
+
+                                                        <?= number_format(
+                                                            (int)$food['required_plates']
+                                                        ) ?>
+
+                                                        Plates
+
+                                                    </span>
+
+                                                </td>
+
+                                            </tr>
+
+
+                                        <?php endforeach; ?>
+
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             MATERIAL CALCULATION
+                        ====================================== -->
+
+                        <form
+                            method="POST"
+                            onsubmit="
+                                return confirm(
+                                    'Are you sure you want to approve this cooking plan and send the materials to Store?'
+                                );
+                            "
+                        >
+
+                            <input
+                                type="hidden"
+                                name="plan_id"
+                                value="<?= $planId ?>"
+                            >
+
+
+                            <div class="mb-3">
+
+                                <h6 class="mb-1">
+
+                                    <i
+                                        class="fa-solid fa-calculator me-2"
+                                    ></i>
+
+                                    Automatically Calculated Materials
+
+                                </h6>
+
+
+                                <small class="text-muted">
+
+                                    Material quantity is calculated
+                                    using the recipe quantity per plate
+                                    multiplied by the required plates.
+
+                                    Chef can change the final quantity
+                                    before sending the request to Store.
+
+                                </small>
+
+                            </div>
+
+
+                            <?php if (
+                                !$calculatedMaterials
                             ): ?>
 
 
-                                <tr>
+                                <div
+                                    class="alert alert-danger"
+                                >
 
-                                    <!-- NUMBER -->
+                                    <i
+                                        class="fa-solid fa-triangle-exclamation me-2"
+                                    ></i>
 
-                                    <td>
+                                    No recipe materials were found
+                                    for the selected food.
 
-                                        <?= $index + 1 ?>
+                                    Please return to
+                                    <strong>
+                                        Food Menu & Recipe
+                                    </strong>
+                                    and assign materials per plate.
 
-                                    </td>
+                                </div>
 
 
-                                    <!-- MATERIAL -->
+                            <?php else: ?>
 
-                                    <td>
 
-                                        <input
-                                            type="hidden"
-                                            name="item_id[]"
-                                            value="<?= (int) $item['item_id'] ?>"
+                                <div
+                                    class="table-responsive"
+                                >
+
+                                    <table
+                                        class="table table-bordered align-middle"
+                                    >
+
+                                        <thead
+                                            class="table-light"
                                         >
 
-                                        <input
-                                            type="hidden"
-                                            name="material_id[]"
-                                            value="<?= (int) $item['material_id'] ?>"
-                                        >
+                                            <tr>
+
+                                                <th
+                                                    style="width:5%;"
+                                                >
+                                                    #
+                                                </th>
+
+                                                <th
+                                                    style="width:20%;"
+                                                >
+                                                    Material
+                                                </th>
+
+                                                <th
+                                                    style="width:10%;"
+                                                >
+                                                    Unit
+                                                </th>
+
+                                                <th
+                                                    style="width:15%;"
+                                                >
+                                                    Available Stock
+                                                </th>
+
+                                                <th
+                                                    style="width:15%;"
+                                                >
+                                                    Calculated Qty
+                                                </th>
+
+                                                <th
+                                                    style="width:15%;"
+                                                >
+                                                    Chef Final Qty
+                                                </th>
+
+                                                <th
+                                                    style="width:20%;"
+                                                >
+                                                    Remarks
+                                                </th>
+
+                                            </tr>
+
+                                        </thead>
 
 
-                                        <strong>
-
-                                            <?= e(
-                                                $item['material_name']
-                                            ) ?>
-
-                                        </strong>
+                                        <tbody>
 
 
-                                        <br>
+                                            <?php foreach (
+                                                $calculatedMaterials
+                                                as $materialIndex => $material
+                                            ): ?>
 
 
-                                        <small
-                                            class="text-muted"
-                                        >
-
-                                            <?= e(
-                                                $item['material_code']
-                                            ) ?>
-
-                                            -
-
-                                            <?= e(
-                                                $item['unit']
-                                            ) ?>
-
-                                        </small>
-
-                                    </td>
+                                                <tr>
 
 
-                                    <!-- STOCK -->
+                                                    <!-- NUMBER -->
 
-                                    <td>
+                                                    <td>
 
-                                        <span
-                                            class="badge bg-secondary"
-                                        >
+                                                        <?= $materialIndex + 1 ?>
 
-                                            <?= number_format(
-                                                (float)
-                                                $item['current_stock'],
-                                                2
-                                            ) ?>
-
-                                            <?= e(
-                                                $item['unit']
-                                            ) ?>
-
-                                        </span>
-
-                                    </td>
+                                                    </td>
 
 
-                                    <!-- REQUESTED -->
+                                                    <!-- MATERIAL -->
 
-                                    <td>
+                                                    <td>
 
-                                        <strong>
+                                                        <strong>
 
-                                            <?= number_format(
-                                                (float)
-                                                $item['requested_qty'],
-                                                2
-                                            ) ?>
+                                                            <?= e(
+                                                                $material['material_name']
+                                                            ) ?>
 
-                                        </strong>
-
-                                        <?= e(
-                                            $item['unit']
-                                        ) ?>
-
-                                    </td>
+                                                        </strong>
 
 
-                                    <!-- APPROVED -->
-
-                                    <td>
-
-                                        <input
-                                            type="number"
-                                            name="approved_qty[]"
-                                            class="form-control"
-                                            value="<?= htmlspecialchars(
-                                                number_format(
-                                                    (float)
-                                                    $item['requested_qty'],
-                                                    2,
-                                                    '.',
-                                                    ''
-                                                ),
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>"
-                                            min="0"
-                                            step="0.01"
-                                        >
-
-                                    </td>
+                                                        <br>
 
 
-                                    <!-- REMARKS -->
+                                                        <small
+                                                            class="text-muted"
+                                                        >
 
-                                    <td>
+                                                            <?= e(
+                                                                $material['material_code']
+                                                            ) ?>
 
-                                        <input
-                                            type="text"
-                                            name="item_remarks[]"
-                                            class="form-control"
-                                            value="<?= e(
-                                                $item['remarks']
-                                                ?? ''
-                                            ) ?>"
-                                            placeholder="Remarks"
-                                        >
-
-                                    </td>
+                                                        </small>
 
 
-                                    <!-- REMOVE -->
+                                                        <input
+                                                            type="hidden"
+                                                            name="material_id[]"
+                                                            value="<?= (int)$material['material_id'] ?>"
+                                                        >
 
-                                    <td>
-
-                                        <button
-                                            type="button"
-                                            class="btn btn-outline-danger btn-sm"
-                                            onclick="removeApprovalRow(this)"
-                                        >
-
-                                            <i
-                                                class="fa-solid fa-trash"
-                                            ></i>
-
-                                        </button>
-
-                                    </td>
-
-                                </tr>
+                                                    </td>
 
 
-                            <?php endforeach; ?>
+                                                    <!-- UNIT -->
+
+                                                    <td>
+
+                                                        <?= e(
+                                                            $material['unit']
+                                                        ) ?>
+
+                                                    </td>
 
 
-                            </tbody>
+                                                    <!-- STOCK -->
 
-                        </table>
+                                                    <td>
+
+                                                        <?php
+
+                                                        $stock =
+                                                            (float)$material[
+                                                                'current_stock'
+                                                            ];
+
+                                                        $calculated =
+                                                            (float)$material[
+                                                                'calculated_qty'
+                                                            ];
+
+                                                        ?>
+
+
+                                                        <span
+                                                            class="<?= $stock < $calculated
+                                                                ? 'text-danger fw-bold'
+                                                                : 'text-success fw-bold' ?>"
+                                                        >
+
+                                                            <?= number_format(
+                                                                $stock,
+                                                                4
+                                                            ) ?>
+
+                                                        </span>
+
+
+                                                        <?php if (
+                                                            $stock <
+                                                            $calculated
+                                                        ): ?>
+
+                                                            <br>
+
+                                                            <small
+                                                                class="text-danger"
+                                                            >
+
+                                                                Insufficient stock
+
+                                                            </small>
+
+                                                        <?php endif; ?>
+
+                                                    </td>
+
+
+                                                    <!-- CALCULATED -->
+
+                                                    <td>
+
+                                                        <span
+                                                            class="badge bg-info text-dark"
+                                                        >
+
+                                                            <?= number_format(
+                                                                $calculated,
+                                                                4
+                                                            ) ?>
+
+                                                            <?= e(
+                                                                $material['unit']
+                                                            ) ?>
+
+                                                        </span>
+
+
+                                                        <!--
+                                                        Show calculation
+                                                        details
+                                                        -->
+
+                                                        <div
+                                                            class="mt-2"
+                                                        >
+
+                                                            <?php foreach (
+                                                                $material['food_details']
+                                                                as $detail
+                                                            ): ?>
+
+                                                                <small
+                                                                    class="d-block text-muted"
+                                                                >
+
+                                                                    <?= e(
+                                                                        $detail['food_name']
+                                                                    ) ?>
+
+                                                                    :
+
+                                                                    <?= number_format(
+                                                                        $detail['per_plate'],
+                                                                        4
+                                                                    ) ?>
+
+                                                                    ×
+
+                                                                    <?= number_format(
+                                                                        $detail['plates']
+                                                                    ) ?>
+
+                                                                    =
+
+                                                                    <?= number_format(
+                                                                        $detail['total'],
+                                                                        4
+                                                                    ) ?>
+
+                                                                </small>
+
+                                                            <?php endforeach; ?>
+
+                                                        </div>
+
+                                                    </td>
+
+
+                                                    <!-- CHEF FINAL -->
+
+                                                    <td>
+
+                                                        <input
+                                                            type="number"
+                                                            name="approved_qty[]"
+                                                            class="form-control"
+                                                            min="0"
+                                                            step="0.0001"
+                                                            value="<?= htmlspecialchars(
+                                                                number_format(
+                                                                    $calculated,
+                                                                    4,
+                                                                    '.',
+                                                                    ''
+                                                                )
+                                                            ) ?>"
+                                                            required
+                                                        >
+
+                                                        <small
+                                                            class="text-muted"
+                                                        >
+
+                                                            Chef can change this quantity.
+
+                                                        </small>
+
+                                                    </td>
+
+
+                                                    <!-- REMARKS -->
+
+                                                    <td>
+
+                                                        <input
+                                                            type="text"
+                                                            name="material_remarks[]"
+                                                            class="form-control"
+                                                            placeholder="Optional remarks"
+                                                        >
+
+                                                    </td>
+
+                                                </tr>
+
+
+                                            <?php endforeach; ?>
+
+
+                                        </tbody>
+
+                                    </table>
+
+                                </div>
+
+
+                                <!-- =================================
+                                     CHEF REMARKS
+                                ================================== -->
+
+                                <div class="mb-4 mt-4">
+
+                                    <label
+                                        class="form-label fw-semibold"
+                                    >
+
+                                        Chef Remarks
+
+                                    </label>
+
+
+                                    <textarea
+                                        name="chef_remarks"
+                                        class="form-control"
+                                        rows="3"
+                                        placeholder="Enter any instruction or change made by Chef..."
+                                    ></textarea>
+
+                                </div>
+
+
+                                <!-- =================================
+                                     ACTIONS
+                                ================================== -->
+
+                                <div
+                                    class="d-flex justify-content-between align-items-center"
+                                >
+
+
+                                    <!-- REJECT -->
+
+                                    <button
+                                        type="submit"
+                                        name="reject_plan"
+                                        value="1"
+                                        class="btn btn-outline-danger"
+                                        formnovalidate
+                                        onclick="
+                                            return confirm(
+                                                'Are you sure you want to reject this cooking plan?'
+                                            );
+                                        "
+                                    >
+
+                                        <i
+                                            class="fa-solid fa-xmark me-1"
+                                        ></i>
+
+                                        Reject Plan
+
+                                    </button>
+
+
+                                    <!-- APPROVE -->
+
+                                    <button
+                                        type="submit"
+                                        name="approve_plan"
+                                        value="1"
+                                        class="btn btn-success px-4"
+                                    >
+
+                                        <i
+                                            class="fa-solid fa-paper-plane me-1"
+                                        ></i>
+
+                                        Approve & Send to Store
+
+                                    </button>
+
+
+                                </div>
+
+
+                            <?php endif; ?>
+
+
+                        </form>
 
                     </div>
-
-
-
-                    <!-- =================================================
-                         ADD MATERIAL
-                    ================================================== -->
-
-                    <button
-                        type="button"
-                        class="btn btn-outline-primary mb-4"
-                        onclick="addChefMaterial(<?= (int) $request['id'] ?>)"
-                    >
-
-                        <i
-                            class="fa-solid fa-plus me-1"
-                        ></i>
-
-                        Add Material
-
-                    </button>
-
-
-
-                    <!-- =================================================
-                         CHEF REMARKS
-                    ================================================== -->
-
-                    <div class="mb-3">
-
-                        <label
-                            class="form-label fw-semibold"
-                        >
-
-                            Chef Remarks
-
-                        </label>
-
-
-                        <textarea
-                            name="chef_remarks"
-                            class="form-control"
-                            rows="3"
-                            placeholder="Enter Chef remarks..."
-                        ></textarea>
-
-                    </div>
-
-
-
-                    <!-- =================================================
-                         ACTION BUTTONS
-                    ================================================== -->
-
-                    <div
-                        class="d-flex gap-2"
-                    >
-
-                        <button
-                            type="submit"
-                            name="approve_request"
-                            class="btn btn-success"
-                            onclick="return confirm('Approve this request and send it to Store?');"
-                        >
-
-                            <i
-                                class="fa-solid fa-check me-1"
-                            ></i>
-
-                            Approve & Send to Store
-
-                        </button>
-
-
-                        <button
-                            type="submit"
-                            name="reject_request"
-                            class="btn btn-danger"
-                            onclick="return confirm('Reject this Kitchen request?');"
-                        >
-
-                            <i
-                                class="fa-solid fa-xmark me-1"
-                            ></i>
-
-                            Reject
-
-                        </button>
-
-                    </div>
-
-                </form>
-
-            </div>
-
-        </div>
-
-
-    <?php endforeach; ?>
-
-
-
-    <!-- =====================================================
-         NO REQUESTS
-    ====================================================== -->
-
-    <?php if (!$requests): ?>
-
-        <div
-            class="card border-0 shadow-sm"
-        >
-
-            <div
-                class="card-body text-center py-5"
-            >
-
-                <div
-                    class="fs-1 text-muted mb-3"
-                >
-
-                    <i
-                        class="fa-solid fa-circle-check"
-                    ></i>
 
                 </div>
 
 
-                <h5>
-                    No Pending Requests
-                </h5>
+            <?php endforeach; ?>
 
 
-                <p class="text-muted mb-0">
+        <?php endif; ?>
 
-                    There are no Cook requests
-                    waiting for Chef approval.
 
-                </p>
-
-            </div>
-
-        </div>
-
-    <?php endif; ?>
-
+    </div>
 
 </div>
-
-
-
-<!-- =========================================================
-     JAVASCRIPT
-========================================================= -->
-
-<script>
-
-const materialOptions = <?=
-    json_encode(
-        $materials,
-        JSON_HEX_TAG |
-        JSON_HEX_APOS |
-        JSON_HEX_QUOT |
-        JSON_HEX_AMP
-    )
-?>;
-
-
-/*
-|--------------------------------------------------------------------------
-| ADD MATERIAL
-|--------------------------------------------------------------------------
-*/
-
-function addChefMaterial(requestId)
-{
-
-    const table =
-        document.getElementById(
-            'items_' + requestId
-        );
-
-
-    const tbody =
-        table.querySelector('tbody');
-
-
-    const row =
-        document.createElement('tr');
-
-
-    let options =
-        '<option value="">Select Material</option>';
-
-
-    materialOptions.forEach(function(material)
-    {
-
-        options +=
-            '<option value="' +
-            material.id +
-            '">' +
-
-            escapeHtml(
-                material.material_name
-            ) +
-
-            ' (' +
-
-            escapeHtml(
-                material.material_code
-            ) +
-
-            ')</option>';
-
-    });
-
-
-    row.innerHTML = `
-
-        <td>
-            +
-        </td>
-
-        <td>
-
-            <select
-                name="material_id[]"
-                class="form-select material-select"
-                onchange="updateMaterialStock(this)"
-                required
-            >
-
-                ${options}
-
-            </select>
-
-            <small
-                class="text-muted stock-display"
-            >
-                Select material
-            </small>
-
-            <input
-                type="hidden"
-                name="item_id[]"
-                value="0"
-            >
-
-        </td>
-
-        <td>
-
-            <span
-                class="badge bg-secondary new-stock"
-            >
-                -
-            </span>
-
-        </td>
-
-        <td>
-
-            <span
-                class="text-muted"
-            >
-                Added by Chef
-            </span>
-
-        </td>
-
-        <td>
-
-            <input
-                type="number"
-                name="approved_qty[]"
-                class="form-control"
-                min="0.01"
-                step="0.01"
-                value="0"
-                required
-            >
-
-        </td>
-
-        <td>
-
-            <input
-                type="text"
-                name="item_remarks[]"
-                class="form-control"
-                placeholder="Why is this material required?"
-            >
-
-        </td>
-
-        <td>
-
-            <button
-                type="button"
-                class="btn btn-outline-danger btn-sm"
-                onclick="removeApprovalRow(this)"
-            >
-
-                <i
-                    class="fa-solid fa-trash"
-                ></i>
-
-            </button>
-
-        </td>
-
-    `;
-
-
-    tbody.appendChild(row);
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| REMOVE ROW
-|--------------------------------------------------------------------------
-*/
-
-function removeApprovalRow(button)
-{
-
-    const row =
-        button.closest('tr');
-
-
-    if (row)
-    {
-        row.remove();
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| UPDATE STOCK DISPLAY
-|--------------------------------------------------------------------------
-*/
-
-function updateMaterialStock(select)
-{
-
-    const materialId =
-        parseInt(
-            select.value
-        );
-
-
-    const row =
-        select.closest('tr');
-
-
-    const stockBadge =
-        row.querySelector(
-            '.new-stock'
-        );
-
-
-    const stockDisplay =
-        row.querySelector(
-            '.stock-display'
-        );
-
-
-    if (!materialId)
-    {
-
-        stockBadge.textContent = '-';
-
-        stockDisplay.textContent =
-            'Select material';
-
-        return;
-
-    }
-
-
-    const material =
-        materialOptions.find(
-            function(item)
-            {
-                return parseInt(item.id)
-                    === materialId;
-            }
-        );
-
-
-    if (!material)
-    {
-
-        stockBadge.textContent = '-';
-
-        stockDisplay.textContent =
-            'Material not found';
-
-        return;
-
-    }
-
-
-    stockBadge.textContent =
-        parseFloat(
-            material.current_stock
-        ).toFixed(2)
-        + ' '
-        + material.unit;
-
-
-    stockDisplay.textContent =
-        'Available stock: '
-        + parseFloat(
-            material.current_stock
-        ).toFixed(2)
-        + ' '
-        + material.unit;
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| HTML ESCAPE
-|--------------------------------------------------------------------------
-*/
-
-function escapeHtml(value)
-{
-
-    return String(value)
-        .replace(
-            /&/g,
-            '&amp;'
-        )
-        .replace(
-            /</g,
-            '&lt;'
-        )
-        .replace(
-            />/g,
-            '&gt;'
-        )
-        .replace(
-            /"/g,
-            '&quot;'
-        )
-        .replace(
-            /'/g,
-            '&#039;'
-        );
-
-}
-
-</script>
 
 
 <?php
