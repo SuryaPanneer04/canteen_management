@@ -76,14 +76,17 @@ if ($search !== '') {
 
     $where[] = "
         (
-            material_code LIKE :search
-            OR material_name LIKE :search
-            OR category LIKE :search
+            material_code LIKE :search_code
+            OR material_name LIKE :search_name
+            OR category LIKE :search_category
         )
     ";
 
-    $params[':search'] = '%' . $search . '%';
+    $searchValue = '%' . $search . '%';
 
+    $params[':search_code'] = $searchValue;
+    $params[':search_name'] = $searchValue;
+    $params[':search_category'] = $searchValue;
 }
 
 
