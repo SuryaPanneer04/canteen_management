@@ -9,49 +9,65 @@ requireAdmin();
 
 $pageTitle = 'Admin Dashboard';
 
-$totalUsers = (int)$con->query("SELECT COUNT(*) FROM users")->fetchColumn();
-$activeUsers = (int)$con->query("SELECT COUNT(*) FROM users WHERE status = 'Enable'")->fetchColumn();
-$totalRoles = (int)$con->query("SELECT COUNT(*) FROM roles")->fetchColumn();
-
 $today = date('Y-m-d');
+$activeUsers = (int)$con->query("SELECT COUNT(*) FROM users WHERE status = 'Enable'")->fetchColumn();
 
-$stmt = $con->prepare("SELECT COUNT(*) FROM users WHERE DATE(created_at) = ?");
-$stmt->execute([$today]);
-$todayUsers = (int)$stmt->fetchColumn();
+// 1. Pending Invoice Approvals
+$pendingInvoices = 0;
+try {
+    $pendingInvoices = (int)$con->query("SELECT COUNT(*) FROM purchase_orders WHERE status = 'Pending'")->fetchColumn();
+} catch(Exception $e) {} // Safe fallback
 
-$recentStmt = $con->query("
-    SELECT u.id, u.employee_code, u.employee_name, u.email,
-           r.role_name, u.status, u.created_at
-    FROM users u
-    INNER JOIN roles r ON r.id = u.role_id
-    ORDER BY u.id DESC
-    LIMIT 8
-");
-$recentUsers = $recentStmt->fetchAll();
+// 2. Today's Total Served Food
+$todayServed = 0;
+try {
+    $servedStmt = $con->prepare("SELECT SUM(received_qty - remaining_qty) FROM canteen_food_serving WHERE DATE(created_at) = ? AND status = 'Closed'");
+    $servedStmt->execute([$today]);
+    $todayServed = (int)$servedStmt->fetchColumn();
+} catch(Exception $e) {}
 
-// --- Chart data: new users per day, last 7 days ---
+// 3. Today's Wastage (Actual Wastage Only)
+$todayWastage = 0;
+try {
+    // Adjust column name 'quantity' or 'wastage_qty' based on your DB
+    $wastageStmt = $con->prepare("SELECT SUM(quantity) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason != 'Staff Consumption'");
+    $wastageStmt->execute([$today]);
+    $todayWastage = (int)$wastageStmt->fetchColumn();
+} catch(Exception $e) {}
+
+// --- Table: Pending Invoice Approvals ---
+$pendingApprovals = [];
+try {
+    $recentStmt = $con->query("SELECT * FROM purchase_orders WHERE status = 'Pending' ORDER BY id DESC LIMIT 5");
+    $pendingApprovals = $recentStmt->fetchAll();
+} catch(Exception $e) {}
+
+// --- Chart data: Wastage Trend last 7 days ---
 $growthLabels = [];
 $growthCounts = [];
-
-$growthStmt = $con->prepare("SELECT COUNT(*) FROM users WHERE DATE(created_at) = ?");
-for ($i = 6; $i >= 0; $i--) {
-    $day = date('Y-m-d', strtotime("-{$i} days"));
-    $growthStmt->execute([$day]);
-    $growthLabels[] = date('D', strtotime($day));
-    $growthCounts[] = (int)$growthStmt->fetchColumn();
+try {
+    $trendStmt = $con->prepare("SELECT SUM(quantity) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason != 'Staff Consumption'");
+    for ($i = 6; $i >= 0; $i--) {
+        $day = date('Y-m-d', strtotime("-{$i} days"));
+        $trendStmt->execute([$day]);
+        $growthLabels[] = date('D', strtotime($day));
+        $val = (int)$trendStmt->fetchColumn();
+        $growthCounts[] = $val > 0 ? $val : 0; 
+    }
+} catch(Exception $e) {
+    // Fallback zero data if table structure differs slightly
+    for ($i=6; $i>=0; $i--) { $growthLabels[] = date('D', strtotime("-{$i} days")); $growthCounts[] = 0; }
 }
 
-// --- Chart data: users by role ---
-$roleStmt = $con->query("
-    SELECT r.role_name, COUNT(u.id) AS total
-    FROM roles r
-    LEFT JOIN users u ON u.role_id = r.id
-    GROUP BY r.id, r.role_name
-    ORDER BY total DESC
-");
-$roleRows = $roleStmt->fetchAll();
-$roleLabels = array_map(fn($row) => $row['role_name'], $roleRows);
-$roleCounts = array_map(fn($row) => (int)$row['total'], $roleRows);
+// --- Chart data: Wastage vs Staff Consumption (Today) ---
+$roleLabels = ['Actual Wastage', 'Staff Consumption'];
+$staffCons = 0;
+try {
+    $staffConsStmt = $con->prepare("SELECT SUM(quantity) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason = 'Staff Consumption'");
+    $staffConsStmt->execute([$today]);
+    $staffCons = (int)$staffConsStmt->fetchColumn() ?: 0;
+} catch(Exception $e) {}
+$roleCounts = [$todayWastage, $staffCons];
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
@@ -67,13 +83,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <div class="row g-3 mb-4">
-
+            
             <div class="col-12 col-sm-6 col-xl-3">
                 <div class="stat-card">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Total Users</div>
-                            <div class="stat-value"><?= $totalUsers ?></div>
+                            <div class="stat-label">Active Staff</div>
+                            <div class="stat-value"><?= $activeUsers ?></div>
                         </div>
                         <div class="stat-icon stat-icon-primary">
                             <i class="fa-solid fa-users"></i>
@@ -86,39 +102,39 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <div class="stat-card">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="stat-label">Active Users</div>
-                            <div class="stat-value"><?= $activeUsers ?></div>
-                        </div>
-                        <div class="stat-icon stat-icon-green">
-                            <i class="fa-solid fa-user-check"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-label">Roles</div>
-                            <div class="stat-value"><?= $totalRoles ?></div>
-                        </div>
-                        <div class="stat-icon stat-icon-purple">
-                            <i class="fa-solid fa-user-shield"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-label">Users Added Today</div>
-                            <div class="stat-value"><?= $todayUsers ?></div>
+                            <div class="stat-label">Pending Approvals</div>
+                            <div class="stat-value"><?= $pendingInvoices ?></div>
                         </div>
                         <div class="stat-icon stat-icon-amber">
-                            <i class="fa-solid fa-user-plus"></i>
+                            <i class="fa-solid fa-file-invoice-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="stat-label">Food Served Today</div>
+                            <div class="stat-value"><?= $todayServed ?></div>
+                        </div>
+                        <div class="stat-icon stat-icon-green">
+                            <i class="fa-solid fa-utensils"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="stat-label">Today's Wastage</div>
+                            <div class="stat-value"><?= $todayWastage ?></div>
+                        </div>
+                        <div class="stat-icon stat-icon-purple">
+                            <i class="fa-solid fa-trash-can"></i>
                         </div>
                     </div>
                 </div>
@@ -129,11 +145,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <div class="row g-3 mb-4">
 
             <div class="col-12 col-xl-8">
-                <div class="content-card chart-card">
+                <div class="content-card chart-card h-100">
                     <div class="content-card-header">
                         <div>
-                            <h6 class="fw-bold mb-1">User Growth</h6>
-                            <small class="text-muted">New users over the last 7 days</small>
+                            <h6 class="fw-bold mb-1">Wastage Trend</h6>
+                            <small class="text-muted">Actual wastage quantity over the last 7 days</small>
                         </div>
                     </div>
                     <div class="content-card-body">
@@ -143,15 +159,15 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
 
             <div class="col-12 col-xl-4">
-                <div class="content-card chart-card">
+                <div class="content-card chart-card h-100">
                     <div class="content-card-header">
                         <div>
-                            <h6 class="fw-bold mb-1">Users by Role</h6>
-                            <small class="text-muted">Current distribution</small>
+                            <h6 class="fw-bold mb-1">Wastage Breakdown</h6>
+                            <small class="text-muted">Today's Wastage vs Staff Consumption</small>
                         </div>
                     </div>
                     <div class="content-card-body">
-                        <canvas id="roleChart" height="220"></canvas>
+                        <canvas id="roleChart" height="160"></canvas>
                         <div class="chart-legend" id="roleChartLegend"></div>
                     </div>
                 </div>
@@ -162,13 +178,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <div class="row g-3">
 
             <div class="col-12 col-xl-8">
-                <div class="content-card">
+                <div class="content-card h-100">
                     <div class="content-card-header">
                         <div>
-                            <h6 class="fw-bold mb-1">Recent Users</h6>
-                            <small class="text-muted">Latest users in the system</small>
+                            <h6 class="fw-bold mb-1">Pending Invoice Approvals</h6>
+                            <small class="text-muted">Invoices waiting for Admin review</small>
                         </div>
-                        <a href="users.php" class="btn btn-sm btn-primary">
+                        <a href="invoice_approvals.php" class="btn btn-sm btn-primary">
                             View All
                         </a>
                     </div>
@@ -177,45 +193,29 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <table class="table table-hover align-middle mb-0">
                             <thead>
                             <tr>
-                                <th>Employee</th>
-                                <th>Email</th>
-                                <th>Role</th>
+                                <th>PO Number</th>
                                 <th>Status</th>
+                                <th>Date</th>
                             </tr>
                             </thead>
                             <tbody>
-                            <?php if (!$recentUsers): ?>
+                            <?php if (!$pendingApprovals): ?>
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted py-4">
-                                        No users found.
+                                    <td colspan="3" class="text-center text-muted py-4">
+                                        No pending invoices for approval.
                                     </td>
                                 </tr>
                             <?php endif; ?>
 
-                            <?php foreach ($recentUsers as $user): ?>
+                            <?php foreach ($pendingApprovals as $po): ?>
                                 <tr>
                                     <td>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <div class="row-avatar">
-                                                <?= strtoupper(substr($user['employee_name'], 0, 1)) ?>
-                                            </div>
-                                            <div>
-                                                <strong><?= e($user['employee_name']) ?></strong><br>
-                                                <small class="text-muted">
-                                                    <?= e($user['employee_code']) ?>
-                                                </small>
-                                            </div>
-                                        </div>
+                                        <strong><?= e($po['po_number'] ?? 'N/A') ?></strong>
                                     </td>
-                                    <td><?= e($user['email']) ?></td>
-                                    <td><?= e($user['role_name']) ?></td>
                                     <td>
-                                        <?php if ($user['status'] === 'Enable'): ?>
-                                            <span class="badge badge-enable">Enable</span>
-                                        <?php else: ?>
-                                            <span class="badge badge-disabled">Disabled</span>
-                                        <?php endif; ?>
+                                        <span class="badge badge-amber">Pending</span>
                                     </td>
+                                    <td><?= date('d M Y', strtotime($po['created_at'])) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
@@ -225,7 +225,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
 
             <div class="col-12 col-xl-4">
-                <div class="content-card">
+                <div class="content-card h-100">
                     <div class="content-card-header">
                         <div>
                             <h6 class="fw-bold mb-1">Quick Actions</h6>
@@ -235,22 +235,22 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                     <div class="content-card-body">
 
-                        <a href="users.php?action=add"
+                        <a href="invoice_approvals.php"
                            class="btn btn-primary w-100 mb-2">
-                            <i class="fa-solid fa-user-plus me-2"></i>
-                            Add User
+                            <i class="fa-solid fa-file-invoice-dollar me-2"></i>
+                            Review Invoices
                         </a>
 
-                        <a href="roles.php"
+                        <a href="canteen_report.php"
                            class="btn btn-outline-secondary w-100 mb-2">
-                            <i class="fa-solid fa-user-shield me-2"></i>
-                            Manage Roles
+                            <i class="fa-solid fa-chart-pie me-2"></i>
+                            Canteen Report
                         </a>
 
-                        <a href="users.php"
+                        <a href="price_master.php"
                            class="btn btn-outline-secondary w-100">
-                            <i class="fa-solid fa-users me-2"></i>
-                            Manage Users
+                            <i class="fa-solid fa-tags me-2"></i>
+                            Price Master
                         </a>
 
                     </div>
@@ -279,7 +279,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         data: {
             labels: <?= json_encode($growthLabels) ?>,
             datasets: [{
-                label: 'New Users',
+                label: 'Wastage Qty',
                 data: <?= json_encode($growthCounts) ?>,
                 borderColor: primary,
                 backgroundColor: primary + '22',
