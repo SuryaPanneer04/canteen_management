@@ -820,65 +820,69 @@ foreach (
 
 
             /*
-            |--------------------------------------------------------------------------
-            | CREATE KITCHEN REQUEST
-            |--------------------------------------------------------------------------
-            |
-            | This is what Store already understands.
-            |--------------------------------------------------------------------------
-            */
+|--------------------------------------------------------------------------
+| CREATE KITCHEN REQUEST
+|--------------------------------------------------------------------------
+|
+| IMPORTANT:
+| Save the cooking plan ID in kitchen_requests.plan_id.
+| This allows Food Preparation to identify which cooking
+| plan is ready after Store completes the material issue.
+|
+*/
 
-            $stmt =
-                $con->prepare("
-                    INSERT INTO kitchen_requests
-                    (
-                        request_no,
-                        requested_by,
-                        request_date,
-                        status,
-                        cook_remarks,
-                        chef_remarks,
-                        approved_by,
-                        approved_at,
-                        sent_to_store_at
-                    )
-                    VALUES
-                    (
-                        ?,
-                        ?,
-                        ?,
-                        'Sent to Store',
-                        ?,
-                        ?,
-                        ?,
-                        NOW(),
-                        NOW()
-                    )
-                ");
+$stmt = $con->prepare("
+    INSERT INTO kitchen_requests
+    (
+        request_no,
+        plan_id,
+        requested_by,
+        request_date,
+        status,
+        cook_remarks,
+        chef_remarks,
+        approved_by,
+        approved_at,
+        sent_to_store_at
+    )
+    VALUES
+    (
+        ?,
+        ?,
+        ?,
+        ?,
+        'Sent to Store',
+        ?,
+        ?,
+        ?,
+        NOW(),
+        NOW()
+    )
+");
 
+$stmt->execute([
 
-            $stmt->execute([
+    $requestNo,
 
-                $requestNo,
+    // IMPORTANT: link request to Daily Cooking Plan
+    $planId,
 
-                $loginUserId,
+    $loginUserId,
 
-                $requestDate,
+    $requestDate,
 
-                'Daily Cooking Plan - ' .
-                $plan['meal_type'],
+    'Daily Cooking Plan - ' .
+    $plan['meal_type'],
 
-                $chefRemarks !== ''
-                    ? $chefRemarks
-                    : null,
+    $chefRemarks !== ''
+        ? $chefRemarks
+        : null,
 
-                $loginUserId
+    $loginUserId
 
-            ]);
+]);
 
-
-            $requestId =
-                (int)$con->lastInsertId();
+$requestId = (int)$con->lastInsertId();
 
 
             /*
