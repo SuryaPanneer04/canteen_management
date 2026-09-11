@@ -26,19 +26,15 @@ $loginUserId = (int)($_SESSION['user_id'] ?? 0);
 |--------------------------------------------------------------------------
 */
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_selected_materials'])) {
 
     $requestId = (int)($_POST['request_id'] ?? 0);
-    $itemId    = (int)($_POST['item_id'] ?? 0);
-    $issueQty  = (float)($_POST['issue_qty'] ?? 0);
+    $selectedItems = $_POST['selected_items'] ?? [];
+    $issueQtys = $_POST['issue_qty'] ?? [];
 
-    if ($requestId <= 0 || $itemId <= 0) {
+    if ($requestId <= 0 || !is_array($selectedItems) || !$selectedItems) {
 
-        $error = 'Invalid request.';
-
-    } elseif ($issueQty <= 0) {
-
-        $error = 'Issue quantity must be greater than zero.';
+        $error = 'Please select at least one material to issue.';
 
     } else {
 
@@ -48,62 +44,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
 
             /*
             |--------------------------------------------------------------------------
-            | GET REQUEST ITEM
-            |--------------------------------------------------------------------------
-            */
-
-            $stmt = $con->prepare("
-                SELECT
-                    kri.id AS item_id,
-                    kri.request_id,
-                    kri.material_id,
-
-                    kri.requested_qty,
-                    kri.approved_qty,
-                    kri.issued_qty,
-
-                    kr.request_no,
-                    kr.status AS request_status,
-
-                    m.material_code,
-                    m.material_name,
-                    m.unit,
-                    m.current_stock
-
-                FROM kitchen_request_items kri
-
-                INNER JOIN kitchen_requests kr
-                    ON kr.id = kri.request_id
-
-                INNER JOIN materials m
-                    ON m.id = kri.material_id
-
-                WHERE kri.id = :item_id
-                  AND kri.request_id = :request_id
-
-                FOR UPDATE
-            ");
-
-            $stmt->execute([
-                ':item_id'    => $itemId,
-                ':request_id' => $requestId
-            ]);
-
-            $item = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$item) {
-
-                throw new RuntimeException(
-                    'Requested material was not found.'
-                );
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
             | REQUEST STATUS
             |--------------------------------------------------------------------------
             */
+
+            $requestStmt = $con->prepare("
+                SELECT id, request_no, status
+                FROM kitchen_requests
+                WHERE id = :request_id
+                FOR UPDATE
+            ");
+
+            $requestStmt->execute([
+                ':request_id' => $requestId
+            ]);
+
+            $requestHeader = $requestStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$requestHeader) {
+                throw new RuntimeException('Kitchen request was not found.');
+            }
 
             $allowedStatuses = [
                 'Chef Approved',
@@ -111,91 +71,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                 'Partially Issued'
             ];
 
-            if (
-                !in_array(
-                    $item['request_status'],
-                    $allowedStatuses,
-                    true
-                )
-            ) {
-
+            if (!in_array($requestHeader['status'], $allowedStatuses, true)) {
                 throw new RuntimeException(
                     'This request cannot be issued in its current status.'
                 );
             }
 
-
             /*
             |--------------------------------------------------------------------------
-            | QUANTITIES
+            | PREPARE STATEMENTS
             |--------------------------------------------------------------------------
             */
 
-            $approvedQty = (float)$item['approved_qty'];
-            $issuedQty   = (float)$item['issued_qty'];
-            $currentStock = (float)$item['current_stock'];
-
-            $remainingQty = $approvedQty - $issuedQty;
-
-            if ($remainingQty < 0) {
-                $remainingQty = 0;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CHECK REMAINING APPROVED QUANTITY
-            |--------------------------------------------------------------------------
-            */
-
-            if ($remainingQty <= 0) {
-
-                throw new RuntimeException(
-                    'This material has already been fully issued.'
-                );
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | ISSUE CANNOT EXCEED REMAINING
-            |--------------------------------------------------------------------------
-            */
-
-            if ($issueQty > $remainingQty) {
-
-                throw new RuntimeException(
-                    'Issue quantity cannot be greater than the remaining approved quantity. '
-                    . 'Remaining: '
-                    . number_format($remainingQty, 2)
-                    . ' '
-                    . $item['unit']
-                );
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CHECK STOCK
-            |--------------------------------------------------------------------------
-            */
-
-            if ($issueQty > $currentStock) {
-
-                throw new RuntimeException(
-                    'Insufficient stock. Available stock: '
-                    . number_format($currentStock, 2)
-                    . ' '
-                    . $item['unit']
-                );
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | UPDATE MATERIAL STOCK
-            |--------------------------------------------------------------------------
-            */
+            $itemStmt = $con->prepare("
+                SELECT
+                    kri.id AS item_id,
+                    kri.request_id,
+                    kri.material_id,
+                    kri.requested_qty,
+                    kri.approved_qty,
+                    kri.issued_qty,
+                    m.material_code,
+                    m.material_name,
+                    m.unit,
+                    m.current_stock
+                FROM kitchen_request_items kri
+                INNER JOIN materials m
+                    ON m.id = kri.material_id
+                WHERE kri.id = :item_id
+                  AND kri.request_id = :request_id
+                FOR UPDATE
+            ");
 
             $updateStock = $con->prepare("
                 UPDATE materials
@@ -203,39 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                 WHERE id = :material_id
             ");
 
-            $updateStock->execute([
-                ':quantity'    => $issueQty,
-                ':material_id' => $item['material_id']
-            ]);
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | UPDATE KITCHEN REQUEST ITEM
-            |--------------------------------------------------------------------------
-            */
-
-            $newIssuedQty = $issuedQty + $issueQty;
-
             $updateItem = $con->prepare("
                 UPDATE kitchen_request_items
-
                 SET issued_qty = :issued_qty
-
                 WHERE id = :item_id
             ");
-
-            $updateItem->execute([
-                ':issued_qty' => $newIssuedQty,
-                ':item_id'    => $itemId
-            ]);
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | STOCK TRANSACTION
-            |--------------------------------------------------------------------------
-            */
 
             $transaction = $con->prepare("
                 INSERT INTO stock_transactions
@@ -249,7 +127,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                     created_by,
                     created_at
                 )
-
                 VALUES
                 (
                     :material_id,
@@ -263,19 +140,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                 )
             ");
 
-            $transaction->execute([
-                ':material_id'  => $item['material_id'],
-                ':quantity'     => $issueQty,
-                ':reference_no' => $item['request_no'],
-                ':reference_id' => $requestId,
+            $issuedMaterials = [];
 
-                ':remarks' =>
-                    'Material issued to Kitchen - '
-                    . $item['material_name'],
+            /*
+            |--------------------------------------------------------------------------
+            | ISSUE ALL SELECTED MATERIALS
+            |--------------------------------------------------------------------------
+            */
 
-                ':created_by' => $loginUserId
-            ]);
+            foreach ($selectedItems as $selectedItemId) {
 
+                $itemId = (int)$selectedItemId;
+
+                if ($itemId <= 0) {
+                    continue;
+                }
+
+                $itemStmt->execute([
+                    ':item_id'    => $itemId,
+                    ':request_id' => $requestId
+                ]);
+
+                $item = $itemStmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$item) {
+                    throw new RuntimeException(
+                        'One of the selected materials was not found.'
+                    );
+                }
+
+                $approvedQty  = (float)$item['approved_qty'];
+                $issuedQty    = (float)$item['issued_qty'];
+                $currentStock = (float)$item['current_stock'];
+
+                $remainingQty = $approvedQty - $issuedQty;
+
+                if ($remainingQty < 0) {
+                    $remainingQty = 0;
+                }
+
+                if ($remainingQty <= 0) {
+                    throw new RuntimeException(
+                        'Material "' . $item['material_name'] .
+                        '" has already been fully issued.'
+                    );
+                }
+
+                /*
+                | Use the quantity entered for this selected material.
+                | The UI defaults it to the requested quantity where possible.
+                */
+
+                $issueQty = (float)($issueQtys[$itemId] ?? 0);
+
+                if ($issueQty <= 0) {
+                    throw new RuntimeException(
+                        'Please enter a valid issue quantity for "' .
+                        $item['material_name'] . '".'
+                    );
+                }
+
+                if ($issueQty > $remainingQty) {
+                    throw new RuntimeException(
+                        'Issue quantity for "' . $item['material_name'] .
+                        '" cannot be greater than the remaining approved quantity. ' .
+                        'Remaining: ' . number_format($remainingQty, 2) .
+                        ' ' . $item['unit']
+                    );
+                }
+
+                if ($issueQty > $currentStock) {
+                    throw new RuntimeException(
+                        'Insufficient stock for "' . $item['material_name'] .
+                        '". Available stock: ' .
+                        number_format($currentStock, 2) .
+                        ' ' . $item['unit']
+                    );
+                }
+
+                $newIssuedQty = $issuedQty + $issueQty;
+
+                $updateStock->execute([
+                    ':quantity'    => $issueQty,
+                    ':material_id' => $item['material_id']
+                ]);
+
+                $updateItem->execute([
+                    ':issued_qty' => $newIssuedQty,
+                    ':item_id'    => $itemId
+                ]);
+
+                $transaction->execute([
+                    ':material_id'  => $item['material_id'],
+                    ':quantity'     => $issueQty,
+                    ':reference_no' => $requestHeader['request_no'],
+                    ':reference_id' => $requestId,
+                    ':remarks'      =>
+                        'Material issued to Kitchen - ' .
+                        $item['material_name'],
+                    ':created_by'   => $loginUserId
+                ]);
+
+                $issuedMaterials[] =
+                    $item['material_name'] . ' (' .
+                    number_format($issueQty, 2) . ' ' .
+                    $item['unit'] . ')';
+            }
+
+            if (!$issuedMaterials) {
+                throw new RuntimeException(
+                    'Please select at least one valid material to issue.'
+                );
+            }
 
             /*
             |--------------------------------------------------------------------------
@@ -287,9 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                 SELECT
                     approved_qty,
                     issued_qty
-
                 FROM kitchen_request_items
-
                 WHERE request_id = :request_id
             ");
 
@@ -297,55 +271,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                 ':request_id' => $requestId
             ]);
 
-            $requestItems = $checkItems->fetchAll(PDO::FETCH_ASSOC);
+            $requestItemsAfterIssue = $checkItems->fetchAll(PDO::FETCH_ASSOC);
 
             $allIssued = true;
 
-            foreach ($requestItems as $requestItem) {
+            foreach ($requestItemsAfterIssue as $requestItem) {
 
-                $approved =
-                    (float)$requestItem['approved_qty'];
-
-                $issued =
-                    (float)$requestItem['issued_qty'];
-
-                /*
-                | Ignore items where Chef approved zero quantity.
-                */
+                $approved = (float)$requestItem['approved_qty'];
+                $issued   = (float)$requestItem['issued_qty'];
 
                 if ($approved <= 0) {
                     continue;
                 }
 
                 if ($issued < $approved) {
-
                     $allIssued = false;
                     break;
                 }
             }
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | UPDATE REQUEST STATUS
-            |--------------------------------------------------------------------------
-            */
-
-            if ($allIssued) {
-
-                $newStatus = 'Completed';
-
-            } else {
-
-                $newStatus = 'Partially Issued';
-            }
-
+            $newStatus = $allIssued
+                ? 'Completed'
+                : 'Partially Issued';
 
             $updateRequest = $con->prepare("
                 UPDATE kitchen_requests
-
                 SET status = :status
-
                 WHERE id = :request_id
             ");
 
@@ -354,23 +305,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_material'])) {
                 ':request_id' => $requestId
             ]);
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | COMMIT
-            |--------------------------------------------------------------------------
-            */
-
             $con->commit();
 
             $success =
-                'Material issued successfully. '
-                . number_format($issueQty, 2)
-                . ' '
-                . $item['unit']
-                . ' of '
-                . $item['material_name']
-                . ' issued to Kitchen.';
+                count($issuedMaterials) . ' material(s) issued successfully: ' .
+                implode(', ', $issuedMaterials) . '.';
 
         } catch (Throwable $e) {
 
@@ -1033,357 +972,431 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                     <!-- ITEMS -->
 
-                    <div class="table-responsive">
+                    <form method="POST"
+                          class="bulk-issue-form"
+                          onsubmit="return confirmBulkIssue(this);">
 
-                        <table class="table table-hover mb-0 align-middle">
+                        <input type="hidden"
+                               name="request_id"
+                               value="<?= (int)$request['id'] ?>">
 
-                            <thead>
+                        <div class="table-responsive">
 
-                                <tr>
+                            <table class="table table-hover mb-0 align-middle">
 
-                                    <th>
-                                        Material
-                                    </th>
+                                <thead>
 
-                                    <th>
-                                        Unit
-                                    </th>
+                                    <tr>
 
-                                    <th>
-                                        Requested
-                                    </th>
+                                        <th style="width:45px;">
+                                            <input
+                                                type="checkbox"
+                                                class="form-check-input select-all-materials"
+                                                title="Select all available materials">
+                                        </th>
 
-                                    <th>
-                                        Approved
-                                    </th>
+                                        <th>
+                                            Material
+                                        </th>
 
-                                    <th>
-                                        Issued
-                                    </th>
+                                        <th>
+                                            Unit
+                                        </th>
 
-                                    <th>
-                                        Remaining
-                                    </th>
+                                        <th>
+                                            Requested
+                                        </th>
 
-                                    <th>
-                                        Stock
-                                    </th>
+                                        <th>
+                                            Approved
+                                        </th>
 
-                                    <th style="width:320px;">
-                                        Issue Material
-                                    </th>
+                                        <th>
+                                            Issued
+                                        </th>
 
-                                </tr>
+                                        <th>
+                                            Remaining
+                                        </th>
 
-                            </thead>
+                                        <th>
+                                            Stock
+                                        </th>
 
+                                        <th style="width:240px;">
+                                            Issue Material
+                                        </th>
 
-                            <tbody>
+                                    </tr>
 
+                                </thead>
 
-                            <?php foreach (
-                                $requestItems[$request['id']]
-                                ?? []
-                                as $item
-                            ): ?>
+                                <tbody>
 
-                                <?php
+                                <?php foreach (
+                                    $requestItems[$request['id']] ?? []
+                                    as $item
+                                ): ?>
 
-                                $requested =
-                                    (float)$item['requested_qty'];
+                                    <?php
 
-                                $approved =
-                                    (float)$item['approved_qty'];
+                                    $requested =
+                                        (float)$item['requested_qty'];
 
-                                $issued =
-                                    (float)$item['issued_qty'];
+                                    $approved =
+                                        (float)$item['approved_qty'];
 
-                                $stock =
-                                    (float)$item['current_stock'];
+                                    $issued =
+                                        (float)$item['issued_qty'];
 
-                                $remaining =
-                                    $approved - $issued;
+                                    $stock =
+                                        (float)$item['current_stock'];
 
-                                if ($remaining < 0) {
-                                    $remaining = 0;
-                                }
+                                    $remaining =
+                                        $approved - $issued;
 
-                                $maxIssue =
-                                    min(
-                                        $remaining,
-                                        $stock
+                                    if ($remaining < 0) {
+                                        $remaining = 0;
+                                    }
+
+                                    $maxIssue =
+                                        min(
+                                            $remaining,
+                                            $stock
+                                        );
+
+                                    /*
+                                    | Show the requested quantity in the
+                                    | Issue Material quantity field.
+                                    | If requested quantity is greater than
+                                    | what can currently be issued, use the
+                                    | maximum safe quantity instead.
+                                    */
+
+                                    $defaultIssueQty =
+                                        $requested > 0
+                                            ? min($requested, $maxIssue)
+                                            : $maxIssue;
+
+                                    $itemInitials = strtoupper(
+                                        substr($item['material_name'], 0, 1)
                                     );
 
-                                $itemInitials = strtoupper(
-                                    substr($item['material_name'], 0, 1)
-                                );
+                                    $canIssue =
+                                        $remaining > 0 &&
+                                        $stock > 0 &&
+                                        $status !== 'Completed';
 
-                                ?>
+                                    ?>
+
+                                    <tr>
+
+                                        <!-- SELECT -->
+
+                                        <td>
+                                            <?php if ($canIssue): ?>
+
+                                                <input
+                                                    type="checkbox"
+                                                    class="form-check-input material-checkbox"
+                                                    name="selected_items[]"
+                                                    value="<?= (int)$item['item_id'] ?>">
+
+                                            <?php endif; ?>
+                                        </td>
 
 
-                                <tr>
+                                        <!-- MATERIAL -->
 
+                                        <td>
 
-                                    <!-- MATERIAL -->
+                                            <div class="d-flex align-items-center gap-2">
 
-                                    <td>
+                                                <span class="row-avatar">
+                                                    <?= e($itemInitials) ?>
+                                                </span>
 
-                                        <div class="d-flex align-items-center gap-2">
+                                                <div>
 
-                                            <span class="row-avatar">
-                                                <?= e($itemInitials) ?>
-                                            </span>
+                                                    <div class="fw-semibold">
+                                                        <?= e($item['material_name']) ?>
+                                                    </div>
 
-                                            <div>
+                                                    <div class="text-muted small">
+                                                        <?= e($item['material_code']) ?>
+                                                    </div>
 
-                                                <div class="fw-semibold">
-                                                    <?= e($item['material_name']) ?>
-                                                </div>
-
-                                                <div class="text-muted small">
-                                                    <?= e($item['material_code']) ?>
                                                 </div>
 
                                             </div>
 
-                                        </div>
-
-                                    </td>
+                                        </td>
 
 
-                                    <!-- UNIT -->
+                                        <!-- UNIT -->
 
-                                    <td>
-                                        <?= e(
-                                            $item['unit']
-                                        ) ?>
-                                    </td>
+                                        <td>
+                                            <?= e($item['unit']) ?>
+                                        </td>
 
 
-                                    <!-- REQUESTED -->
+                                        <!-- REQUESTED -->
 
-                                    <td>
-
-                                        <?= number_format(
-                                            $requested,
-                                            2
-                                        ) ?>
-
-                                    </td>
-
-
-                                    <!-- APPROVED -->
-
-                                    <td>
-
-                                        <span class="badge bg-primary">
+                                        <td>
 
                                             <?= number_format(
-                                                $approved,
+                                                $requested,
                                                 2
                                             ) ?>
 
-                                        </span>
-
-                                    </td>
+                                        </td>
 
 
-                                    <!-- ISSUED -->
+                                        <!-- APPROVED -->
 
-                                    <td>
+                                        <td>
 
-                                        <?= number_format(
-                                            $issued,
-                                            2
-                                        ) ?>
-
-                                    </td>
-
-
-                                    <!-- REMAINING -->
-
-                                    <td>
-
-                                        <?php if ($remaining > 0): ?>
-
-                                            <span
-                                                class="badge bg-warning text-dark">
+                                            <span class="badge bg-primary">
 
                                                 <?= number_format(
-                                                    $remaining,
+                                                    $approved,
                                                     2
                                                 ) ?>
 
                                             </span>
 
-                                        <?php else: ?>
-
-                                            <span
-                                                class="badge badge-enable">
-
-                                                Completed
-
-                                            </span>
-
-                                        <?php endif; ?>
-
-                                    </td>
+                                        </td>
 
 
-                                    <!-- STOCK -->
+                                        <!-- ISSUED -->
 
-                                    <td>
+                                        <td>
 
-                                        <?php if ($stock >= $remaining && $remaining > 0): ?>
+                                            <?= number_format(
+                                                $issued,
+                                                2
+                                            ) ?>
 
-                                            <span
-                                                class="badge badge-enable">
-
-                                                <?= number_format(
-                                                    $stock,
-                                                    2
-                                                ) ?>
-
-                                            </span>
-
-                                        <?php elseif ($stock > 0): ?>
-
-                                            <span
-                                                class="badge bg-warning text-dark">
-
-                                                <?= number_format(
-                                                    $stock,
-                                                    2
-                                                ) ?>
-
-                                            </span>
-
-                                        <?php else: ?>
-
-                                            <span
-                                                class="badge badge-disabled">
-
-                                                0.00
-
-                                            </span>
-
-                                        <?php endif; ?>
-
-                                    </td>
+                                        </td>
 
 
-                                    <!-- ISSUE -->
+                                        <!-- REMAINING -->
 
-                                    <td>
+                                        <td>
 
-                                        <?php if (
-                                            $remaining > 0 &&
-                                            $stock > 0 &&
-                                            $status !== 'Completed'
-                                        ): ?>
+                                            <?php if ($remaining > 0): ?>
 
-                                            <form
-                                                method="POST"
-                                                class="d-flex gap-2">
+                                                <span
+                                                    class="badge bg-warning text-dark">
 
-                                                <input
-                                                    type="hidden"
-                                                    name="request_id"
-                                                    value="<?= (int)$request['id'] ?>"
-                                                >
+                                                    <?= number_format(
+                                                        $remaining,
+                                                        2
+                                                    ) ?>
 
-                                                <input
-                                                    type="hidden"
-                                                    name="item_id"
-                                                    value="<?= (int)$item['item_id'] ?>"
-                                                >
+                                                </span>
 
+                                            <?php else: ?>
 
-                                                <input
-                                                    type="number"
-                                                    name="issue_qty"
-                                                    class="form-control"
-                                                    min="0.01"
-                                                    max="<?= htmlspecialchars(
-                                                        (string)$maxIssue
-                                                    ) ?>"
-                                                    step="0.01"
-                                                    placeholder="Quantity"
-                                                    required
-                                                >
+                                                <span
+                                                    class="badge badge-enable">
+
+                                                    Completed
+
+                                                </span>
+
+                                            <?php endif; ?>
+
+                                        </td>
 
 
-                                                <button
-                                                    type="submit"
-                                                    name="issue_material"
-                                                    value="1"
-                                                    class="btn btn-primary"
-                                                    onclick="return confirm('Issue this material to Kitchen?');"
-                                                >
+                                        <!-- STOCK -->
+
+                                        <td>
+
+                                            <?php if ($stock >= $remaining && $remaining > 0): ?>
+
+                                                <span
+                                                    class="badge badge-enable">
+
+                                                    <?= number_format(
+                                                        $stock,
+                                                        2
+                                                    ) ?>
+
+                                                </span>
+
+                                            <?php elseif ($stock > 0): ?>
+
+                                                <span
+                                                    class="badge bg-warning text-dark">
+
+                                                    <?= number_format(
+                                                        $stock,
+                                                        2
+                                                    ) ?>
+
+                                                </span>
+
+                                            <?php else: ?>
+
+                                                <span
+                                                    class="badge badge-disabled">
+
+                                                    0.00
+
+                                                </span>
+
+                                            <?php endif; ?>
+
+                                        </td>
+
+
+                                        <!-- ISSUE MATERIAL -->
+
+                                        <td>
+
+                                            <?php if ($canIssue): ?>
+
+                                                <div class="d-flex align-items-center gap-2">
+
+                                                    <div style="min-width:145px;">
+
+                                                        <div class="input-group input-group-sm">
+
+                                                            <input
+                                                                type="number"
+                                                                name="issue_qty[<?= (int)$item['item_id'] ?>]"
+                                                                class="form-control issue-qty"
+                                                                min="0.01"
+                                                                max="<?= htmlspecialchars(
+                                                                    (string)$maxIssue
+                                                                ) ?>"
+                                                                step="0.01"
+                                                                value="<?= htmlspecialchars(
+                                                                    (string)$defaultIssueQty
+                                                                ) ?>"
+                                                                data-requested="<?= htmlspecialchars(
+                                                                    (string)$requested
+                                                                ) ?>"
+                                                                data-max="<?= htmlspecialchars(
+                                                                    (string)$maxIssue
+                                                                ) ?>"
+                                                                aria-label="Issue quantity for <?= e($item['material_name']) ?>"
+                                                                required>
+
+                                                            <span class="input-group-text">
+                                                                <?= e($item['unit']) ?>
+                                                            </span>
+
+                                                        </div>
+
+                                                        <small class="text-muted">
+                                                            Requested:
+                                                            <?= number_format(
+                                                                $requested,
+                                                                2
+                                                            ) ?>
+                                                        </small>
+
+                                                    </div>
+
+                                                </div>
+
+                                            <?php elseif ($remaining <= 0): ?>
+
+                                                <span class="text-success">
 
                                                     <i
-                                                        class="fa-solid fa-box-open me-1">
+                                                        class="fa-solid fa-circle-check me-1">
                                                     </i>
 
-                                                    Issue
+                                                    Fully Issued
 
-                                                </button>
+                                                </span>
 
-                                            </form>
+                                            <?php elseif ($stock <= 0): ?>
 
+                                                <span class="text-danger">
 
-                                            <small class="text-muted">
+                                                    <i
+                                                        class="fa-solid fa-triangle-exclamation me-1">
+                                                    </i>
 
-                                                Maximum:
-                                                <?= number_format(
-                                                    $maxIssue,
-                                                    2
-                                                ) ?>
-                                                <?= e(
-                                                    $item['unit']
-                                                ) ?>
+                                                    No Stock
 
-                                            </small>
+                                                </span>
 
-                                        <?php elseif ($remaining <= 0): ?>
+                                            <?php endif; ?>
 
-                                            <span class="text-success">
+                                        </td>
 
-                                                <i
-                                                    class="fa-solid fa-circle-check me-1">
-                                                </i>
-
-                                                Fully Issued
-
-                                            </span>
-
-                                        <?php elseif ($stock <= 0): ?>
-
-                                            <span class="text-danger">
-
-                                                <i
-                                                    class="fa-solid fa-triangle-exclamation me-1">
-                                                </i>
-
-                                                No Stock
-
-                                            </span>
-
-                                        <?php endif; ?>
-
-                                    </td>
-
-                                </tr>
+                                    </tr>
 
 
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
 
 
-                            </tbody>
+                        <!-- BULK ISSUE FOOTER -->
 
-                        </table>
+                        <?php
+                        $hasIssuableItems = false;
 
-                    </div>
+                        foreach ($requestItems[$request['id']] ?? [] as $checkItem) {
+                            $checkRemaining =
+                                max(
+                                    0,
+                                    (float)$checkItem['approved_qty'] -
+                                    (float)$checkItem['issued_qty']
+                                );
+
+                            if (
+                                $checkRemaining > 0 &&
+                                (float)$checkItem['current_stock'] > 0 &&
+                                $status !== 'Completed'
+                            ) {
+                                $hasIssuableItems = true;
+                                break;
+                            }
+                        }
+                        ?>
+
+                        <?php if ($hasIssuableItems): ?>
+
+                            <div class="content-card-body border-top py-3">
+
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+                                    <div class="text-muted small">
+                                        <i class="fa-solid fa-circle-info me-1"></i>
+                                        Select one or more materials, then click
+                                        <strong>Issue Selected</strong>.
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        name="issue_selected_materials"
+                                        value="1"
+                                        class="btn btn-primary">
+
+                                        <i class="fa-solid fa-box-open me-1"></i>
+                                        Issue Selected
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        <?php endif; ?>
+
+                    </form>
 
 
                     <!-- FOOTER -->
@@ -1481,6 +1494,110 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 </main>
 
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    document.querySelectorAll('.bulk-issue-form').forEach(function (form) {
+
+        const selectAll = form.querySelector('.select-all-materials');
+        const checkboxes = Array.from(
+            form.querySelectorAll('.material-checkbox')
+        );
+
+        if (!selectAll) {
+            return;
+        }
+
+        selectAll.addEventListener('change', function () {
+            checkboxes.forEach(function (checkbox) {
+                checkbox.checked = selectAll.checked;
+            });
+        });
+
+        checkboxes.forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                selectAll.checked =
+                    checkboxes.length > 0 &&
+                    checkboxes.every(function (item) {
+                        return item.checked;
+                    });
+            });
+        });
+
+        /*
+        | When a material is selected, make sure its issue quantity
+        | is valid and never exceeds the safe maximum.
+        */
+
+        form.addEventListener('change', function (event) {
+
+            if (!event.target.classList.contains('issue-qty')) {
+                return;
+            }
+
+            const input = event.target;
+            const max = parseFloat(input.dataset.max || '0');
+            const value = parseFloat(input.value || '0');
+
+            if (max > 0 && value > max) {
+                input.value = max;
+            }
+
+            if (value < 0) {
+                input.value = '';
+            }
+        });
+    });
+
+});
+
+function confirmBulkIssue(form) {
+
+    const selected = form.querySelectorAll(
+        '.material-checkbox:checked'
+    );
+
+    if (selected.length === 0) {
+        alert('Please select at least one material to issue.');
+        return false;
+    }
+
+    let invalid = false;
+
+    selected.forEach(function (checkbox) {
+
+        const itemId = checkbox.value;
+
+        const qtyInput = form.querySelector(
+            'input[name="issue_qty[' + itemId + ']"]'
+        );
+
+        if (!qtyInput) {
+            invalid = true;
+            return;
+        }
+
+        const quantity = parseFloat(qtyInput.value || '0');
+        const max = parseFloat(qtyInput.dataset.max || '0');
+
+        if (quantity <= 0 || quantity > max) {
+            invalid = true;
+        }
+    });
+
+    if (invalid) {
+        alert(
+            'Please enter a valid issue quantity for all selected materials.'
+        );
+        return false;
+    }
+
+    return confirm(
+        'Issue the selected materials to Kitchen?'
+    );
+}
+</script>
 
 <?php
 require_once __DIR__ . '/../includes/footer.php';
