@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($planItemId <= 0) {
             $error = 'Invalid cooking plan item.';
         } elseif ($preparedQty <= 0) {
-            $error = 'Prepared quantity must be greater than zero.';
+            $error = 'Prepared plates must be greater than zero.';
         } else {
 
             try {
@@ -822,10 +822,9 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <td>
                                 <?= number_format(
                                     (float)$row['prepared_qty'],
-                                    2
+                                    0
                                 ) ?>
-
-                                <?= htmlspecialchars($row['unit']) ?>
+                                plates
                             </td>
 
                             <td>
@@ -1007,8 +1006,8 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             type="number"
                             name="prepared_qty"
                             class="form-control"
-                            min="0.01"
-                            step="0.01"
+                            min="1"
+                            step="1"
                             value="<?= htmlspecialchars(
                                 (string)$item['required_plates']
                             ) ?>"

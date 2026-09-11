@@ -13,6 +13,7 @@ if (!in_array($_SESSION['role_name'] ?? '', $allowedRoles, true)) {
 }
 
 $pageTitle = 'Kitchen Issue History';
+$error = null;
 
 
 /*
@@ -49,14 +50,14 @@ $params = [];
 
 /*
 |--------------------------------------------------------------------------
-| ONLY NEW KITCHEN FLOW REQUESTS
+| KITCHEN MATERIAL REQUESTS
 |--------------------------------------------------------------------------
 |
-| plan_id is populated by Chef Approval.
+| Show all kitchen material requests.
+| If a request has a cooking plan, plan information is displayed.
+| Older requests without plan_id are also shown.
 |
 */
-
-$where[] = "kr.plan_id IS NOT NULL";
 
 /*
 |--------------------------------------------------------------------------
@@ -79,7 +80,7 @@ if ($statusFilter !== 'All') {
 
 if ($dateFrom !== '') {
 
-    $where[] = "kr.request_date >= :date_from";
+    $where[] = "COALESCE(dcp.cooking_date, kr.request_date) >= :date_from";
 
     $params[':date_from'] = $dateFrom;
 }
@@ -92,7 +93,7 @@ if ($dateFrom !== '') {
 
 if ($dateTo !== '') {
 
-    $where[] = "kr.request_date <= :date_to";
+   $where[] = "COALESCE(dcp.cooking_date, kr.request_date) <= :date_to";
 
     $params[':date_to'] = $dateTo;
 }
@@ -106,17 +107,22 @@ if ($dateTo !== '') {
 if ($search !== '') {
 
     $where[] = "
-        (
-            kr.request_no LIKE :search
-            OR dcp.plan_no LIKE :search
-            OR kr.meal_type LIKE :search
-        )
-    ";
+    (
+        kr.request_no LIKE :search
+        OR dcp.meal_type LIKE :search
+        OR CAST(kr.id AS CHAR) LIKE :search
+        OR CAST(kr.plan_id AS CHAR) LIKE :search
+    )
+";
 
     $params[':search'] = '%' . $search . '%';
 }
 
-$whereSql = implode(' AND ', $where);
+$whereSql = '';
+
+if (!empty($where)) {
+    $whereSql = 'WHERE ' . implode(' AND ', $where);
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -132,13 +138,12 @@ try {
             kr.request_no,
             kr.request_date,
             kr.status,
-            kr.meal_type,
             kr.plan_id,
             kr.created_at,
             kr.updated_at,
 
-            dcp.plan_no,
-            dcp.plan_date,
+            dcp.id AS plan_id_ref,
+            dcp.cooking_date,
             dcp.meal_type AS plan_meal_type,
 
             u.employee_name,
@@ -172,19 +177,18 @@ try {
         LEFT JOIN kitchen_request_items kri
             ON kri.request_id = kr.id
 
-        WHERE {$whereSql}
+        {$whereSql}
 
         GROUP BY
             kr.id,
             kr.request_no,
             kr.request_date,
             kr.status,
-            kr.meal_type,
             kr.plan_id,
             kr.created_at,
             kr.updated_at,
-            dcp.plan_no,
-            dcp.plan_date,
+            dcp.id,
+            dcp.cooking_date,
             dcp.meal_type,
             u.employee_name,
             u.employee_code
@@ -201,7 +205,7 @@ try {
 
     $requests = [];
 
-    $error = 'Unable to load material issue history.';
+    $error = 'Unable to load material issue history: ' . $e->getMessage();
 }
 
 /*
@@ -778,31 +782,27 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                             <td>
 
-                                <?php if (!empty($request['plan_no'])): ?>
-
-                                    <strong>
-                                        <?= e($request['plan_no']) ?>
-                                    </strong>
-
-                                <?php else: ?>
-
-                                    <span class="text-muted">
-                                        -
-                                    </span>
-
-                                <?php endif; ?>
+                                <strong>
+                                    Plan #<?= (int)$request['plan_id'] ?>
+                                </strong>
 
                             </td>
 
 
                             <td>
 
-                                <?= e(
-                                    date(
-                                        'd-m-Y',
-                                        strtotime($request['request_date'])
-                                    )
-                                ) ?>
+                                <?php
+                                    $displayDate = !empty($request['cooking_date'])
+                                        ? $request['cooking_date']
+                                        : $request['request_date'];
+                                    ?>
+
+                                    <?= e(
+                                        date(
+                                            'd-m-Y',
+                                            strtotime($displayDate)
+                                        )
+                                    ) ?>
 
                             </td>
 
@@ -811,10 +811,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                 <span class="badge bg-info text-dark">
 
-                                    <?= e(
-                                        $request['meal_type']
-                                        ?: ($request['plan_meal_type'] ?? '-')
-                                    ) ?>
+                                    <?= e($request['plan_meal_type'] ?? '-') ?>
 
                                 </span>
 
@@ -944,10 +941,19 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                 </small>
 
                                                 <div>
-                                                    <?= e(
-                                                        $request['plan_no']
-                                                        ?? '-'
-                                                    ) ?>
+                                                    <?php if (!empty($request['plan_id'])): ?>
+
+                                                    <strong>
+                                                        Plan #<?= (int)$request['plan_id'] ?>
+                                                    </strong>
+
+                                                <?php else: ?>
+
+                                                    <span class="text-muted">
+                                                        No Plan
+                                                    </span>
+
+                                                <?php endif; ?>
                                                 </div>
 
                                             </div>
@@ -977,13 +983,13 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                                 <div>
 
-                                                    <?php if (!empty($request['plan_date'])): ?>
+                                                   <?php if (!empty($request['cooking_date'])): ?>
 
                                                         <?= e(
                                                             date(
                                                                 'd-m-Y',
                                                                 strtotime(
-                                                                    $request['plan_date']
+                                                                    $request['cooking_date']
                                                                 )
                                                             )
                                                         ) ?>
