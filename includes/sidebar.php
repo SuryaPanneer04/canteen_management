@@ -11,6 +11,110 @@ $isKitchen = ($role === 'Kitchen');
 $isCanteen = ($role === 'Canteen');
 
 ?>
+<style>
+/* Premium MNC Corporate Theme - Subtle Leaf, No Wave, High-End Active State */
+/* Adjusted main content margin to match the new wider sidebar */
+@media (min-width: 992px) {
+    .main-content { margin-left: 245px !important; }
+}
+
+#sidebar {
+    background-color: #082F63 !important; /* Exact color requested */
+    width: 245px !important; /* Increased width to the right */
+    /* Subtle Leaf Watermarks instead of wave */
+    background-image: 
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' fill-opacity='0.03' d='M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' fill-opacity='0.04' d='M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z'/%3E%3C/svg%3E");
+    background-position: top 5% right -30px, bottom 10% left -40px;
+    background-repeat: no-repeat;
+    background-size: 180px, 220px;
+    border-right: none;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* --- PREMIUM BRAND LOGO SECTION --- */
+#sidebar .brand { 
+    padding: 25px 15px 20px; /* Reduced left padding to match menu */
+    border-bottom: 1px solid rgba(255,255,255,0.06); 
+    display: flex; 
+    align-items: center; 
+    gap: 14px; /* Better spacing between icon and text */
+}
+#sidebar .brand-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important; /* Rich gradient */
+    color: #ffffff !important;
+    border-radius: 14px; /* Softer radius */
+    width: 48px; height: 48px; /* Slightly larger, premium feel */
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    /* 3D Glass Glow Effect */
+    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.4), inset 0 2px 4px rgba(255,255,255,0.25); 
+    border: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+}
+#sidebar .brand-title { color: #fff; font-weight: 800; font-size: 20px; letter-spacing: 0.5px; line-height: 1.2;}
+#sidebar .brand small { color: #94a3b8; font-size: 11px; font-weight: 500; letter-spacing: 0.5px;}
+
+/* Hide Ugly Scrollbar but keep it scrollable */
+#sidebar {
+    overflow-y: auto;
+    scrollbar-width: none; /* Firefox */
+}
+#sidebar::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+/* --- LEFT ALIGNED MENU SECTION --- */
+#sidebar .nav-label {
+    color: #7b93af; font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+    margin: 10px 14px 4px; /* Reduced gap, pushed further left */
+    text-transform: uppercase;
+    text-align: left; 
+    display: block;
+}
+
+#sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    color: #cbd5e1; 
+    border-radius: 10px; 
+    margin: 1px 10px; /* Pushed left and reduced top/bottom gap */
+    padding: 9px 12px; /* Tighter padding for compact look */
+    font-weight: 600; 
+    font-size: 14.5px; 
+    transition: all 0.3s ease;
+    text-decoration: none;
+    white-space: nowrap; 
+}
+#sidebar .nav-link i { 
+    color: #94a3b8; 
+    font-size: 16px; 
+    width: 28px; /* Tighter spacing between icon and text */
+    text-align: left;
+    transition: all 0.3s ease;
+}
+#sidebar .nav-link:hover { 
+    background: rgba(255,255,255,0.05); 
+    color: #fff;
+}
+#sidebar .nav-link:hover i { color: #fff; transform: scale(1.05); }
+
+/* EXACT Premium MNC Active State (Like your image) */
+#sidebar .nav-link.active {
+    background: rgba(255, 255, 255, 0.1) !important; /* Soft highlight box */
+    color: #ffffff !important; 
+    font-weight: 700;
+    border-left: 5px solid #4ea8de; /* The thick rounded light blue left border */
+    border-radius: 10px; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+#sidebar .nav-link.active i { color: #4ea8de !important; }
+</style>
 
 <aside class="sidebar" id="sidebar">
 
@@ -21,12 +125,12 @@ $isCanteen = ($role === 'Canteen');
     <div class="brand">
 
         <div class="brand-icon">
-            <i class="fa-solid fa-utensils"></i>
+            <i class="fa-solid fa-store"></i> <!-- Exact Store Logo -->
         </div>
 
         <div>
             <div class="brand-title">
-                Canteen
+                Canteen 
             </div>
 
             <small>
@@ -81,7 +185,7 @@ $isCanteen = ($role === 'Canteen');
 
             <a
                 class="nav-link <?= $currentPage === 'users.php' ? 'active' : '' ?>"
-                href="users.php"
+                href="../admin/users.php"
             >
 
                 <i class="fa-solid fa-users"></i>
@@ -190,13 +294,13 @@ $isCanteen = ($role === 'Canteen');
                 </a>
             </li>-->
 
-            <?php if (!$isAdmin): ?>
+           <!-- <?php if (!$isAdmin): ?>
             <li class="nav-item">
                 <a href="../store/stock_issue.php" class="nav-link">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     <span>Stock Issue</span>
                 </a>
-            </li>
+            </li> -->
 
             <li>
                 <a href="../store/kitchen_requests.php" class="nav-link">
@@ -233,31 +337,27 @@ $isCanteen = ($role === 'Canteen');
                 PURCHASE
             </div>
 
-           <!-- <li class="nav-item">
-                <a href="../purchase/dashboard.php" class="nav-link">
-                    <i class="fa-solid fa-chart-line"></i>
-                    <span>Purchase Dashboard</span>
-                </a>
-            </li> -->
-
             <?php if (!$isAdmin): ?>
             <li class="nav-item">
-                <a href="../purchase/requests.php" class="nav-link">
+                <!-- Added active class logic for requests.php -->
+                <a href="../purchase/requests.php" class="nav-link <?= $currentPage === 'requests.php' ? 'active' : '' ?>">
                     <i class="fa-solid fa-file-circle-check"></i>
                     <span>Purchase Requests</span>
                 </a>
             </li>
-        <?php endif; ?>
+            <?php endif; ?>
 
             <li class="nav-item">
-                <a href="../purchase/suppliers.php" class="nav-link">
+                <!-- Added active class logic for suppliers.php -->
+                <a href="../purchase/suppliers.php" class="nav-link <?= $currentPage === 'suppliers.php' ? 'active' : '' ?>">
                     <i class="fa-solid fa-truck-field"></i>
                     <span>Suppliers</span>
                 </a>
             </li>
 
             <li class="nav-item">
-                <a href="../purchase/purchase_orders.php" class="nav-link">
+                <!-- Added active class logic for purchase_orders.php and view page -->
+                <a href="../purchase/purchase_orders.php" class="nav-link <?= ($currentPage === 'purchase_orders.php' || $currentPage === 'purchase_order_view.php') ? 'active' : '' ?>">
                     <i class="fa-solid fa-file-invoice"></i>
                     <span>Purchase Orders</span>
                 </a>

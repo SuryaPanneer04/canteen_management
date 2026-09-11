@@ -1,0 +1,100 @@
+/* Exact Match Styling - Resized to fit screen perfectly */
+body { margin: 0; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; background: #eef4fc; }
+
+/* Make the whole page use your new full background image & lock scroll */
+.auth-page { 
+    display: flex; 
+    height: 90vh; /* Locked to screen height */
+    width: 100vw; /* Exact screen width */
+    
+    /* Changed to 100% 100% so the image never crops and the text is fully visible */
+    background: url('../images/login_img1.png') center/100% 100% no-repeat; 
+    
+    align-items: center;
+    justify-content: flex-end; 
+}
+
+/* Hide the HTML text because it is already baked into your background image */
+.auth-visual, .top-right-decor, .bottom-quote { display: none !important; }
+
+/* Adjusted Panel Width to keep the card inside the white area */
+.auth-panel { 
+    width: 40%; /* Reduced width */
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    background: transparent; 
+    border: none;
+    box-shadow: none;
+    margin: 0;
+    border-radius: 0;
+    padding-right: 8%; /* Fine-tuned alignment */
+}
+
+/* Compact Card with Exact 3D Thick Frosted Glass Bezel */
+.auth-card { 
+    background: rgba(255, 255, 255, 0.85); 
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-radius: 24px; /* Scaled down */
+    padding: 25px 30px; /* Reduced padding for smaller box */
+    width: 100%; 
+    max-width: 320px; /* Reduced max-width to make the box smaller */
+    
+    /* Adjusted glowing bezel */
+    box-shadow: 
+        0 0 0 8px rgba(255, 255, 255, 0.4), 
+        0 15px 40px rgba(0, 130, 255, 0.15), 
+        inset 0 0 15px rgba(255, 255, 255, 1); 
+    border: 2px solid rgba(255, 255, 255, 0.9); 
+    position: relative; 
+    z-index: 10; 
+}
+
+/* Resized Inner Elements for Smaller Card */
+.card-logo { 
+    background: #00c652; color: #fff; width: 45px; height: 45px; border-radius: 12px; 
+    display: flex; align-items: center; justify-content: center; font-size: 22px; 
+    margin: 0 auto 10px; box-shadow: 0 8px 15px rgba(0,198,82,0.3); 
+}
+.auth-title { text-align: center; font-weight: 800; font-size: 17px; color: #1e293b; margin-bottom: 2px; }
+.auth-subtitle { text-align: center; color: #64748b; font-size: 11px; font-weight: 600; margin-bottom: 20px; }
+
+.greeting-title { font-weight: 800; font-size: 14px; color: #0f172a; margin-bottom: 2px; }
+.greeting-sub { color: #64748b; font-size: 11px; margin-bottom: 12px; font-weight: 500;}
+
+.auth-input-group { position: relative; margin-bottom: 10px; }
+.auth-input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 12px;}
+
+.auth-input { 
+    padding: 9px 12px 9px 35px; border-radius: 10px; 
+    border: 2px solid #e2e8f0; background: #f8fafc; color: #0f172a; 
+    font-size: 12px; font-weight: 600; height: auto; transition: all 0.3s;
+    width: 100%; box-sizing: border-box;
+}
+.auth-input:focus { 
+    border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); outline: none; background: #fff;
+}
+
+.auth-input-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #64748b; cursor: pointer; }
+
+.auth-actions { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 15px; margin-top: 5px;}
+.auth-actions .form-check-label { font-weight: 600; color: #475569; cursor: pointer; }
+.auth-actions a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+
+.auth-btn { 
+    background: linear-gradient(90deg, #10d952 0%, #00a650 100%); 
+    color: #fff; font-weight: 700; font-size: 13.5px; padding: 10px; 
+    border-radius: 50px; border: none; 
+    box-shadow: 0 6px 12px rgba(0, 198, 82, 0.35); transition: all 0.3s ease;
+    width: 100%;
+}
+.auth-btn:hover { color: white; transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0, 198, 82, 0.45); }
+
+.divider { display: flex; align-items: center; text-align: center; color: #94a3b8; font-size: 12px; font-weight: 600; margin: 20px 0 10px; }
+.divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1.5px solid #e2e8f0; }
+.divider::before { margin-right: 15px; }
+.divider::after { margin-left: 15px; }
+
+@media (max-width: 991px) { 
+    .auth-panel { width: 100%; padding: 20px; } 
+}

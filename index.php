@@ -7,7 +7,29 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/functions.php';
 
 if (!empty($_SESSION['user_id'])) {
-    header('Location: admin/dashboard.php');
+    $role = $_SESSION['role_name'] ?? '';
+    
+    switch ($role) {
+        case 'Super Admin':
+            header('Location: admin/dashboard.php');
+            break;
+        case 'Store':
+            header('Location: store/dashboard.php');
+            break;
+        case 'Purchase':
+            header('Location: purchase/dashboard.php');
+            break;
+        case 'Kitchen':
+            header('Location: kitchen/dashboard.php');
+            break;
+        case 'Canteen':
+            header('Location: canteen/dashboard.php');
+            break;
+        default:
+            session_destroy();
+            header('Location: index.php');
+            break;
+    }
     exit;
 }
 
@@ -90,98 +112,114 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-    <link href="assets/css/app.css" rel="stylesheet">
+   <link href="assets/css/app.css" rel="stylesheet">
+    <!-- Linking our new custom external CSS -->
+    <link href="assets/css/login.css" rel="stylesheet">
 </head>
 <body>
 
 <div class="auth-page">
 
+    <!-- Left Visual Side -->
     <div class="auth-visual">
         <div class="auth-visual-overlay"></div>
         <div class="auth-visual-text">
-            <h2>Efficient Management.<br>Exceptional Service.</h2>
-            <p>Welcome to Proton Canteen, your comprehensive platform for managing daily operations.</p>
+            <div class="visual-logo">
+                <i class="fa-solid fa-utensils"></i>
+            </div>
+            <div>
+                <h2 class="visual-title">Proton Canteen</h2>
+                <p class="visual-subtitle">Canteen Management System</p>
+                <p class="visual-desc">Efficient Management. Exceptional Service.</p>
+            </div>
         </div>
     </div>
 
+    <!-- Right Panel Side -->
     <div class="auth-panel">
-        <div class="auth-card">
+        
+        <div class="top-right-decor">
+            GOOD FOOD<br>
+            GREAT PEOPLE<br>
+            <span class="highlight">BRIGHTER TOMORROW</span>
+        </div>
 
-            <div class="auth-icon">
+        <div class="auth-card">
+            
+            <div class="card-logo">
                 <i class="fa-solid fa-utensils"></i>
             </div>
 
             <h1 class="auth-title">Proton Canteen</h1>
-            <p class="auth-subtitle">Welcome Back. Please sign in to your account.</p>
+            <p class="auth-subtitle">Canteen Management System</p>
+
+            <div class="greeting-title">Welcome Back!</div>
+            <div class="greeting-sub">Please sign in to your account.</div>
 
             <?php if ($error): ?>
-                <div class="alert alert-danger">
-                    <i class="fa-solid fa-circle-exclamation me-2"></i>
+                <div class="alert alert-danger py-2 px-3 mb-3" style="font-size: 13px;">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i>
                     <?= e($error) ?>
                 </div>
             <?php endif; ?>
 
             <form method="post" autocomplete="off">
-
-                <div class="mb-3">
-                    <label class="form-label">Email Address</label>
-                    <div class="auth-input-group">
-                        <i class="fa-solid fa-envelope auth-input-icon"></i>
-                        <input
-                            type="email"
-                            name="email"
-                            class="form-control auth-input"
-                            placeholder="admin@proton.com"
-                            required
-                            autofocus
-                        >
-                    </div>
+                
+                <div class="auth-input-group">
+                    <i class="fa-regular fa-envelope auth-input-icon"></i>
+                    <input
+                        type="email"
+                        name="email"
+                        class="form-control auth-input"
+                        placeholder="admin@proton.com"
+                        required
+                        autofocus
+                    >
                 </div>
 
-                <div class="mb-3">
-                    <div class="auth-row">
-                        <label class="form-label">Password</label>
-                        <!--<a href="forgot-password.php" class="auth-link">Forgot Password?</a> -->
-                    </div>
-                    <div class="auth-input-group">
-                        <i class="fa-solid fa-lock auth-input-icon"></i>
-                        <input
-                            type="password"
-                            name="password"
-                            id="authPassword"
-                            class="form-control auth-input"
-                            placeholder="••••••••"
-                            required
-                        >
-                        <button type="button" class="auth-input-toggle" id="authPasswordToggle" aria-label="Show password">
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
-                    </div>
+                <div class="auth-input-group">
+                    <i class="fa-solid fa-lock auth-input-icon"></i>
+                    <input
+                        type="password"
+                        name="password"
+                        id="authPassword"
+                        class="form-control auth-input"
+                        placeholder="••••••••"
+                        required
+                    >
+                    <button type="button" class="auth-input-toggle" id="authPasswordToggle" aria-label="Show password">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
                 </div>
 
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" name="remember" id="rememberMe">
-                    <label class="form-check-label auth-remember" for="rememberMe">Remember me for 30 days</label>
+                <div class="auth-actions">
+                    <div class="form-check m-0">
+                        <input class="form-check-input" type="checkbox" name="remember" id="rememberMe" checked>
+                        <label class="form-check-label" for="rememberMe">Remember me for 30 days</label>
+                    </div>
+                    <a href="forgot-password.php">Forgot password?</a>
                 </div>
 
                 <button class="btn w-100 auth-btn" type="submit">
-                    Sign In <i class="fa-solid fa-arrow-right ms-1"></i>
+                    Sign In <i class="fa-solid fa-arrow-right ms-2"></i>
                 </button>
+                
+                <div class="divider">Need help logging in?</div>
+
+                <div class="text-center mt-3 mb-2" style="font-size: 13.5px; font-weight: 600; color: #475569;">
+                    <i class="fa-solid fa-headset me-2" style="color: #00c652; font-size: 15px;"></i> 
+                    Contact with Administration
+                </div>
+
+                <div class="bottom-quote">
+                    "Good Food Fuels Great Work"
+                    <div class="quote-line"></div>
+                </div>
 
             </form>
 
         </div>
 
-        <div class="auth-footer">
-            <div>&copy; 2026 CanteenPro Systems. All rights reserved.</div>
-            <div class="auth-footer-links">
-                <a href="privacy-policy.php">Privacy Policy</a>
-                <span>&middot;</span>
-                <a href="terms-of-service.php">Terms of Service</a>
-                <span>&middot;</span>
-                <a href="support.php">Support</a>
-            </div>
-        </div>
     </div>
 
 </div>
