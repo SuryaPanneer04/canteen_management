@@ -216,8 +216,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (($_SESSION['role_name'] ?? '') !== 'Super Admin') {
             $error = 'Access Denied: Only Admin can approve invoices.';
         } else {
-            $stmt = $con->prepare("UPDATE invoices SET status = 'Approved', approved_by = ?, approved_at = NOW() WHERE po_id = ? AND status = 'Pending'");
-            $stmt->execute([$_SESSION['user_id'] ?? null, $poId]);
+            // Removed approved_by and approved_at to match database structure
+            $stmt = $con->prepare("UPDATE invoices SET status = 'Approved' WHERE po_id = ? AND status = 'Pending'");
+            $stmt->execute([$poId]);
             $success = 'Invoice approved successfully. Purchase team can now process payment.';
         }
     }
@@ -225,17 +226,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (($_SESSION['role_name'] ?? '') !== 'Super Admin') {
             $error = 'Access Denied: Only Admin can reject invoices.';
         } else {
-            $stmt = $con->prepare("UPDATE invoices SET status = 'Rejected', approved_by = ?, approved_at = NOW() WHERE po_id = ? AND status = 'Pending'");
-            $stmt->execute([$_SESSION['user_id'] ?? null, $poId]);
-            $success = 'Invoice rejected.';
-        }
-    }
-    elseif ($action === 'reject_invoice') {
-        if (($_SESSION['role_name'] ?? '') !== 'Super Admin') {
-            $error = 'Access Denied: Only Admin can reject invoices.';
-        } else {
-            $stmt = $con->prepare("UPDATE invoices SET status = 'Rejected', approved_by = ?, approved_at = NOW() WHERE po_id = ? AND status = 'Pending'");
-            $stmt->execute([$_SESSION['user_id'] ?? null, $poId]);
+            // Removed approved_by and approved_at to match database structure
+            $stmt = $con->prepare("UPDATE invoices SET status = 'Rejected' WHERE po_id = ? AND status = 'Pending'");
+            $stmt->execute([$poId]);
             $success = 'Invoice rejected.';
         }
     }
@@ -391,7 +384,7 @@ $statusClass = match ($po['status']) {
 | CHECK IF INVOICE EXISTS
 |--------------------------------------------------------------------------
 */
-$invStmt = $con->prepare("SELECT invoice_no, status FROM invoices WHERE po_id = ? LIMIT 1");
+$invStmt = $con->prepare("SELECT invoice_no, status, total_amount, tax_amount FROM invoices WHERE po_id = ? LIMIT 1");
 $invStmt->execute([$poId]);
 $invoice = $invStmt->fetch();
 
@@ -436,9 +429,16 @@ require_once __DIR__ . '/../includes/header.php';
 
 
                 <div class="d-flex gap-2">
-
+                    
+                    <?php
+                        // Dynamically set back button URL based on user role
+                        $backUrl = 'purchase_orders.php';
+                        if (($_SESSION['role_name'] ?? '') === 'Super Admin') {
+                            $backUrl = '../admin/invoice_approvals.php';
+                        }
+                    ?>
                     <a
-                        href="purchase_orders.php"
+                        href="<?= $backUrl ?>"
                         class="btn btn-outline-secondary"
                     >
 
@@ -780,24 +780,35 @@ require_once __DIR__ . '/../includes/header.php';
                         <tfoot>
 
                             <tr>
-
-                                <th
-                                    colspan="6"
-                                    class="text-end"
-                                >
-                                    Grand Total
+                                <th colspan="6" class="text-end text-muted">
+                                    PO Total (Subtotal)
                                 </th>
-
-                                <th class="text-end">
-
-                                    ₹<?= number_format(
-                                        $grandTotal,
-                                        2
-                                    ) ?>
-
+                                <th class="text-end text-muted">
+                                    ₹<?= number_format($grandTotal, 2) ?>
                                 </th>
-
                             </tr>
+
+                            <?php if (!empty($invoice) && $invoice['tax_amount'] > 0): ?>
+                            <tr>
+                                <th colspan="6" class="text-end text-muted">
+                                    Tax Amount
+                                </th>
+                                <th class="text-end text-muted">
+                                    + ₹<?= number_format((float)$invoice['tax_amount'], 2) ?>
+                                </th>
+                            </tr>
+                            <?php endif; ?>
+
+                            <?php if (!empty($invoice)): ?>
+                            <tr class="table-light">
+                                <th colspan="6" class="text-end fs-6 fw-bold">
+                                    Invoice Grand Total
+                                </th>
+                                <th class="text-end fs-6 fw-bold text-success">
+                                    ₹<?= number_format((float)$invoice['total_amount'], 2) ?>
+                                </th>
+                            </tr>
+                            <?php endif; ?>
 
                         </tfoot>
 

@@ -15,8 +15,8 @@ $activeUsers = (int)$con->query("SELECT COUNT(*) FROM users WHERE status = 'Enab
 // 1. Pending Invoice Approvals
 $pendingInvoices = 0;
 try {
-    $pendingInvoices = (int)$con->query("SELECT COUNT(*) FROM purchase_orders WHERE status = 'Pending'")->fetchColumn();
-} catch(Exception $e) {} // Safe fallback
+    $pendingInvoices = (int)$con->query("SELECT COUNT(*) FROM invoices WHERE status = 'Pending'")->fetchColumn();
+} catch(Exception $e) {} 
 
 // 2. Today's Total Served Food
 $todayServed = 0;
@@ -29,8 +29,7 @@ try {
 // 3. Today's Wastage (Actual Wastage Only)
 $todayWastage = 0;
 try {
-    // Adjust column name 'quantity' or 'wastage_qty' based on your DB
-    $wastageStmt = $con->prepare("SELECT SUM(quantity) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason != 'Staff Consumption'");
+    $wastageStmt = $con->prepare("SELECT SUM(wastage_qty) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason != 'Staff Consumption'");
     $wastageStmt->execute([$today]);
     $todayWastage = (int)$wastageStmt->fetchColumn();
 } catch(Exception $e) {}
@@ -38,7 +37,7 @@ try {
 // --- Table: Pending Invoice Approvals ---
 $pendingApprovals = [];
 try {
-    $recentStmt = $con->query("SELECT * FROM purchase_orders WHERE status = 'Pending' ORDER BY id DESC LIMIT 5");
+    $recentStmt = $con->query("SELECT * FROM invoices WHERE status = 'Pending' ORDER BY id DESC LIMIT 5");
     $pendingApprovals = $recentStmt->fetchAll();
 } catch(Exception $e) {}
 
@@ -46,7 +45,7 @@ try {
 $growthLabels = [];
 $growthCounts = [];
 try {
-    $trendStmt = $con->prepare("SELECT SUM(quantity) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason != 'Staff Consumption'");
+    $trendStmt = $con->prepare("SELECT SUM(wastage_qty) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason != 'Staff Consumption'");
     for ($i = 6; $i >= 0; $i--) {
         $day = date('Y-m-d', strtotime("-{$i} days"));
         $trendStmt->execute([$day]);
@@ -54,16 +53,13 @@ try {
         $val = (int)$trendStmt->fetchColumn();
         $growthCounts[] = $val > 0 ? $val : 0; 
     }
-} catch(Exception $e) {
-    // Fallback zero data if table structure differs slightly
-    for ($i=6; $i>=0; $i--) { $growthLabels[] = date('D', strtotime("-{$i} days")); $growthCounts[] = 0; }
-}
+} catch(Exception $e) {}
 
 // --- Chart data: Wastage vs Staff Consumption (Today) ---
 $roleLabels = ['Actual Wastage', 'Staff Consumption'];
 $staffCons = 0;
 try {
-    $staffConsStmt = $con->prepare("SELECT SUM(quantity) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason = 'Staff Consumption'");
+    $staffConsStmt = $con->prepare("SELECT SUM(wastage_qty) FROM canteen_wastage WHERE DATE(created_at) = ? AND reason = 'Staff Consumption'");
     $staffConsStmt->execute([$today]);
     $staffCons = (int)$staffConsStmt->fetchColumn() ?: 0;
 } catch(Exception $e) {}
@@ -193,7 +189,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <table class="table table-hover align-middle mb-0">
                             <thead>
                             <tr>
-                                <th>PO Number</th>
+                                <th>Invoice No</th>
                                 <th>Status</th>
                                 <th>Date</th>
                             </tr>
@@ -207,15 +203,15 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 </tr>
                             <?php endif; ?>
 
-                            <?php foreach ($pendingApprovals as $po): ?>
+                            <?php foreach ($pendingApprovals as $inv): ?>
                                 <tr>
                                     <td>
-                                        <strong><?= e($po['po_number'] ?? 'N/A') ?></strong>
+                                        <strong><?= e($inv['invoice_no'] ?? 'N/A') ?></strong>
                                     </td>
                                     <td>
-                                        <span class="badge badge-amber">Pending</span>
+                                        <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Pending</span>
                                     </td>
-                                    <td><?= date('d M Y', strtotime($po['created_at'])) ?></td>
+                                    <td><?= date('d M Y', strtotime($inv['created_at'])) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
