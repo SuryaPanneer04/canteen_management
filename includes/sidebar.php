@@ -114,7 +114,6 @@ $isCanteen = ($role === 'Canteen');
         <span>
             Invoice Approvals
         </span>
-    </a>
 
           <a 
         class="nav-link <?= $currentPage === 'canteen_report.php' ? 'active' : '' ?>" 
@@ -126,9 +125,8 @@ $isCanteen = ($role === 'Canteen');
         <span>
             Canteen Report
         </span>
-    
-    </a>
-        <a
+
+            <a
                 class="nav-link <?= $currentPage === 'roles.php' ? 'active' : '' ?>"
                 href="../admin/roles.php"
             >
@@ -192,6 +190,7 @@ $isCanteen = ($role === 'Canteen');
                 </a>
             </li>-->
 
+            <?php if (!$isAdmin): ?>
             <li class="nav-item">
                 <a href="../store/stock_issue.php" class="nav-link">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -219,6 +218,7 @@ $isCanteen = ($role === 'Canteen');
                     <span>PO Receiving</span>
                 </a>
             </li>
+        <?php endif; ?>
 
         <?php endif; ?>
 
@@ -240,12 +240,14 @@ $isCanteen = ($role === 'Canteen');
                 </a>
             </li> -->
 
+            <?php if (!$isAdmin): ?>
             <li class="nav-item">
                 <a href="../purchase/requests.php" class="nav-link">
                     <i class="fa-solid fa-file-circle-check"></i>
                     <span>Purchase Requests</span>
                 </a>
             </li>
+        <?php endif; ?>
 
             <li class="nav-item">
                 <a href="../purchase/suppliers.php" class="nav-link">
@@ -295,7 +297,7 @@ $isCanteen = ($role === 'Canteen');
             <li class="nav-item">
 
                 <a
-                    href="food_menu.php"
+                    href="../kitchen/food_menu.php"
                     class="nav-link <?= $currentPage === 'food_menu.php' ? 'active' : '' ?>"
                 >
                     <i class="fa-solid fa-bowl-food"></i>
@@ -305,64 +307,35 @@ $isCanteen = ($role === 'Canteen');
             </li>
 
 
-            <!-- DAILY COOKING PLAN -->
-
+            <?php if (!$isAdmin): ?>
             <li class="nav-item">
-
-                <a
-                    href="daily_cooking_plan.php"
-                    class="nav-link <?= $currentPage === 'daily_cooking_plan.php' ? 'active' : '' ?>"
-                >
+                <a href="daily_cooking_plan.php" class="nav-link <?= $currentPage === 'daily_cooking_plan.php' ? 'active' : '' ?>">
                     <i class="fa-solid fa-calendar-days"></i>
                     <span>Daily Cooking Plan</span>
                 </a>
-
             </li>
 
-
-            <!-- CHEF APPROVAL -->
-
             <li class="nav-item">
-
-                <a
-                    href="chef_approval.php"
-                    class="nav-link <?= $currentPage === 'chef_approval.php' ? 'active' : '' ?>"
-                >
+                <a href="chef_approval.php" class="nav-link <?= $currentPage === 'chef_approval.php' ? 'active' : '' ?>">
                     <i class="fa-solid fa-user-check"></i>
                     <span>Chef Approval</span>
                 </a>
-
             </li>
 
-
-            <!-- FOOD PREPARATION -->
-
             <li class="nav-item">
-
-                <a
-                    href="food_preparation.php"
-                    class="nav-link <?= $currentPage === 'food_preparation.php' ? 'active' : '' ?>"
-                >
+                <a href="food_preparation.php" class="nav-link <?= $currentPage === 'food_preparation.php' ? 'active' : '' ?>">
                     <i class="fa-solid fa-fire-burner"></i>
                     <span>Food Preparation</span>
                 </a>
-
             </li>
 
-
-            <!-- MATERIAL ISSUE HISTORY -->
-
             <li class="nav-item">
-
-                <a
-                    href="issue_history.php"
-                    class="nav-link <?= $currentPage === 'issue_history.php' ? 'active' : '' ?>"
-                >
+                <a href="issue_history.php" class="nav-link <?= $currentPage === 'issue_history.php' ? 'active' : '' ?>">
                     <i class="fa-solid fa-boxes-stacked"></i>
                     <span>Issue History</span>
                 </a>
-
             </li>
+        <?php endif; ?>
 
             <?php endif; ?>
 
@@ -372,7 +345,7 @@ $isCanteen = ($role === 'Canteen');
              CANTEEN
         ====================================================== -->
 
-        <?php if ($isAdmin || $isCanteen): ?>
+        <?php if ($isCanteen): ?>
 
             <div class="nav-label">
                 CANTEEN
