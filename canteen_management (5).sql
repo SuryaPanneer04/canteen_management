@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 10, 2026 at 06:37 AM
+-- Generation Time: Sep 11, 2026 at 01:39 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -37,8 +37,17 @@ CREATE TABLE `canteen_food_serving` (
   `remaining_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
   `pax` int(10) UNSIGNED NOT NULL DEFAULT 0,
   `recorded_by` int(10) UNSIGNED NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `status` varchar(20) NOT NULL DEFAULT 'Serving'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `canteen_food_serving`
+--
+
+INSERT INTO `canteen_food_serving` (`id`, `transfer_id`, `food_id`, `serving_date`, `received_qty`, `served_qty`, `remaining_qty`, `pax`, `recorded_by`, `created_at`, `status`) VALUES
+(1, 1, 5, '2026-09-11', 10.00, 0.00, 10.00, 0, 2, '2026-09-11 10:32:03', 'Serving'),
+(2, 4, 6, '2026-09-11', 10.00, 5.00, 5.00, 5, 2, '2026-09-11 17:04:29', 'Closed');
 
 -- --------------------------------------------------------
 
@@ -55,8 +64,70 @@ CREATE TABLE `canteen_wastage` (
   `reason` varchar(150) DEFAULT NULL,
   `remarks` varchar(255) DEFAULT NULL,
   `recorded_by` int(10) UNSIGNED NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `waste_type` varchar(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `canteen_wastage`
+--
+
+INSERT INTO `canteen_wastage` (`id`, `food_id`, `serving_id`, `wastage_date`, `wastage_qty`, `reason`, `remarks`, `recorded_by`, `created_at`, `waste_type`) VALUES
+(1, 6, 2, '2026-09-11', 2.00, 'Staff Consumption', NULL, 2, '2026-09-11 17:06:07', 'N/A'),
+(2, 6, 2, '2026-09-11', 3.00, 'Excess Food', NULL, 2, '2026-09-11 17:06:38', 'Wet Waste');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `daily_cooking_plans`
+--
+
+CREATE TABLE `daily_cooking_plans` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `cooking_date` date NOT NULL,
+  `meal_type` enum('Breakfast','Lunch','Snacks','Dinner') NOT NULL,
+  `status` enum('Draft','Pending Approval','Approved','Sent to Store','Completed','Cancelled') NOT NULL DEFAULT 'Draft',
+  `created_by` int(10) UNSIGNED DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `daily_cooking_plans`
+--
+
+INSERT INTO `daily_cooking_plans` (`id`, `cooking_date`, `meal_type`, `status`, `created_by`, `created_at`, `updated_at`) VALUES
+(4, '2026-09-10', 'Breakfast', 'Sent to Store', 3, '2026-09-10 16:44:26', '2026-09-10 16:45:07'),
+(5, '2026-09-11', 'Breakfast', 'Sent to Store', 3, '2026-09-11 10:03:29', '2026-09-11 10:04:11'),
+(6, '2026-09-11', 'Lunch', 'Completed', 3, '2026-09-11 10:29:06', '2026-09-11 10:31:35'),
+(7, '2026-09-11', 'Dinner', 'Completed', 3, '2026-09-11 12:30:47', '2026-09-11 12:52:56'),
+(8, '2026-09-11', 'Snacks', 'Completed', 3, '2026-09-11 17:02:29', '2026-09-11 17:04:13');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `daily_cooking_plan_items`
+--
+
+CREATE TABLE `daily_cooking_plan_items` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `cooking_plan_id` int(10) UNSIGNED NOT NULL,
+  `food_id` int(10) UNSIGNED NOT NULL,
+  `required_plates` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `daily_cooking_plan_items`
+--
+
+INSERT INTO `daily_cooking_plan_items` (`id`, `cooking_plan_id`, `food_id`, `required_plates`, `created_at`) VALUES
+(4, 4, 5, 100, '2026-09-10 16:44:26'),
+(5, 5, 5, 50, '2026-09-11 10:03:29'),
+(6, 6, 5, 10, '2026-09-11 10:29:06'),
+(7, 7, 6, 10, '2026-09-11 12:30:47'),
+(8, 7, 7, 10, '2026-09-11 12:30:47'),
+(9, 8, 6, 10, '2026-09-11 17:02:29');
 
 -- --------------------------------------------------------
 
@@ -78,10 +149,9 @@ CREATE TABLE `food_items` (
 --
 
 INSERT INTO `food_items` (`id`, `food_code`, `food_name`, `unit`, `status`, `created_at`) VALUES
-(1, 'FOOD001', 'Rice Meals', 'PLATE', 'Enable', '2026-09-07 10:49:37'),
-(2, 'FOOD002', 'Sambar Rice', 'PLATE', 'Enable', '2026-09-07 10:49:37'),
-(3, 'FOOD003', 'Curd Rice', 'PLATE', 'Enable', '2026-09-07 10:49:37'),
-(4, 'FOOD004', 'Chapati', 'PLATE', 'Enable', '2026-09-07 10:49:37');
+(5, 'FOOD001', 'Idily', 'PLATE', 'Enable', '2026-09-10 15:51:22'),
+(6, 'FOOD002', 'Chapati', 'PLATE', 'Enable', '2026-09-11 11:40:30'),
+(7, 'FOOD003', 'Potato Masala', 'PORTION', 'Enable', '2026-09-11 12:18:28');
 
 -- --------------------------------------------------------
 
@@ -95,11 +165,61 @@ CREATE TABLE `food_preparations` (
   `food_id` int(10) UNSIGNED NOT NULL,
   `preparation_date` date NOT NULL,
   `prepared_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `planned_qty` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `plan_item_id` int(10) UNSIGNED DEFAULT NULL,
+  `request_id` int(10) UNSIGNED DEFAULT NULL,
   `status` enum('Prepared','Sent to Canteen','Completed') NOT NULL DEFAULT 'Prepared',
   `prepared_by` int(10) UNSIGNED NOT NULL,
   `remarks` varchar(255) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `food_preparations`
+--
+
+INSERT INTO `food_preparations` (`id`, `preparation_no`, `food_id`, `preparation_date`, `prepared_qty`, `planned_qty`, `plan_item_id`, `request_id`, `status`, `prepared_by`, `remarks`, `created_at`) VALUES
+(1, 'FP-202609-0001', 5, '2026-09-11', 10.00, 10.00, 6, 7, 'Sent to Canteen', 3, 'testing', '2026-09-11 10:31:35'),
+(2, 'FP-202609-0002', 6, '2026-09-11', 10.00, 10.00, 7, 8, 'Sent to Canteen', 3, 'ok', '2026-09-11 12:52:32'),
+(3, 'FP-202609-0003', 7, '2026-09-11', 11.00, 10.00, 8, 8, 'Sent to Canteen', 3, NULL, '2026-09-11 12:52:56'),
+(4, 'FP-202609-0004', 6, '2026-09-11', 10.00, 10.00, 9, 9, 'Sent to Canteen', 3, 'testing', '2026-09-11 17:04:13');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `food_recipes`
+--
+
+CREATE TABLE `food_recipes` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `food_id` int(10) UNSIGNED NOT NULL,
+  `material_id` int(10) UNSIGNED NOT NULL,
+  `quantity_per_plate` decimal(12,4) NOT NULL DEFAULT 0.0000,
+  `created_by` int(10) UNSIGNED DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `food_recipes`
+--
+
+INSERT INTO `food_recipes` (`id`, `food_id`, `material_id`, `quantity_per_plate`, `created_by`, `created_at`, `updated_at`) VALUES
+(1, 5, 1, 1.0000, 3, '2026-09-10 15:52:26', NULL),
+(2, 5, 4, 1.0000, 3, '2026-09-10 15:52:26', NULL),
+(3, 6, 2, 20.0000, 3, '2026-09-11 12:17:42', NULL),
+(4, 6, 4, 1.0000, 3, '2026-09-11 12:17:42', NULL),
+(5, 6, 3, 3.0000, 3, '2026-09-11 12:17:42', NULL),
+(6, 7, 7, 20.0000, 3, '2026-09-11 12:29:59', NULL),
+(7, 7, 5, 10.0000, 3, '2026-09-11 12:29:59', NULL),
+(8, 7, 8, 1.0000, 3, '2026-09-11 12:29:59', NULL),
+(9, 7, 9, 0.5000, 3, '2026-09-11 12:29:59', NULL),
+(10, 7, 10, 0.5000, 3, '2026-09-11 12:29:59', NULL),
+(11, 7, 12, 5.0000, 3, '2026-09-11 12:29:59', NULL),
+(12, 7, 11, 1.0000, 3, '2026-09-11 12:29:59', NULL),
+(13, 7, 13, 0.5000, 3, '2026-09-11 12:29:59', NULL),
+(14, 7, 4, 3.0000, 3, '2026-09-11 12:29:59', NULL),
+(15, 7, 3, 10.0000, 3, '2026-09-11 12:29:59', NULL);
 
 -- --------------------------------------------------------
 
@@ -121,6 +241,16 @@ CREATE TABLE `food_transfers` (
   `received_at` datetime DEFAULT NULL,
   `remarks` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `food_transfers`
+--
+
+INSERT INTO `food_transfers` (`id`, `transfer_no`, `preparation_id`, `food_id`, `quantity`, `transfer_date`, `sent_by`, `received_by`, `status`, `sent_at`, `received_at`, `remarks`) VALUES
+(1, 'FT-202609-0001', 1, 5, 10.00, '2026-09-11', 3, 2, 'Received', '2026-09-11 10:31:35', '2026-09-11 10:32:03', NULL),
+(2, 'FT-202609-0002', 2, 6, 10.00, '2026-09-11', 3, NULL, 'Sent', '2026-09-11 12:52:32', NULL, NULL),
+(3, 'FT-202609-0003', 3, 7, 11.00, '2026-09-11', 3, NULL, 'Sent', '2026-09-11 12:52:56', NULL, NULL),
+(4, 'FT-202609-0004', 4, 6, 10.00, '2026-09-11', 3, 2, 'Received', '2026-09-11 17:04:13', '2026-09-11 17:04:29', NULL);
 
 -- --------------------------------------------------------
 
@@ -150,6 +280,7 @@ CREATE TABLE `invoices` (
 
 CREATE TABLE `kitchen_requests` (
   `id` int(10) UNSIGNED NOT NULL,
+  `plan_id` int(10) UNSIGNED DEFAULT NULL,
   `request_no` varchar(60) NOT NULL,
   `requested_by` int(10) UNSIGNED NOT NULL,
   `request_date` date NOT NULL,
@@ -167,8 +298,12 @@ CREATE TABLE `kitchen_requests` (
 -- Dumping data for table `kitchen_requests`
 --
 
-INSERT INTO `kitchen_requests` (`id`, `request_no`, `requested_by`, `request_date`, `status`, `cook_remarks`, `chef_remarks`, `approved_by`, `approved_at`, `sent_to_store_at`, `created_at`, `updated_at`) VALUES
-(1, 'KR-20260907-0001', 3, '2026-09-07', 'Completed', 'testing', 'Testing chef approve', 3, '2026-09-09 16:09:57', '2026-09-09 16:09:57', '2026-09-07 11:01:50', '2026-09-09 16:45:30');
+INSERT INTO `kitchen_requests` (`id`, `plan_id`, `request_no`, `requested_by`, `request_date`, `status`, `cook_remarks`, `chef_remarks`, `approved_by`, `approved_at`, `sent_to_store_at`, `created_at`, `updated_at`) VALUES
+(5, NULL, 'KR-20260910-0001', 3, '2026-09-10', 'Completed', 'Daily Cooking Plan - Breakfast', 'testing', 3, '2026-09-10 16:45:07', '2026-09-10 16:45:07', '2026-09-10 16:45:07', '2026-09-10 16:48:20'),
+(6, NULL, 'KR-20260911-0001', 3, '2026-09-11', 'Completed', 'Daily Cooking Plan - Breakfast', 'testing2', 3, '2026-09-11 10:04:11', '2026-09-11 10:04:11', '2026-09-11 10:04:11', '2026-09-11 10:06:48'),
+(7, 6, 'KR-20260911-0002', 3, '2026-09-11', 'Completed', 'Daily Cooking Plan - Lunch', 'testing3', 3, '2026-09-11 10:29:37', '2026-09-11 10:29:37', '2026-09-11 10:29:37', '2026-09-11 10:30:59'),
+(8, 7, 'KR-20260911-0003', 3, '2026-09-11', 'Completed', 'Daily Cooking Plan - Dinner', 'Everything OK', 3, '2026-09-11 12:32:56', '2026-09-11 12:32:56', '2026-09-11 12:32:56', '2026-09-11 12:51:38'),
+(9, 8, 'KR-20260911-0004', 3, '2026-09-11', 'Completed', 'Daily Cooking Plan - Snacks', 'done', 3, '2026-09-11 17:02:55', '2026-09-11 17:02:55', '2026-09-11 17:02:55', '2026-09-11 17:03:15');
 
 -- --------------------------------------------------------
 
@@ -191,8 +326,26 @@ CREATE TABLE `kitchen_request_items` (
 --
 
 INSERT INTO `kitchen_request_items` (`id`, `request_id`, `material_id`, `requested_qty`, `approved_qty`, `issued_qty`, `remarks`) VALUES
-(1, 1, 2, 20.00, 20.00, 20.00, NULL),
-(2, 1, 4, 0.00, 10.00, 10.00, 'testing');
+(13, 5, 1, 100.00, 100.00, 100.00, 'testing'),
+(14, 5, 4, 100.00, 100.00, 100.00, 'testing'),
+(15, 6, 1, 50.00, 50.00, 50.00, 'testing'),
+(16, 6, 4, 50.00, 50.00, 50.00, 'testing'),
+(17, 7, 1, 10.00, 10.00, 10.00, 'testing3'),
+(18, 7, 4, 10.00, 10.00, 10.00, 'testing3'),
+(19, 8, 3, 130.00, 130.00, 130.00, 'OK'),
+(20, 8, 4, 40.00, 40.00, 40.00, 'OK'),
+(21, 8, 2, 200.00, 200.00, 200.00, 'OK'),
+(22, 8, 11, 10.00, 10.00, 10.00, 'OK'),
+(23, 8, 9, 5.00, 5.00, 5.00, 'OK'),
+(24, 8, 8, 10.00, 10.00, 10.00, 'OK'),
+(25, 8, 10, 5.00, 5.00, 5.00, 'OK'),
+(26, 8, 5, 100.00, 100.00, 100.00, 'OK'),
+(27, 8, 7, 200.00, 200.00, 200.00, 'OK'),
+(28, 8, 13, 5.00, 5.00, 5.00, 'OK'),
+(29, 8, 12, 50.00, 50.00, 50.00, 'OK'),
+(30, 9, 3, 30.00, 30.00, 30.00, 'done'),
+(31, 9, 4, 10.00, 10.00, 10.00, 'done'),
+(32, 9, 2, 200.00, 200.00, 200.00, 'done');
 
 -- --------------------------------------------------------
 
@@ -219,12 +372,20 @@ CREATE TABLE `materials` (
 --
 
 INSERT INTO `materials` (`id`, `material_code`, `material_name`, `category`, `unit`, `unit_price`, `minimum_stock`, `current_stock`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'MAT001', 'Rice', 'Grains', 'KG', 150.00, 50.00, 10.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 15:51:07'),
-(2, 'MAT002', 'Wheat', 'Grains', 'KG', 70.00, 30.00, 10.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 16:43:59'),
-(3, 'MAT003', 'Cooking Oil', 'Oil', 'LTR', 120.00, 20.00, 0.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 15:51:07'),
-(4, 'MAT004', 'Salt', 'Grocery', 'KG', 30.00, 10.00, 5.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 16:45:30'),
-(5, 'MAT005', 'Vegetables', 'Vegetables', 'KG', 100.00, 30.00, 0.00, 'Enable', '2026-09-03 13:56:45', '2026-09-09 15:51:07'),
-(6, 'MAT006', 'Sugar', 'Grocery', 'KG', 40.00, 5.00, 9.00, 'Enable', '2026-09-03 15:01:48', '2026-09-09 15:51:07');
+(1, 'MAT001', 'Rice', 'Grains', 'KG', 150.00, 100.00, 1000.00, 'Enable', '2026-09-03 13:56:45', '2026-09-11 16:59:52'),
+(2, 'MAT002', 'Wheat', 'Grains', 'KG', 70.00, 100.00, 600.00, 'Enable', '2026-09-03 13:56:45', '2026-09-11 17:03:15'),
+(3, 'MAT003', 'Cooking Oil', 'Oil', 'LTR', 120.00, 100.00, 840.00, 'Enable', '2026-09-03 13:56:45', '2026-09-11 17:03:15'),
+(4, 'MAT004', 'Salt', 'Grocery', 'KG', 30.00, 100.00, 950.00, 'Enable', '2026-09-03 13:56:45', '2026-09-11 17:03:15'),
+(5, 'MAT005', 'Onion', 'Vegetables', 'KG', 100.00, 100.00, 900.00, 'Enable', '2026-09-03 13:56:45', '2026-09-11 16:59:52'),
+(6, 'MAT006', 'Sugar', 'Grocery', 'KG', 40.00, 100.00, 1000.00, 'Enable', '2026-09-03 15:01:48', '2026-09-11 16:59:52'),
+(7, 'MAT007', 'Potatoes', 'Vegetables', 'KG', 0.00, 100.00, 800.00, 'Enable', '2026-09-11 12:20:35', '2026-09-11 16:59:52'),
+(8, 'MAT008', 'Green chillies', 'Vegetables', 'KG', 0.00, 100.00, 990.00, 'Enable', '2026-09-11 12:21:48', '2026-09-11 16:59:52'),
+(9, 'MAT009', 'Ginger', 'Vegetables', 'KG', 0.00, 100.00, 995.00, 'Enable', '2026-09-11 12:22:40', '2026-09-11 16:59:52'),
+(10, 'MAT010', 'Mustard seeds', 'Spices', 'KG', 0.00, 100.00, 995.00, 'Enable', '2026-09-11 12:23:25', '2026-09-11 16:59:52'),
+(11, 'MAT011', 'Curry leaves', 'Vegetables', 'KG', 0.00, 100.00, 990.00, 'Enable', '2026-09-11 12:24:16', '2026-09-11 16:59:52'),
+(12, 'MAT012', 'Urad dal', 'Grocery', 'KG', 0.00, 100.00, 950.00, 'Enable', '2026-09-11 12:25:08', '2026-09-11 16:59:52'),
+(13, 'MAT013', 'Turmeric powder', 'Spices', 'KG', 0.00, 100.00, 995.00, 'Enable', '2026-09-11 12:25:47', '2026-09-11 16:59:52'),
+(14, 'MAT014', 'Tatomato', 'Vegetables', 'KG', 20.00, 100.00, 1000.00, 'Enable', '2026-09-11 16:56:09', '2026-09-11 17:01:22');
 
 -- --------------------------------------------------------
 
@@ -251,7 +412,7 @@ INSERT INTO `material_categories` (`id`, `category_name`, `status`, `created_at`
 (4, 'Vegetables', 'Enable', '2026-09-08 15:06:40', NULL),
 (5, 'Dairy', 'Enable', '2026-09-08 15:06:40', NULL),
 (6, 'Spices', 'Enable', '2026-09-08 15:06:40', NULL),
-(7, 'Beverages', 'Enable', '2026-09-08 15:06:40', NULL),
+(7, 'Beverages', 'Enable', '2026-09-08 15:06:40', '2026-09-11 16:57:15'),
 (8, 'Cleaning', 'Enable', '2026-09-08 15:06:40', NULL),
 (9, 'Other', 'Enable', '2026-09-08 15:06:40', NULL);
 
@@ -279,7 +440,8 @@ CREATE TABLE `purchase_orders` (
 --
 
 INSERT INTO `purchase_orders` (`id`, `po_no`, `request_id`, `supplier_id`, `po_date`, `expected_date`, `status`, `remarks`, `created_by`, `created_at`) VALUES
-(1, 'PO-202609-0001', 1, 1, '2026-09-05', '2026-09-07', 'Received', 'for testing', 1, '2026-09-05 10:02:23');
+(1, 'PO-202609-0001', 1, 1, '2026-09-05', '2026-09-07', 'Received', 'for testing', 1, '2026-09-05 10:02:23'),
+(2, 'PO-202609-0002', 8, 1, '2026-09-11', '2026-09-12', 'Received', 'testinig', 4, '2026-09-11 17:00:18');
 
 -- --------------------------------------------------------
 
@@ -301,7 +463,8 @@ CREATE TABLE `purchase_order_items` (
 --
 
 INSERT INTO `purchase_order_items` (`id`, `po_id`, `material_id`, `ordered_qty`, `unit_rate`, `total_amount`) VALUES
-(1, 1, 3, 15.00, 150.00, 2250.00);
+(1, 1, 3, 15.00, 150.00, 2250.00),
+(2, 2, 14, 1000.00, 20.00, 20000.00);
 
 -- --------------------------------------------------------
 
@@ -327,7 +490,8 @@ INSERT INTO `purchase_requests` (`id`, `request_no`, `requested_by`, `request_da
 (1, 'PR-20260903114200-489', 5, '2026-09-03', 'Approved', 'testing purchase', '2026-09-03 15:12:00'),
 (2, 'PR-20260905062846-863', 1, '2026-09-05', 'Approved', 'test cooking', '2026-09-05 09:58:46'),
 (6, 'PR-20260908121410-483', 5, '2026-09-08', 'Pending', 'Purchase request created from Low Stock in Material Master.', '2026-09-08 15:44:10'),
-(7, 'PR-20260909090335-316', 5, '2026-09-09', 'Approved', 'excel upload check', '2026-09-09 12:33:35');
+(7, 'PR-20260909090335-316', 5, '2026-09-09', 'Approved', 'excel upload check', '2026-09-09 12:33:35'),
+(8, 'PR-20260911132809-306', 5, '2026-09-11', 'Approved', 'testiing', '2026-09-11 16:58:09');
 
 -- --------------------------------------------------------
 
@@ -354,7 +518,8 @@ INSERT INTO `purchase_request_items` (`id`, `request_id`, `material_id`, `reques
 (5, 6, 4, 10.00, 0.00),
 (6, 7, 5, 15.00, 0.00),
 (7, 7, 4, 20.00, 0.00),
-(8, 7, 2, 50.00, 0.00);
+(8, 7, 2, 50.00, 0.00),
+(9, 8, 14, 1000.00, 0.00);
 
 -- --------------------------------------------------------
 
@@ -410,7 +575,28 @@ INSERT INTO `stock_transactions` (`id`, `material_id`, `transaction_type`, `quan
 (5, 1, 'PURCHASE', 10.00, NULL, NULL, 'testing', NULL, '2026-09-08 12:28:21'),
 (6, 4, 'ISSUE_KITCHEN', 5.00, 'KR-20260907-0001', 1, 'Material issued to Kitchen - Salt', 5, '2026-09-09 16:42:26'),
 (7, 2, 'ISSUE_KITCHEN', 20.00, 'KR-20260907-0001', 1, 'Material issued to Kitchen - Wheat', 5, '2026-09-09 16:43:59'),
-(8, 4, 'ISSUE_KITCHEN', 5.00, 'KR-20260907-0001', 1, 'Material issued to Kitchen - Salt', 5, '2026-09-09 16:45:30');
+(8, 4, 'ISSUE_KITCHEN', 5.00, 'KR-20260907-0001', 1, 'Material issued to Kitchen - Salt', 5, '2026-09-09 16:45:30'),
+(9, 1, 'ISSUE_KITCHEN', 100.00, 'KR-20260910-0001', 5, 'Material issued to Kitchen - Rice', 5, '2026-09-10 16:48:12'),
+(10, 4, 'ISSUE_KITCHEN', 100.00, 'KR-20260910-0001', 5, 'Material issued to Kitchen - Salt', 5, '2026-09-10 16:48:20'),
+(11, 1, 'ISSUE_KITCHEN', 50.00, 'KR-20260911-0001', 6, 'Material issued to Kitchen - Rice', 5, '2026-09-11 10:06:41'),
+(12, 4, 'ISSUE_KITCHEN', 50.00, 'KR-20260911-0001', 6, 'Material issued to Kitchen - Salt', 5, '2026-09-11 10:06:48'),
+(13, 1, 'ISSUE_KITCHEN', 10.00, 'KR-20260911-0002', 7, 'Material issued to Kitchen - Rice', 5, '2026-09-11 10:30:53'),
+(14, 4, 'ISSUE_KITCHEN', 10.00, 'KR-20260911-0002', 7, 'Material issued to Kitchen - Salt', 5, '2026-09-11 10:30:59'),
+(15, 3, 'ISSUE_KITCHEN', 130.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Cooking Oil', 5, '2026-09-11 12:51:38'),
+(16, 11, 'ISSUE_KITCHEN', 10.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Curry leaves', 5, '2026-09-11 12:51:38'),
+(17, 9, 'ISSUE_KITCHEN', 5.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Ginger', 5, '2026-09-11 12:51:38'),
+(18, 8, 'ISSUE_KITCHEN', 10.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Green chillies', 5, '2026-09-11 12:51:38'),
+(19, 10, 'ISSUE_KITCHEN', 5.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Mustard seeds', 5, '2026-09-11 12:51:38'),
+(20, 5, 'ISSUE_KITCHEN', 100.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Onion', 5, '2026-09-11 12:51:38'),
+(21, 7, 'ISSUE_KITCHEN', 200.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Potatoes', 5, '2026-09-11 12:51:38'),
+(22, 4, 'ISSUE_KITCHEN', 40.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Salt', 5, '2026-09-11 12:51:38'),
+(23, 13, 'ISSUE_KITCHEN', 5.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Turmeric powder', 5, '2026-09-11 12:51:38'),
+(24, 12, 'ISSUE_KITCHEN', 50.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Urad dal', 5, '2026-09-11 12:51:38'),
+(25, 2, 'ISSUE_KITCHEN', 200.00, 'KR-20260911-0003', 8, 'Material issued to Kitchen - Wheat', 5, '2026-09-11 12:51:38'),
+(26, 14, 'PURCHASE', 1000.00, 'GRN-202609-0001', NULL, 'GRN: GRN-202609-0001 (PO: PO-202609-0002)', 5, '2026-09-11 17:01:22'),
+(27, 3, 'ISSUE_KITCHEN', 30.00, 'KR-20260911-0004', 9, 'Material issued to Kitchen - Cooking Oil', 5, '2026-09-11 17:03:15'),
+(28, 4, 'ISSUE_KITCHEN', 10.00, 'KR-20260911-0004', 9, 'Material issued to Kitchen - Salt', 5, '2026-09-11 17:03:15'),
+(29, 2, 'ISSUE_KITCHEN', 200.00, 'KR-20260911-0004', 9, 'Material issued to Kitchen - Wheat', 5, '2026-09-11 17:03:15');
 
 -- --------------------------------------------------------
 
@@ -491,6 +677,23 @@ ALTER TABLE `canteen_wastage`
   ADD KEY `fk_cw_user` (`recorded_by`);
 
 --
+-- Indexes for table `daily_cooking_plans`
+--
+ALTER TABLE `daily_cooking_plans`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_cooking_date` (`cooking_date`),
+  ADD KEY `idx_meal_type` (`meal_type`),
+  ADD KEY `idx_status` (`status`);
+
+--
+-- Indexes for table `daily_cooking_plan_items`
+--
+ALTER TABLE `daily_cooking_plan_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_plan` (`cooking_plan_id`),
+  ADD KEY `idx_food` (`food_id`);
+
+--
 -- Indexes for table `food_items`
 --
 ALTER TABLE `food_items`
@@ -505,6 +708,15 @@ ALTER TABLE `food_preparations`
   ADD UNIQUE KEY `uq_preparation_no` (`preparation_no`),
   ADD KEY `idx_fp_food` (`food_id`),
   ADD KEY `fk_fp_user` (`prepared_by`);
+
+--
+-- Indexes for table `food_recipes`
+--
+ALTER TABLE `food_recipes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_food_material` (`food_id`,`material_id`),
+  ADD KEY `idx_food_id` (`food_id`),
+  ADD KEY `idx_material_id` (`material_id`);
 
 --
 -- Indexes for table `food_transfers`
@@ -531,7 +743,8 @@ ALTER TABLE `kitchen_requests`
   ADD UNIQUE KEY `uq_kitchen_request_no` (`request_no`),
   ADD KEY `idx_kr_requested_by` (`requested_by`),
   ADD KEY `idx_kr_status` (`status`),
-  ADD KEY `fk_kr_approved_by` (`approved_by`);
+  ADD KEY `fk_kr_approved_by` (`approved_by`),
+  ADD KEY `idx_kitchen_requests_plan` (`plan_id`);
 
 --
 -- Indexes for table `kitchen_request_items`
@@ -623,31 +836,49 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `canteen_food_serving`
 --
 ALTER TABLE `canteen_food_serving`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `canteen_wastage`
 --
 ALTER TABLE `canteen_wastage`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `daily_cooking_plans`
+--
+ALTER TABLE `daily_cooking_plans`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `daily_cooking_plan_items`
+--
+ALTER TABLE `daily_cooking_plan_items`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `food_items`
 --
 ALTER TABLE `food_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `food_preparations`
 --
 ALTER TABLE `food_preparations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `food_recipes`
+--
+ALTER TABLE `food_recipes`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `food_transfers`
 --
 ALTER TABLE `food_transfers`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `invoices`
@@ -659,19 +890,19 @@ ALTER TABLE `invoices`
 -- AUTO_INCREMENT for table `kitchen_requests`
 --
 ALTER TABLE `kitchen_requests`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `kitchen_request_items`
 --
 ALTER TABLE `kitchen_request_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT for table `materials`
 --
 ALTER TABLE `materials`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `material_categories`
@@ -683,25 +914,25 @@ ALTER TABLE `material_categories`
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `purchase_order_items`
 --
 ALTER TABLE `purchase_order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `purchase_requests`
 --
 ALTER TABLE `purchase_requests`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `purchase_request_items`
 --
 ALTER TABLE `purchase_request_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `roles`
@@ -713,7 +944,7 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT for table `stock_transactions`
 --
 ALTER TABLE `stock_transactions`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `suppliers`
