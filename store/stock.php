@@ -336,7 +336,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </a>
                 -->
 
-                <a
+               <!-- <a
                     href="stock_issue.php"
                     class="btn btn-primary me-1">
 
@@ -344,7 +344,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                     Issue to Kitchen
 
-                </a>
+                </a> -->
 
             </div>
 

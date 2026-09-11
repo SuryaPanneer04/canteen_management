@@ -190,13 +190,13 @@ $isCanteen = ($role === 'Canteen');
                 </a>
             </li>-->
 
-            <?php if (!$isAdmin): ?>
+           <!-- <?php if (!$isAdmin): ?>
             <li class="nav-item">
                 <a href="../store/stock_issue.php" class="nav-link">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     <span>Stock Issue</span>
                 </a>
-            </li>
+            </li> -->
 
             <li>
                 <a href="../store/kitchen_requests.php" class="nav-link">
