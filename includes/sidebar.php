@@ -109,7 +109,7 @@ $isCanteen = ($role === 'Canteen');
         href="../admin/invoice_approvals.php"
     >
 
-        <i class="fa-solid fa-tags"></i>
+        <i class="fa-solid fa-file-invoice-dollar"></i>
         
         <span>
             Invoice Approvals
@@ -120,7 +120,7 @@ $isCanteen = ($role === 'Canteen');
         href="../admin/canteen_report.php"
     >
 
-        <i class="fa-solid fa-tags"></i>
+        <i class="fa-solid fa-chart-pie"></i>
         
         <span>
             Canteen Report
