@@ -759,6 +759,39 @@ if ($plans) {
 
 /*
 |--------------------------------------------------------------------------
+| SUMMARY COUNTS (for the stat cards)
+|--------------------------------------------------------------------------
+*/
+
+$totalPlans = count($plans);
+$pendingPlanCount = 0;
+$approvedPlanCount = 0;
+$totalPlatesToday = 0;
+
+foreach ($plans as $planRow) {
+
+    if ($planRow['status'] === 'Pending Approval') {
+        $pendingPlanCount++;
+    }
+
+    if (
+        in_array(
+            $planRow['status'],
+            ['Approved', 'Sent to Store', 'Completed'],
+            true
+        )
+    ) {
+        $approvedPlanCount++;
+    }
+
+    if ($planRow['status'] !== 'Cancelled') {
+        $totalPlatesToday += (int)$planRow['total_plates'];
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | HEADER
 |--------------------------------------------------------------------------
 */
@@ -767,12 +800,12 @@ require_once __DIR__ . '/../includes/header.php';
 
 require_once __DIR__ . '/../includes/sidebar.php';
 
-require_once __DIR__ . '/../includes/topbar.php';
-
 ?>
 
 
-<div class="main-content">
+<div class="main-content cooking-plan-page">
+
+    <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
     <div class="page-body">
 
@@ -781,25 +814,11 @@ require_once __DIR__ . '/../includes/topbar.php';
              PAGE HEADER
         ====================================================== -->
 
-        <div
-            class="d-flex justify-content-between align-items-center mb-4"
-        >
+        <div class="dashboard-hero">
 
-            <div>
-
-                <h4 class="mb-1">
-
-                    Daily Cooking Plan
-
-                </h4>
+            <div class="dashboard-heading">
 
 
-                <p class="text-muted mb-0">
-
-                    Select the food and number of plates required
-                    for Breakfast, Lunch, Snacks and Dinner.
-
-                </p>
 
             </div>
 
@@ -812,13 +831,13 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <?php if ($success !== ''): ?>
 
-            <div class="alert alert-success">
+            <div class="alert alert-success alert-dismissible fade show">
 
-                <i
-                    class="fa-solid fa-circle-check me-2"
-                ></i>
+                <i class="fa-solid fa-circle-check me-2"></i>
 
                 <?= htmlspecialchars($success) ?>
+
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 
             </div>
 
@@ -831,13 +850,13 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <?php if ($error !== ''): ?>
 
-            <div class="alert alert-danger">
+            <div class="alert alert-danger alert-dismissible fade show">
 
-                <i
-                    class="fa-solid fa-circle-exclamation me-2"
-                ></i>
+                <i class="fa-solid fa-circle-exclamation me-2"></i>
 
                 <?= htmlspecialchars($error) ?>
+
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 
             </div>
 
@@ -845,27 +864,85 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 
         <!-- =====================================================
+             STAT CARDS
+        ====================================================== -->
+
+        <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+
+            <div class="dash-stat stat-brown">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Plans Today</div>
+                        <div class="stat-value"><?= $totalPlans ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">
+                    <?= htmlspecialchars(date('d-m-Y', strtotime($filterDate))) ?>
+                </div>
+            </div>
+
+            <div class="dash-stat stat-orange">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Pending Approval</div>
+                        <div class="stat-value"><?= $pendingPlanCount ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">Waiting for Chef</div>
+            </div>
+
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Approved</div>
+                        <div class="stat-value"><?= $approvedPlanCount ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">Ready to cook</div>
+            </div>
+
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Total Plates</div>
+                        <div class="stat-value"><?= number_format($totalPlatesToday) ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-bowl-food"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">Planned for the day</div>
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
              CREATE COOKING PLAN
         ====================================================== -->
 
-        <div class="card shadow-sm mb-4">
+        <div class="dashboard-table mb-4">
 
-            <div class="card-header">
+            <div class="table-header">
 
-                <h5 class="mb-0">
-
-                    <i
-                        class="fa-solid fa-calendar-plus me-2"
-                    ></i>
-
+                <strong>
+                    <i class="fa-solid fa-calendar-plus me-2"></i>
                     Create Daily Cooking Plan
-
-                </h5>
+                </strong>
 
             </div>
 
 
-            <div class="card-body">
+            <div class="card-section">
 
                 <form
                     method="POST"
@@ -969,7 +1046,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                             <input
                                 type="text"
-                                class="form-control"
+                                class="form-control bg-light"
                                 value="Pending Approval"
                                 readonly
                             >
@@ -986,7 +1063,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                     <div class="table-responsive">
 
                         <table
-                            class="table table-bordered align-middle"
+                            class="table table-bordered align-middle plan-food-table"
                         >
 
                             <thead>
@@ -1124,13 +1201,13 @@ require_once __DIR__ . '/../includes/topbar.php';
                     ================================================== -->
 
                     <div
-                        class="d-flex justify-content-between mt-3"
+                        class="d-flex justify-content-between mt-3 flex-wrap gap-2"
                     >
 
                         <button
                             type="button"
                             id="addFood"
-                            class="btn btn-outline-primary"
+                            class="btn btn-kitchen-outline"
                         >
 
                             <i
@@ -1144,7 +1221,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                         <button
                             type="submit"
-                            class="btn btn-success"
+                            class="btn btn-kitchen"
                         >
 
                             <i
@@ -1168,56 +1245,57 @@ require_once __DIR__ . '/../includes/topbar.php';
              DATE FILTER
         ====================================================== -->
 
-        <div class="card shadow-sm mb-4">
+        <div class="quick-card">
 
-            <div class="card-body">
-
-                <form
-                    method="GET"
-                    class="row g-3 align-items-end"
-                >
-
-                    <div class="col-md-4">
-
-                        <label class="form-label">
-
-                            View Cooking Plans
-
-                        </label>
-
-
-                        <input
-                            type="date"
-                            name="date"
-                            class="form-control"
-                            value="<?= htmlspecialchars(
-                                $filterDate
-                            ) ?>"
-                        >
-
-                    </div>
-
-
-                    <div class="col-md-2">
-
-                        <button
-                            type="submit"
-                            class="btn btn-primary w-100"
-                        >
-
-                            <i
-                                class="fa-solid fa-filter me-1"
-                            ></i>
-
-                            Filter
-
-                        </button>
-
-                    </div>
-
-                </form>
-
+            <div class="section-title">
+                <i class="fa-solid fa-filter"></i>
+                View Cooking Plans
             </div>
+
+            <form
+                method="GET"
+                class="row g-3 align-items-end"
+            >
+
+                <div class="col-md-4">
+
+                    <label class="form-label">
+
+                        Cooking Date
+
+                    </label>
+
+
+                    <input
+                        type="date"
+                        name="date"
+                        class="form-control"
+                        value="<?= htmlspecialchars(
+                            $filterDate
+                        ) ?>"
+                    >
+
+                </div>
+
+
+                <div class="col-md-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-kitchen w-100"
+                    >
+
+                        <i
+                            class="fa-solid fa-filter me-1"
+                        ></i>
+
+                        Filter
+
+                    </button>
+
+                </div>
+
+            </form>
 
         </div>
 
@@ -1226,15 +1304,13 @@ require_once __DIR__ . '/../includes/topbar.php';
              DAILY COOKING PLANS
         ====================================================== -->
 
-        <div class="card shadow-sm">
+        <div class="dashboard-table">
 
-            <div class="card-header">
+            <div class="table-header">
 
-                <h5 class="mb-0">
+                <strong>
 
-                    <i
-                        class="fa-solid fa-clipboard-list me-2"
-                    ></i>
+                    <i class="fa-solid fa-clipboard-list me-2"></i>
 
                     Cooking Plans for
 
@@ -1245,396 +1321,384 @@ require_once __DIR__ . '/../includes/topbar.php';
                         )
                     ) ?>
 
-                </h5>
+                </strong>
+
+                <span class="fs-6 fw-medium"><?= count($plans) ?> plan(s)</span>
 
             </div>
 
 
-            <div class="card-body">
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>#</th>
+
+                            <th>Meal</th>
+
+                            <th>Food Items</th>
+
+                            <th>Total Plates</th>
+
+                            <th>Status</th>
+
+                            <th>Created</th>
+
+                            <th class="text-center">Action</th>
+
+                        </tr>
+
+                    </thead>
 
 
-                <?php if (!$plans): ?>
+                    <tbody>
 
-                    <div
-                        class="text-center text-muted py-5"
-                    >
+                        <?php if (!$plans): ?>
 
-                        <i
-                            class="fa-solid fa-utensils fa-2x mb-3"
-                        ></i>
+                            <tr>
 
+                                <td colspan="7" class="empty-state">
 
-                        <p class="mb-0">
+                                    <i class="fa-solid fa-utensils fs-2 d-block mb-2"></i>
 
-                            No cooking plans found for this date.
+                                    No cooking plans found for this date.
 
-                        </p>
+                                </td>
 
-                    </div>
+                            </tr>
 
-                <?php else: ?>
+                        <?php else: ?>
 
+                            <?php foreach ($plans as $index => $plan): ?>
 
-                    <div
-                        class="table-responsive"
-                    >
-
-                        <table
-                            class="table table-bordered align-middle"
-                        >
-
-                            <thead>
 
                                 <tr>
 
-                                    <th>#</th>
+                                    <!-- NUMBER -->
 
-                                    <th>Meal</th>
+                                    <td>
 
-                                    <th>Food Items</th>
+                                        <?= $index + 1 ?>
 
-                                    <th>Total Plates</th>
+                                    </td>
 
-                                    <th>Status</th>
 
-                                    <th>Created</th>
+                                    <!-- MEAL -->
 
-                                    <th>Action</th>
+                                    <td>
+
+                                        <?php
+
+                                        $mealIcons = [
+
+                                            'Breakfast' =>
+                                                'fa-mug-hot',
+
+                                            'Lunch' =>
+                                                'fa-bowl-food',
+
+                                            'Snacks' =>
+                                                'fa-cookie-bite',
+
+                                            'Dinner' =>
+                                                'fa-utensils'
+
+                                        ];
+
+                                        $mealPillClass = [
+
+                                            'Breakfast' =>
+                                                'meal-breakfast',
+
+                                            'Lunch' =>
+                                                'meal-lunch',
+
+                                            'Snacks' =>
+                                                'meal-snacks',
+
+                                            'Dinner' =>
+                                                'meal-dinner'
+
+                                        ];
+
+                                        ?>
+
+                                        <span class="meal-pill <?= $mealPillClass[
+                                            $plan['meal_type']
+                                        ] ?? 'meal-dinner' ?>">
+
+                                            <i
+                                                class="fa-solid <?= $mealIcons[
+                                                    $plan['meal_type']
+                                                ] ?? 'fa-utensils' ?> me-1"
+                                            ></i>
+
+                                            <?= htmlspecialchars(
+                                                $plan['meal_type']
+                                            ) ?>
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- FOOD ITEMS -->
+
+                                    <td>
+
+
+                                        <?php
+
+                                        $planId =
+                                            (int)$plan['id'];
+
+                                        $items =
+                                            $planDetails[
+                                                $planId
+                                            ] ?? [];
+
+                                        ?>
+
+
+                                        <?php if ($items): ?>
+
+
+                                            <ul class="plan-food-list">
+
+                                                <?php foreach ($items as $item): ?>
+
+                                                    <li>
+
+                                                        <?= htmlspecialchars(
+                                                            $item['food_name']
+                                                        ) ?>
+
+                                                        -
+
+                                                        <strong>
+
+                                                            <?= number_format(
+                                                                (int)$item['required_plates']
+                                                            ) ?>
+
+                                                        </strong>
+
+                                                        Plates
+
+                                                    </li>
+
+                                                <?php endforeach; ?>
+
+                                            </ul>
+
+
+                                        <?php else: ?>
+
+
+                                            <span class="text-muted">
+
+                                                No food items
+
+                                            </span>
+
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+
+                                    <!-- TOTAL PLATES -->
+
+                                    <td>
+
+                                        <span class="status-pill status-brown">
+
+                                            <?= number_format(
+                                                (int)$plan['total_plates']
+                                            ) ?>
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- STATUS -->
+
+                                    <td>
+
+
+                                        <?php if (
+                                            $plan['status'] ===
+                                            'Pending Approval'
+                                        ): ?>
+
+                                            <span class="status-pill status-warning">
+
+                                                Pending Approval
+
+                                            </span>
+
+
+                                        <?php elseif (
+                                            $plan['status'] ===
+                                            'Approved'
+                                        ): ?>
+
+                                            <span class="status-pill status-success">
+
+                                                Approved
+
+                                            </span>
+
+
+                                        <?php elseif (
+                                            $plan['status'] ===
+                                            'Sent to Store'
+                                        ): ?>
+
+                                            <span class="status-pill status-info">
+
+                                                Sent to Store
+
+                                            </span>
+
+
+                                        <?php elseif (
+                                            $plan['status'] ===
+                                            'Completed'
+                                        ): ?>
+
+                                            <span class="status-pill status-success">
+
+                                                Completed
+
+                                            </span>
+
+
+                                        <?php elseif (
+                                            $plan['status'] ===
+                                            'Cancelled'
+                                        ): ?>
+
+                                            <span class="status-pill status-danger">
+
+                                                Cancelled
+
+                                            </span>
+
+
+                                        <?php else: ?>
+
+                                            <span class="status-pill status-neutral">
+
+                                                <?= htmlspecialchars(
+                                                    $plan['status']
+                                                ) ?>
+
+                                            </span>
+
+                                        <?php endif; ?>
+
+
+                                    </td>
+
+
+                                    <!-- CREATED DATE -->
+
+                                    <td>
+
+                                        <?= htmlspecialchars(
+                                            date(
+                                                'd-m-Y h:i A',
+                                                strtotime(
+                                                    $plan['created_at']
+                                                )
+                                            )
+                                        ) ?>
+
+                                    </td>
+
+
+                                    <!-- ACTION -->
+
+                                    <td class="text-center">
+
+
+                                        <?php if (
+                                            in_array(
+                                                $plan['status'],
+                                                [
+                                                    'Draft',
+                                                    'Pending Approval'
+                                                ],
+                                                true
+                                            )
+                                        ): ?>
+
+
+                                            <form
+                                                method="POST"
+                                                onsubmit="
+                                                    return confirm(
+                                                        'Are you sure you want to cancel this cooking plan?'
+                                                    );
+                                                "
+                                            >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="action"
+                                                    value="cancel_plan"
+                                                >
+
+
+                                                <input
+                                                    type="hidden"
+                                                    name="plan_id"
+                                                    value="<?= (int)$plan['id'] ?>"
+                                                >
+
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-outline-danger btn-sm"
+                                                >
+
+                                                    <i
+                                                        class="fa-solid fa-xmark me-1"
+                                                    ></i>
+
+                                                    Cancel
+
+                                                </button>
+
+                                            </form>
+
+
+                                        <?php else: ?>
+
+                                            <span class="text-muted">-</span>
+
+                                        <?php endif; ?>
+
+
+                                    </td>
 
                                 </tr>
 
-                            </thead>
 
+                            <?php endforeach; ?>
 
-                            <tbody>
+                        <?php endif; ?>
 
 
-                                <?php foreach ($plans as $index => $plan): ?>
+                    </tbody>
 
-
-                                    <tr>
-
-                                        <!-- NUMBER -->
-
-                                        <td>
-
-                                            <?= $index + 1 ?>
-
-                                        </td>
-
-
-                                        <!-- MEAL -->
-
-                                        <td>
-
-                                            <strong>
-
-                                                <?php
-
-                                                $mealIcons = [
-
-                                                    'Breakfast' =>
-                                                        'fa-mug-hot',
-
-                                                    'Lunch' =>
-                                                        'fa-bowl-food',
-
-                                                    'Snacks' =>
-                                                        'fa-cookie-bite',
-
-                                                    'Dinner' =>
-                                                        'fa-utensils'
-
-                                                ];
-
-                                                ?>
-
-                                                <i
-                                                    class="fa-solid <?= $mealIcons[
-                                                        $plan['meal_type']
-                                                    ] ?? 'fa-utensils' ?> me-1"
-                                                ></i>
-
-                                                <?= htmlspecialchars(
-                                                    $plan['meal_type']
-                                                ) ?>
-
-                                            </strong>
-
-                                        </td>
-
-
-                                        <!-- FOOD ITEMS -->
-
-                                        <td>
-
-
-                                            <?php
-
-                                            $planId =
-                                                (int)$plan['id'];
-
-                                            $items =
-                                                $planDetails[
-                                                    $planId
-                                                ] ?? [];
-
-                                            ?>
-
-
-                                            <?php if ($items): ?>
-
-
-                                                <ul
-                                                    class="mb-0 ps-3"
-                                                >
-
-                                                    <?php foreach ($items as $item): ?>
-
-                                                        <li>
-
-                                                            <?= htmlspecialchars(
-                                                                $item['food_name']
-                                                            ) ?>
-
-                                                            -
-
-                                                            <strong>
-
-                                                                <?= number_format(
-                                                                    (int)$item['required_plates']
-                                                                ) ?>
-
-                                                            </strong>
-
-                                                            Plates
-
-                                                        </li>
-
-                                                    <?php endforeach; ?>
-
-                                                </ul>
-
-
-                                            <?php else: ?>
-
-
-                                                <span class="text-muted">
-
-                                                    No food items
-
-                                                </span>
-
-
-                                            <?php endif; ?>
-
-                                        </td>
-
-
-                                        <!-- TOTAL PLATES -->
-
-                                        <td>
-
-                                            <strong>
-
-                                                <?= number_format(
-                                                    (int)$plan['total_plates']
-                                                ) ?>
-
-                                            </strong>
-
-                                        </td>
-
-
-                                        <!-- STATUS -->
-
-                                        <td>
-
-
-                                            <?php if (
-                                                $plan['status'] ===
-                                                'Pending Approval'
-                                            ): ?>
-
-                                                <span
-                                                    class="badge bg-warning text-dark"
-                                                >
-
-                                                    Pending Approval
-
-                                                </span>
-
-
-                                            <?php elseif (
-                                                $plan['status'] ===
-                                                'Approved'
-                                            ): ?>
-
-                                                <span
-                                                    class="badge bg-success"
-                                                >
-
-                                                    Approved
-
-                                                </span>
-
-
-                                            <?php elseif (
-                                                $plan['status'] ===
-                                                'Sent to Store'
-                                            ): ?>
-
-                                                <span
-                                                    class="badge bg-primary"
-                                                >
-
-                                                    Sent to Store
-
-                                                </span>
-
-
-                                            <?php elseif (
-                                                $plan['status'] ===
-                                                'Completed'
-                                            ): ?>
-
-                                                <span
-                                                    class="badge bg-success"
-                                                >
-
-                                                    Completed
-
-                                                </span>
-
-
-                                            <?php elseif (
-                                                $plan['status'] ===
-                                                'Cancelled'
-                                            ): ?>
-
-                                                <span
-                                                    class="badge bg-danger"
-                                                >
-
-                                                    Cancelled
-
-                                                </span>
-
-
-                                            <?php else: ?>
-
-                                                <span
-                                                    class="badge bg-secondary"
-                                                >
-
-                                                    <?= htmlspecialchars(
-                                                        $plan['status']
-                                                    ) ?>
-
-                                                </span>
-
-                                            <?php endif; ?>
-
-
-                                        </td>
-
-
-                                        <!-- CREATED DATE -->
-
-                                        <td>
-
-                                            <?= htmlspecialchars(
-                                                date(
-                                                    'd-m-Y h:i A',
-                                                    strtotime(
-                                                        $plan['created_at']
-                                                    )
-                                                )
-                                            ) ?>
-
-                                        </td>
-
-
-                                        <!-- ACTION -->
-
-                                        <td>
-
-
-                                            <?php if (
-                                                in_array(
-                                                    $plan['status'],
-                                                    [
-                                                        'Draft',
-                                                        'Pending Approval'
-                                                    ],
-                                                    true
-                                                )
-                                            ): ?>
-
-
-                                                <form
-                                                    method="POST"
-                                                    onsubmit="
-                                                        return confirm(
-                                                            'Are you sure you want to cancel this cooking plan?'
-                                                        );
-                                                    "
-                                                >
-
-                                                    <input
-                                                        type="hidden"
-                                                        name="action"
-                                                        value="cancel_plan"
-                                                    >
-
-
-                                                    <input
-                                                        type="hidden"
-                                                        name="plan_id"
-                                                        value="<?= (int)$plan['id'] ?>"
-                                                    >
-
-
-                                                    <button
-                                                        type="submit"
-                                                        class="btn btn-outline-danger btn-sm"
-                                                    >
-
-                                                        <i
-                                                            class="fa-solid fa-xmark me-1"
-                                                        ></i>
-
-                                                        Cancel
-
-                                                    </button>
-
-                                                </form>
-
-
-                                            <?php else: ?>
-
-                                                -
-
-                                            <?php endif; ?>
-
-
-                                        </td>
-
-                                    </tr>
-
-
-                                <?php endforeach; ?>
-
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-
-                <?php endif; ?>
-
+                </table>
 
             </div>
 
@@ -1864,4 +1928,3 @@ document.addEventListener(
 require_once __DIR__ . '/../includes/footer.php';
 
 ?>
-

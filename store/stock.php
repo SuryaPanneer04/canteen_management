@@ -311,22 +311,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <div class="page-body">
 
         <!-- PAGE HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="dashboard-hero">
 
-            <div>
+            <div class="dashboard-heading">
 
-                <h4 class="mb-1">
-                    Stock Report
-                </h4>
-
-                <div class="text-muted">
-                    View current stock and material-wise stock status.
-                </div>
 
             </div>
 
-
-            <div>
+            <div class="hero-right">
                 <!--
                 <a
                     href="stock_inward.php"
@@ -348,278 +340,243 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     Issue to Kitchen
 
                 </a> -->
-
             </div>
 
         </div>
 
 
         <!-- SUMMARY CARDS -->
-        <div class="row g-3 mb-4">
+        <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
 
             <!-- ACTIVE MATERIALS -->
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-primary">
-                        <i class="fa-solid fa-boxes-stacked"></i>
-                    </div>
-
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Active Materials</div>
                         <div class="stat-value"><?= $totalMaterials ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">Enabled items</div>
             </div>
 
 
             <!-- TOTAL STOCK -->
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-green">
-                        <i class="fa-solid fa-warehouse"></i>
-                    </div>
-
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Total Stock Qty</div>
                         <div class="stat-value"><?= number_format($totalStock, 2) ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-warehouse"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend">Across all materials</div>
             </div>
 
 
             <!-- LOW STOCK -->
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-amber">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                    </div>
-
+            <div class="dash-stat stat-orange">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Low Stock</div>
                         <div class="stat-value"><?= $lowStockCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend down">Needs reordering</div>
             </div>
 
 
             <!-- OUT OF STOCK -->
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-purple">
-                        <i class="fa-solid fa-circle-xmark"></i>
-                    </div>
-
+            <div class="dash-stat stat-red">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Out of Stock</div>
                         <div class="stat-value"><?= $outOfStockCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend down">Zero quantity</div>
             </div>
 
         </div>
 
 
         <!-- FILTER -->
-<div class="content-card mb-4">
+        <div class="quick-card">
 
-    <div class="content-card-header">
+            <div class="section-title">
+                <i class="fa-solid fa-filter"></i>
+                Stock Filter
+            </div>
 
-        <strong>
+            <form method="GET">
 
-            <i class="fa-solid fa-filter me-1"></i>
+                <div class="row g-3 align-items-end">
 
-            Stock Filter
+                    <!-- SEARCH -->
+                    <div class="col-md-4">
 
-        </strong>
+                        <label class="form-label">
+                            Search Material
+                        </label>
 
-    </div>
+                        <input
+                            type="text"
+                            name="search"
+                            class="form-control"
+                            value="<?= e($search) ?>"
+                            placeholder="Code, material name or category">
 
-
-    <div class="content-card-body">
-
-        <form method="GET">
-
-            <div class="row g-3 align-items-end">
-
-                <!-- SEARCH -->
-                <div class="col-md-4">
-
-                    <label class="form-label">
-                        Search Material
-                    </label>
-
-                    <input
-                        type="text"
-                        name="search"
-                        class="form-control"
-                        value="<?= e($search) ?>"
-                        placeholder="Code, material name or category">
-
-                </div>
+                    </div>
 
 
-                <!-- CATEGORY -->
-                <div class="col-md-3">
+                    <!-- CATEGORY -->
+                    <div class="col-md-3">
 
-                    <label class="form-label">
-                        Category
-                    </label>
+                        <label class="form-label">
+                            Category
+                        </label>
 
-                    <select
-                        name="category"
-                        class="form-select">
+                        <select
+                            name="category"
+                            class="form-select">
 
-                        <option value="">
-                            All Categories
-                        </option>
+                            <option value="">
+                                All Categories
+                            </option>
 
-                        <?php foreach ($categories as $category): ?>
+                            <?php foreach ($categories as $category): ?>
+
+                                <option
+                                    value="<?= e($category) ?>"
+                                    <?= $categoryFilter === $category
+                                        ? 'selected'
+                                        : '' ?>>
+
+                                    <?= e($category) ?>
+
+                                </option>
+
+                            <?php endforeach; ?>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+                    <div class="col-md-3">
+
+                        <label class="form-label">
+                            Stock Status
+                        </label>
+
+                        <select
+                            name="status"
+                            class="form-select">
 
                             <option
-                                value="<?= e($category) ?>"
-                                <?= $categoryFilter === $category
+                                value="All"
+                                <?= $statusFilter === 'All'
                                     ? 'selected'
                                     : '' ?>>
 
-                                <?= e($category) ?>
+                                All
 
                             </option>
 
-                        <?php endforeach; ?>
+                            <option
+                                value="In Stock"
+                                <?= $statusFilter === 'In Stock'
+                                    ? 'selected'
+                                    : '' ?>>
 
-                    </select>
+                                In Stock
 
-                </div>
+                            </option>
+
+                            <option
+                                value="Low Stock"
+                                <?= $statusFilter === 'Low Stock'
+                                    ? 'selected'
+                                    : '' ?>>
+
+                                Low Stock
+
+                            </option>
+
+                            <option
+                                value="Out of Stock"
+                                <?= $statusFilter === 'Out of Stock'
+                                    ? 'selected'
+                                    : '' ?>>
+
+                                Out of Stock
+
+                            </option>
+
+                            <option
+                                value="Disabled"
+                                <?= $statusFilter === 'Disabled'
+                                    ? 'selected'
+                                    : '' ?>>
+
+                                Disabled
+
+                            </option>
+
+                        </select>
+
+                    </div>
 
 
-                <!-- STATUS -->
-                <div class="col-md-3">
+                    <!-- BUTTON -->
+                    <div class="col-md-2">
 
-                    <label class="form-label">
-                        Stock Status
-                    </label>
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100">
 
-                    <select
-                        name="status"
-                        class="form-select">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i>
 
-                        <option
-                            value="All"
-                            <?= $statusFilter === 'All'
-                                ? 'selected'
-                                : '' ?>>
+                            Filter
 
-                            All
+                        </button>
 
-                        </option>
-
-                        <option
-                            value="In Stock"
-                            <?= $statusFilter === 'In Stock'
-                                ? 'selected'
-                                : '' ?>>
-
-                            In Stock
-
-                        </option>
-
-                        <option
-                            value="Low Stock"
-                            <?= $statusFilter === 'Low Stock'
-                                ? 'selected'
-                                : '' ?>>
-
-                            Low Stock
-
-                        </option>
-
-                        <option
-                            value="Out of Stock"
-                            <?= $statusFilter === 'Out of Stock'
-                                ? 'selected'
-                                : '' ?>>
-
-                            Out of Stock
-
-                        </option>
-
-                        <option
-                            value="Disabled"
-                            <?= $statusFilter === 'Disabled'
-                                ? 'selected'
-                                : '' ?>>
-
-                            Disabled
-
-                        </option>
-
-                    </select>
+                    </div>
 
                 </div>
 
+            </form>
 
-                <!-- BUTTON -->
-                <div class="col-md-2">
-
-                    <button
-                        type="submit"
-                        class="btn btn-primary w-100">
-
-                        <i class="fa-solid fa-magnifying-glass me-1"></i>
-
-                        Filter
-
-                    </button>
-
-                </div>
-
-            </div>
-
-        </form>
-
-    </div>
-
-</div>
+        </div>
 
 
         <!-- STOCK TABLE -->
-        <div class="content-card mb-4">
+        <div class="dashboard-table mb-4">
 
-            <div class="content-card-header">
+            <div class="table-header">
 
-                <div class="d-flex justify-content-between align-items-center">
+                <strong>
 
-                    <strong>
+                    <i class="fa-solid fa-warehouse me-1"></i>
 
-                        <i class="fa-solid fa-warehouse me-1"></i>
+                    Current Stock
 
-                        Current Stock
+                </strong>
 
-                    </strong>
-
-                    <span class="text-muted small">
-
-                        <?= count($materials) ?> material(s)
-
-                    </span>
-
-                </div>
+                <span class="fs-6 fw-medium">
+                    <?= count($materials) ?> material(s)
+                </span>
 
             </div>
 
@@ -665,7 +622,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <td
                                 colspan="10"
-                                class="text-center text-muted py-5">
+                                class="empty-state">
 
                                 <i class="fa-solid fa-box-open fs-2 d-block mb-2"></i>
 
@@ -690,22 +647,22 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             if ($material['status'] === 'Disabled') {
 
                                 $stockStatus = 'Disabled';
-                                $badgeClass = 'badge-disabled';
+                                $badgeClass = 'status-neutral';
 
                             } elseif ($currentStock <= 0) {
 
                                 $stockStatus = 'Out of Stock';
-                                $badgeClass = 'badge-disabled';
+                                $badgeClass = 'status-danger';
 
                             } elseif ($currentStock <= $minimumStock) {
 
                                 $stockStatus = 'Low Stock';
-                                $badgeClass = 'bg-warning text-dark';
+                                $badgeClass = 'status-warning';
 
                             } else {
 
                                 $stockStatus = 'In Stock';
-                                $badgeClass = 'badge-enable';
+                                $badgeClass = 'status-success';
 
                             }
 
@@ -724,9 +681,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <td>
 
-                                    <div class="d-flex align-items-center gap-2">
+                                    <div class="food-cell">
 
-                                        <span class="row-avatar">
+                                        <span class="table-avatar">
                                             <?= e($initials) ?>
                                         </span>
 
@@ -759,7 +716,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <td>
 
-                                    <span class="badge bg-light text-dark border">
+                                    <span class="status-pill status-neutral">
 
                                         <?= e(
                                             $material['unit']
@@ -831,7 +788,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 <!-- STATUS -->
                                 <td>
 
-                                    <span class="badge <?= $badgeClass ?>">
+                                    <span class="status-pill <?= $badgeClass ?>">
 
                                         <?= e($stockStatus) ?>
 
@@ -871,44 +828,40 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <!-- TRANSACTION HISTORY -->
         <?php if ($transactionMaterialId > 0): ?>
 
-            <div class="content-card">
+            <div class="dashboard-table">
 
-                <div class="content-card-header">
+                <div class="table-header">
 
-                    <div class="d-flex justify-content-between align-items-center">
+                    <strong>
 
-                        <strong>
+                        <i class="fa-solid fa-clock-rotate-left me-1"></i>
 
-                            <i class="fa-solid fa-clock-rotate-left me-1"></i>
+                        Stock Transaction History
 
-                            Stock Transaction History
+                        <?php if ($transactionMaterial !== null): ?>
 
-                            <?php if ($transactionMaterial !== null): ?>
+                            <span class="text-muted fw-normal">
 
-                                <span class="text-muted fw-normal">
+                                &mdash;
+                                <?= e($transactionMaterial['material_name']) ?>
+                                (<?= e($transactionMaterial['material_code']) ?>)
 
-                                    &mdash;
-                                    <?= e($transactionMaterial['material_name']) ?>
-                                    (<?= e($transactionMaterial['material_code']) ?>)
+                            </span>
 
-                                </span>
+                        <?php endif; ?>
 
-                            <?php endif; ?>
-
-                        </strong>
+                    </strong>
 
 
-                        <a
-                            href="stock.php"
-                            class="btn btn-sm btn-outline-secondary">
+                    <a
+                        href="stock.php"
+                        class="btn btn-sm btn-outline-secondary">
 
-                            <i class="fa-solid fa-xmark me-1"></i>
+                        <i class="fa-solid fa-xmark me-1"></i>
 
-                            Close
+                        Close
 
-                        </a>
-
-                    </div>
+                    </a>
 
                 </div>
 
@@ -948,7 +901,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <td
                                     colspan="7"
-                                    class="text-center text-muted py-4">
+                                    class="empty-state">
 
                                     No transactions found.
 
@@ -968,7 +921,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 if ($transactionType === 'PURCHASE') {
 
                                     $label = 'Stock Inward';
-                                    $badge = 'badge-enable';
+                                    $badge = 'status-success';
                                     $prefix = '+';
 
                                 } elseif (
@@ -976,19 +929,19 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 ) {
 
                                     $label = 'Kitchen Issue';
-                                    $badge = 'badge-disabled';
+                                    $badge = 'status-danger';
                                     $prefix = '-';
 
                                 } elseif ($transactionType === 'RETURN') {
 
                                     $label = 'Return';
-                                    $badge = 'bg-info text-dark';
+                                    $badge = 'status-info';
                                     $prefix = '+';
 
                                 } else {
 
                                     $label = 'Adjustment';
-                                    $badge = 'bg-secondary';
+                                    $badge = 'status-neutral';
                                     $prefix = '';
 
                                 }
@@ -1008,9 +961,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     <td>
 
-                                        <div class="d-flex align-items-center gap-2">
+                                        <div class="food-cell">
 
-                                            <span class="row-avatar">
+                                            <span class="table-avatar">
                                                 <?= e($rowInitials) ?>
                                             </span>
 
@@ -1033,7 +986,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     <td>
 
-                                        <span class="badge <?= $badge ?>">
+                                        <span class="status-pill <?= $badge ?>">
 
                                             <?= e($label) ?>
 

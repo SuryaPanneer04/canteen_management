@@ -233,8 +233,7 @@ $requests = $stmt->fetchAll();
 <?php require_once __DIR__ . '/../includes/sidebar.php'; ?>
 
 
-<main class="main-content">
-
+<main class="main-content purchase-orders-page">
     <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
 
@@ -249,13 +248,7 @@ $requests = $stmt->fetchAll();
 
             <div>
 
-                <h4 class="mb-1">
-                    Purchase Requests
-                </h4>
-
-                <p class="text-muted mb-0">
-                    Review and process purchase requests submitted by Store.
-                </p>
+                
 
             </div>
 
@@ -639,7 +632,7 @@ $requests = $stmt->fetchAll();
                                         <!-- VIEW BUTTON -->
                                         <button 
                                             type="button" 
-                                            class="btn btn-sm btn-outline-info view-request-btn" 
+                                            class="btn btn-sm btn-primary view-request-btn" 
                                             data-id="<?= (int)$request['id'] ?>"
                                             data-reqno="<?= e($request['request_no']) ?>"
                                             title="View Requested Items"
@@ -716,12 +709,12 @@ $requests = $stmt->fetchAll();
 <div class="modal fade" id="viewRequestModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
+            <div class="modal-header text-white" style="background-color: #673ab7 !important;">
+                <h5 class="modal-title text-white">
                     <i class="fa-solid fa-boxes-stacked me-2"></i>
-                    Requested Items: <strong id="modalRequestNo" class="text-primary"></strong>
+                    Requested Items: <strong id="modalRequestNo" class="text-white"></strong>
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             
             <div class="modal-body p-0">

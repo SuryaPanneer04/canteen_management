@@ -327,11 +327,14 @@ foreach ($requests as $request) {
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
-require_once __DIR__ . '/../includes/topbar.php';
 
 ?>
 
-<div class="main-content">
+<div class="main-content cooking-plan-page">
+
+<?php require_once __DIR__ . '/../includes/topbar.php'; ?>
+
+<div class="page-body">
 
 <!--
 |--------------------------------------------------------------------------
@@ -339,28 +342,26 @@ require_once __DIR__ . '/../includes/topbar.php';
 |--------------------------------------------------------------------------
 -->
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="dashboard-hero">
 
-    <div>
+    <div class="dashboard-heading">
 
-        <h4 class="mb-1">
-            <i class="fa-solid fa-boxes-stacked me-2"></i>
-            Material Issue History
-        </h4>
-
-        <p class="text-muted mb-0">
-            View materials issued by Store for Kitchen cooking plans.
-        </p>
+       
 
     </div>
 
-    <a
-        href="dashboard.php"
-        class="btn btn-outline-secondary"
-    >
-        <i class="fa-solid fa-arrow-left me-1"></i>
-        Dashboard
-    </a>
+    <div class="hero-right">
+
+        <a
+            href="dashboard.php"
+            class="btn btn-kitchen-outline"
+            style="padding:10px 18px; font-size:13px;"
+        >
+            <i class="fa-solid fa-arrow-left me-1"></i>
+            Dashboard
+        </a>
+
+    </div>
 
 </div>
 
@@ -396,137 +397,58 @@ require_once __DIR__ . '/../includes/topbar.php';
 |--------------------------------------------------------------------------
 -->
 
-<div class="row g-3 mb-4">
+<div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
 
-    <div class="col-md-3">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Total Requests
-                        </small>
-
-                        <h3 class="mb-0">
-                            <?= $totalRequests ?>
-                        </h3>
-
-                    </div>
-
-                    <div class="text-primary fs-2">
-                        <i class="fa-solid fa-file-lines"></i>
-                    </div>
-
-                </div>
-
+    <div class="dash-stat stat-brown">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Total Requests</div>
+                <div class="stat-value"><?= $totalRequests ?></div>
             </div>
-
+            <div class="stat-icon">
+                <i class="fa-solid fa-file-lines"></i>
+            </div>
         </div>
-
+        <div class="stat-trend neutral">All material requests</div>
     </div>
 
-
-    <div class="col-md-3">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Completed
-                        </small>
-
-                        <h3 class="mb-0 text-success">
-                            <?= $completedRequests ?>
-                        </h3>
-
-                    </div>
-
-                    <div class="text-success fs-2">
-                        <i class="fa-solid fa-circle-check"></i>
-                    </div>
-
-                </div>
-
+    <div class="dash-stat stat-green">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Completed</div>
+                <div class="stat-value"><?= $completedRequests ?></div>
             </div>
-
+            <div class="stat-icon">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
         </div>
-
+        <div class="stat-trend">Fully issued</div>
     </div>
 
-
-    <div class="col-md-3">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Partially Issued
-                        </small>
-
-                        <h3 class="mb-0 text-warning">
-                            <?= $partialRequests ?>
-                        </h3>
-
-                    </div>
-
-                    <div class="text-warning fs-2">
-                        <i class="fa-solid fa-boxes-packing"></i>
-                    </div>
-
-                </div>
-
+    <div class="dash-stat stat-orange">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Partially Issued</div>
+                <div class="stat-value"><?= $partialRequests ?></div>
             </div>
-
+            <div class="stat-icon">
+                <i class="fa-solid fa-boxes-packing"></i>
+            </div>
         </div>
-
+        <div class="stat-trend neutral">In progress</div>
     </div>
 
-
-    <div class="col-md-3">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Waiting Store
-                        </small>
-
-                        <h3 class="mb-0 text-danger">
-                            <?= $pendingRequests ?>
-                        </h3>
-
-                    </div>
-
-                    <div class="text-danger fs-2">
-                        <i class="fa-solid fa-clock"></i>
-                    </div>
-
-                </div>
-
+    <div class="dash-stat stat-red">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Waiting Store</div>
+                <div class="stat-value"><?= $pendingRequests ?></div>
             </div>
-
+            <div class="stat-icon">
+                <i class="fa-solid fa-clock"></i>
+            </div>
         </div>
-
+        <div class="stat-trend down">Not yet issued</div>
     </div>
 
 </div>
@@ -538,124 +460,116 @@ require_once __DIR__ . '/../includes/topbar.php';
 |--------------------------------------------------------------------------
 -->
 
-<div class="card shadow-sm mb-4">
+<div class="quick-card">
 
-    <div class="card-header">
-
-        <h5 class="mb-0">
-            <i class="fa-solid fa-filter me-2"></i>
-            Filter Material Issues
-        </h5>
-
+    <div class="section-title">
+        <i class="fa-solid fa-filter"></i>
+        Filter Material Issues
     </div>
 
-    <div class="card-body">
+    <form method="GET">
 
-        <form method="GET">
+        <div class="row g-3">
 
-            <div class="row g-3">
+            <div class="col-md-3">
 
-                <div class="col-md-3">
+                <label class="form-label">
+                    Search
+                </label>
 
-                    <label class="form-label">
-                        Search
-                    </label>
-
-                    <input
-                        type="text"
-                        name="search"
-                        class="form-control"
-                        placeholder="Request No / Plan No / Meal"
-                        value="<?= e($search) ?>"
-                    >
-
-                </div>
-
-
-                <div class="col-md-2">
-
-                    <label class="form-label">
-                        Status
-                    </label>
-
-                    <select
-                        name="status"
-                        class="form-select"
-                    >
-
-                        <?php foreach ($allowedStatuses as $status): ?>
-
-                            <option
-                                value="<?= e($status) ?>"
-                                <?= $statusFilter === $status ? 'selected' : '' ?>
-                            >
-                                <?= e($status) ?>
-                            </option>
-
-                        <?php endforeach; ?>
-
-                    </select>
-
-                </div>
-
-
-                <div class="col-md-2">
-
-                    <label class="form-label">
-                        From Date
-                    </label>
-
-                    <input
-                        type="date"
-                        name="date_from"
-                        class="form-control"
-                        value="<?= e($dateFrom) ?>"
-                    >
-
-                </div>
-
-
-                <div class="col-md-2">
-
-                    <label class="form-label">
-                        To Date
-                    </label>
-
-                    <input
-                        type="date"
-                        name="date_to"
-                        class="form-control"
-                        value="<?= e($dateTo) ?>"
-                    >
-
-                </div>
-
-
-                <div class="col-md-3 d-flex align-items-end gap-2">
-
-                    <button
-                        type="submit"
-                        class="btn btn-primary"
-                    >
-                        <i class="fa-solid fa-magnifying-glass me-1"></i>
-                        Search
-                    </button>
-
-                    <a
-                        href="issue_history.php"
-                        class="btn btn-outline-secondary"
-                    >
-                        <i class="fa-solid fa-rotate-left me-1"></i>
-                        Reset
-                    </a>
-
-                </div>
+                <input
+                    type="text"
+                    name="search"
+                    class="form-control"
+                    placeholder="Request No / Plan No / Meal"
+                    value="<?= e($search) ?>"
+                >
 
             </div>
 
-        </form>
 
-    </div>
+            <div class="col-md-2">
+
+                <label class="form-label">
+                    Status
+                </label>
+
+                <select
+                    name="status"
+                    class="form-select"
+                >
+
+                    <?php foreach ($allowedStatuses as $status): ?>
+
+                        <option
+                            value="<?= e($status) ?>"
+                            <?= $statusFilter === $status ? 'selected' : '' ?>
+                        >
+                            <?= e($status) ?>
+                        </option>
+
+                    <?php endforeach; ?>
+
+                </select>
+
+            </div>
+
+
+            <div class="col-md-2">
+
+                <label class="form-label">
+                    From Date
+                </label>
+
+                <input
+                    type="date"
+                    name="date_from"
+                    class="form-control"
+                    value="<?= e($dateFrom) ?>"
+                >
+
+            </div>
+
+
+            <div class="col-md-2">
+
+                <label class="form-label">
+                    To Date
+                </label>
+
+                <input
+                    type="date"
+                    name="date_to"
+                    class="form-control"
+                    value="<?= e($dateTo) ?>"
+                >
+
+            </div>
+
+
+            <div class="col-md-3 d-flex align-items-end gap-2">
+
+                <button
+                    type="submit"
+                    class="btn btn-kitchen"
+                >
+                    <i class="fa-solid fa-magnifying-glass me-1"></i>
+                    Search
+                </button>
+
+                <a
+                    href="issue_history.php"
+                    class="btn btn-outline-secondary"
+                >
+                    <i class="fa-solid fa-rotate-left me-1"></i>
+                    Reset
+                </a>
+
+            </div>
+
+        </div>
+
+    </form>
 
 </div>
 
@@ -666,24 +580,23 @@ require_once __DIR__ . '/../includes/topbar.php';
 |--------------------------------------------------------------------------
 -->
 
-<div class="card shadow-sm">
+<div class="dashboard-table">
 
-    <div class="card-header">
-
-        <h5 class="mb-0">
+    <div class="table-header">
+        <strong>
             <i class="fa-solid fa-clock-rotate-left me-2"></i>
             Material Requests & Issues
-        </h5>
-
+        </strong>
+        <span class="fs-6 fw-medium"><?= count($requests) ?> request(s)</span>
     </div>
 
-    <div class="card-body">
+    <div>
 
         <?php if (empty($requests)): ?>
 
-            <div class="text-center py-5">
+            <div class="empty-state py-5">
 
-                <i class="fa-solid fa-box-open fa-3x text-muted mb-3"></i>
+                <i class="fa-solid fa-box-open fs-1 text-muted d-block mb-3"></i>
 
                 <h5>
                     No material issue records found
@@ -700,9 +613,9 @@ require_once __DIR__ . '/../includes/topbar.php';
 
             <div class="table-responsive">
 
-                <table class="table table-bordered table-hover align-middle">
+                <table class="table table-hover align-middle mb-0">
 
-                    <thead class="table-light">
+                    <thead>
 
                         <tr>
 
@@ -742,22 +655,30 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                         $status = $request['status'];
 
-                        $statusClass = match ($status) {
+                        $statusPillClass = match ($status) {
 
                             'Completed'
-                                => 'bg-success',
+                                => 'status-success',
 
                             'Partially Issued'
-                                => 'bg-warning text-dark',
+                                => 'status-warning',
 
                             'Sent to Store'
-                                => 'bg-primary',
+                                => 'status-info',
 
                             'Rejected'
-                                => 'bg-danger',
+                                => 'status-danger',
 
                             default
-                                => 'bg-secondary'
+                                => 'status-neutral'
+                        };
+
+                        $mealPillClass = match ($request['plan_meal_type'] ?? '') {
+                            'Breakfast' => 'meal-breakfast',
+                            'Lunch' => 'meal-lunch',
+                            'Snacks' => 'meal-snacks',
+                            'Dinner' => 'meal-dinner',
+                            default => 'meal-dinner'
                         };
 
                         $collapseId = 'issueDetails' . (int)$request['id'];
@@ -809,18 +730,24 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                             <td>
 
-                                <span class="badge bg-info text-dark">
+                                <?php if (!empty($request['plan_meal_type'])): ?>
 
-                                    <?= e($request['plan_meal_type'] ?? '-') ?>
+                                    <span class="meal-pill <?= $mealPillClass ?>">
+                                        <?= e($request['plan_meal_type']) ?>
+                                    </span>
 
-                                </span>
+                                <?php else: ?>
+
+                                    <span class="status-pill status-neutral">-</span>
+
+                                <?php endif; ?>
 
                             </td>
 
 
                             <td>
 
-                                <span class="badge bg-secondary">
+                                <span class="status-pill status-neutral">
 
                                     <?= (int)$request['item_count'] ?>
 
@@ -869,7 +796,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                             <td>
 
-                                <span class="badge <?= $statusClass ?>">
+                                <span class="status-pill <?= $statusPillClass ?>">
 
                                     <?= e($status) ?>
 
@@ -882,7 +809,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                 <button
                                     type="button"
-                                    class="btn btn-sm btn-outline-primary"
+                                    class="btn btn-sm btn-kitchen-outline"
                                     data-bs-toggle="collapse"
                                     data-bs-target="#<?= $collapseId ?>"
                                     aria-expanded="false"
@@ -913,7 +840,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                     id="<?= $collapseId ?>"
                                 >
 
-                                    <div class="p-3 bg-light">
+                                    <div class="p-3" style="background:#FDF9F5;">
 
                                         <div class="row mb-3">
 
@@ -1140,11 +1067,13 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                                             <td>
 
-                                                                <?= e(
-                                                                    $item[
-                                                                        'unit'
-                                                                    ]
-                                                                ) ?>
+                                                                <span class="status-pill status-neutral">
+                                                                    <?= e(
+                                                                        $item[
+                                                                            'unit'
+                                                                        ]
+                                                                    ) ?>
+                                                                </span>
 
                                                             </td>
 
@@ -1264,6 +1193,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
 </div>
 
+</div>
 </div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

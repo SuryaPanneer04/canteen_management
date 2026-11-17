@@ -521,36 +521,132 @@ $stmt = $con->query("
 
 $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+
+/*
+|--------------------------------------------------------------------------
+| SUMMARY COUNTS (for the stat cards)
+|--------------------------------------------------------------------------
+*/
+
+$totalReadyItems = count($foodItems);
+$notPreparedCount = 0;
+$sentToCanteenCount = 0;
+$completedItemCount = 0;
+
+foreach ($foodItems as $foodItem) {
+
+    if (!$foodItem['preparation_id']) {
+        $notPreparedCount++;
+        continue;
+    }
+
+    if ($foodItem['preparation_status'] === 'Sent to Canteen') {
+        $sentToCanteenCount++;
+    } elseif ($foodItem['preparation_status'] === 'Completed') {
+        $completedItemCount++;
+    }
+}
+
 ?>
 
 <?php require_once __DIR__ . '/../includes/header.php'; ?>
 <?php require_once __DIR__ . '/../includes/sidebar.php'; ?>
+
+<main class="main-content cooking-plan-page">
+
 <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
-<main class="main-content">
-<div class="container-fluid">
+<div class="page-body">
 
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h3 class="mb-1">Food Preparation</h3>
-        <p class="text-muted mb-0">
-            Prepare approved food and send it to Canteen.
-        </p>
+<div class="dashboard-hero">
+
+    <div class="dashboard-heading">
+
+
     </div>
+
 </div>
 
 <?php if ($error): ?>
-    <div class="alert alert-danger">
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fa-solid fa-circle-exclamation me-2"></i>
         <?= htmlspecialchars($error) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
 
 <?php if ($success): ?>
-    <div class="alert alert-success">
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fa-solid fa-circle-check me-2"></i>
         <?= htmlspecialchars($success) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
+
+
+<!--
+|--------------------------------------------------------------------------
+| STAT CARDS
+|--------------------------------------------------------------------------
+-->
+
+<div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+
+    <div class="dash-stat stat-brown">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Ready Items</div>
+                <div class="stat-value"><?= $totalReadyItems ?></div>
+            </div>
+            <div class="stat-icon">
+                <i class="fa-solid fa-bowl-food"></i>
+            </div>
+        </div>
+        <div class="stat-trend neutral">Materials issued</div>
+    </div>
+
+    <div class="dash-stat stat-orange">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Not Prepared</div>
+                <div class="stat-value"><?= $notPreparedCount ?></div>
+            </div>
+            <div class="stat-icon">
+                <i class="fa-solid fa-clock"></i>
+            </div>
+        </div>
+        <div class="stat-trend neutral">Waiting for Kitchen</div>
+    </div>
+
+    <div class="dash-stat stat-cyan">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Sent to Canteen</div>
+                <div class="stat-value"><?= $sentToCanteenCount ?></div>
+            </div>
+            <div class="stat-icon">
+                <i class="fa-solid fa-truck-ramp-box"></i>
+            </div>
+        </div>
+        <div class="stat-trend neutral">In transit</div>
+    </div>
+
+    <div class="dash-stat stat-green">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Completed</div>
+                <div class="stat-value"><?= $completedItemCount ?></div>
+            </div>
+            <div class="stat-icon">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+        </div>
+        <div class="stat-trend">Received by Canteen</div>
+    </div>
+
+</div>
+
 
 <!--
 |--------------------------------------------------------------------------
@@ -558,22 +654,23 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 |--------------------------------------------------------------------------
 -->
 
-<div class="card shadow-sm mb-4">
+<div class="dashboard-table mb-4">
 
-    <div class="card-header">
-        <h5 class="mb-0">
-            <i class="fas fa-utensils"></i>
+    <div class="table-header">
+        <strong>
+            <i class="fa-solid fa-utensils me-2"></i>
             Ready for Preparation
-        </h5>
+        </strong>
+        <span class="fs-6 fw-medium"><?= count($foodItems) ?> item(s)</span>
     </div>
 
-    <div class="card-body">
+    <div>
 
         <?php if (!$foodItems): ?>
 
-            <div class="text-center py-5">
+            <div class="empty-state py-5">
 
-                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <i class="fa-solid fa-circle-check fs-1 text-success d-block mb-3"></i>
 
                 <h5>No food pending for preparation</h5>
 
@@ -588,9 +685,9 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             <div class="table-responsive">
 
-                <table class="table table-bordered table-hover align-middle">
+                <table class="table table-hover align-middle mb-0">
 
-                    <thead class="table-light">
+                    <thead>
 
                         <tr>
                             <th>#</th>
@@ -627,25 +724,37 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <td>
 
                                 <?php
-                                $mealClass = match ($item['meal_type']) {
-                                    'Breakfast' => 'badge bg-warning text-dark',
-                                    'Lunch' => 'badge bg-primary',
-                                    'Snacks' => 'badge bg-info text-dark',
-                                    'Dinner' => 'badge bg-dark',
-                                    default => 'badge bg-secondary'
+                                $mealPillClass = match ($item['meal_type']) {
+                                    'Breakfast' => 'meal-breakfast',
+                                    'Lunch' => 'meal-lunch',
+                                    'Snacks' => 'meal-snacks',
+                                    'Dinner' => 'meal-dinner',
+                                    default => 'meal-dinner'
                                 };
                                 ?>
 
-                                <span class="<?= $mealClass ?>">
+                                <span class="meal-pill <?= $mealPillClass ?>">
                                     <?= htmlspecialchars($item['meal_type']) ?>
                                 </span>
 
                             </td>
 
                             <td>
-                                <strong>
-                                    <?= htmlspecialchars($item['food_name']) ?>
-                                </strong>
+
+                                <div class="food-cell">
+
+                                    <span class="table-avatar">
+                                        <?= htmlspecialchars(
+                                            strtoupper(substr((string)$item['food_name'], 0, 1))
+                                        ) ?>
+                                    </span>
+
+                                    <strong>
+                                        <?= htmlspecialchars($item['food_name']) ?>
+                                    </strong>
+
+                                </div>
+
                             </td>
 
                             <td>
@@ -657,7 +766,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </td>
 
                             <td>
-                                <span class="badge bg-success">
+                                <span class="status-pill status-success">
                                     <?= htmlspecialchars($item['request_no']) ?>
                                 </span>
 
@@ -674,19 +783,19 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                                     <?php if ($item['preparation_status'] === 'Sent to Canteen'): ?>
 
-                                        <span class="badge bg-success">
+                                        <span class="status-pill status-success">
                                             Sent to Canteen
                                         </span>
 
                                     <?php elseif ($item['preparation_status'] === 'Completed'): ?>
 
-                                        <span class="badge bg-primary">
+                                        <span class="status-pill status-info">
                                             Completed
                                         </span>
 
                                     <?php else: ?>
 
-                                        <span class="badge bg-warning text-dark">
+                                        <span class="status-pill status-warning">
                                             Prepared
                                         </span>
 
@@ -694,7 +803,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                                 <?php else: ?>
 
-                                    <span class="badge bg-secondary">
+                                    <span class="status-pill status-neutral">
                                         Not Prepared
                                     </span>
 
@@ -708,11 +817,11 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                                     <button
                                         type="button"
-                                        class="btn btn-primary btn-sm"
+                                        class="btn btn-kitchen btn-sm"
                                         data-bs-toggle="modal"
                                         data-bs-target="#prepareModal<?= (int)$item['plan_item_id'] ?>"
                                     >
-                                        <i class="fas fa-fire"></i>
+                                        <i class="fa-solid fa-fire"></i>
                                         Prepare Food
                                     </button>
 
@@ -749,22 +858,21 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 |--------------------------------------------------------------------------
 -->
 
-<div class="card shadow-sm">
+<div class="dashboard-table">
 
-    <div class="card-header">
-
-        <h5 class="mb-0">
-            <i class="fas fa-history"></i>
+    <div class="table-header">
+        <strong>
+            <i class="fa-solid fa-clock-rotate-left me-2"></i>
             Preparation History
-        </h5>
-
+        </strong>
+        <span class="fs-6 fw-medium"><?= count($history) ?> record(s)</span>
     </div>
 
-    <div class="card-body">
+    <div>
 
         <?php if (!$history): ?>
 
-            <div class="text-center text-muted py-4">
+            <div class="empty-state py-4">
                 No preparation history available.
             </div>
 
@@ -772,9 +880,9 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             <div class="table-responsive">
 
-                <table class="table table-bordered table-hover">
+                <table class="table table-hover align-middle mb-0">
 
-                    <thead class="table-light">
+                    <thead>
 
                         <tr>
                             <th>Preparation No</th>
@@ -816,7 +924,19 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </td>
 
                             <td>
-                                <?= htmlspecialchars($row['food_name']) ?>
+
+                                <div class="food-cell">
+
+                                    <span class="table-avatar">
+                                        <?= htmlspecialchars(
+                                            strtoupper(substr((string)$row['food_name'], 0, 1))
+                                        ) ?>
+                                    </span>
+
+                                    <?= htmlspecialchars($row['food_name']) ?>
+
+                                </div>
+
                             </td>
 
                             <td>
@@ -839,7 +959,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     ($row['transfer_status'] ?? '') === 'Received'
                                 ): ?>
 
-                                    <span class="badge bg-success">
+                                    <span class="status-pill status-success">
                                         Received by Canteen
                                     </span>
 
@@ -847,7 +967,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     ($row['transfer_status'] ?? '') === 'Sent'
                                 ): ?>
 
-                                    <span class="badge bg-warning text-dark">
+                                    <span class="status-pill status-warning">
                                         Sent to Canteen
                                     </span>
 
@@ -855,13 +975,13 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     $row['status'] === 'Completed'
                                 ): ?>
 
-                                    <span class="badge bg-primary">
+                                    <span class="status-pill status-info">
                                         Completed
                                     </span>
 
                                 <?php else: ?>
 
-                                    <span class="badge bg-secondary">
+                                    <span class="status-pill status-neutral">
                                         <?= htmlspecialchars($row['status']) ?>
                                     </span>
 
@@ -903,7 +1023,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } ?>
 
 <div
-    class="modal fade"
+    class="modal fade app-modal food-recipe-page-modal"
     id="prepareModal<?= (int)$item['plan_item_id'] ?>"
     tabindex="-1"
     aria-hidden="true"
@@ -1037,7 +1157,7 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <div class="alert alert-info mb-0">
 
-                        <i class="fas fa-info-circle"></i>
+                        <i class="fa-solid fa-circle-info"></i>
 
                         After saving, the prepared food will automatically
                         be marked as <strong>Sent to Canteen</strong>.
@@ -1058,9 +1178,9 @@ $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <button
                         type="submit"
-                        class="btn btn-primary"
+                        class="btn btn-kitchen"
                     >
-                        <i class="fas fa-paper-plane"></i>
+                        <i class="fa-solid fa-paper-plane"></i>
                         Prepare & Send to Canteen
                     </button>
 

@@ -367,6 +367,8 @@ require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 ?>
 
+
+
 <main class="main-content">
 
     <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
@@ -374,31 +376,26 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <div class="page-body">
 
         <!-- PAGE HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="dashboard-hero">
 
-            <div>
-
-                <h4 class="mb-1">
-                    Material Master
-                </h4>
-
-                <div class="text-muted">
-                    Manage canteen store materials and minimum stock levels.
-                </div>
-
+            <div class="dashboard-heading">
             </div>
 
-            <button
-                type="button"
-                class="btn btn-primary"
-                data-bs-toggle="modal"
-                data-bs-target="#addMaterialModal">
+            <div class="hero-right">
 
-                <i class="fa-solid fa-plus me-1"></i>
+                <button
+                    type="button"
+                    class="btn btn-primary split-login-btn material-add-btn"
+                    style="border-radius:10px; padding:10px 18px; font-size:13px;"
+                    data-bs-toggle="modal"
+                    data-bs-target="#addMaterialModal">
 
-                Add Material
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Add Material
 
-            </button>
+                </button>
+
+            </div>
 
         </div>
 
@@ -424,92 +421,184 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 
         <!-- STAT CARDS -->
-        <div class="row g-3 mb-4">
+        <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-primary">
-                        <i class="fa-solid fa-boxes-stacked"></i>
-                    </div>
-
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Total Materials</div>
                         <div class="stat-value"><?= $totalMaterials ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">All registered items</div>
             </div>
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-green">
-                        <i class="fa-solid fa-circle-check"></i>
-                    </div>
-
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Enabled</div>
                         <div class="stat-value"><?= $enabledCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend">Active materials</div>
             </div>
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-purple">
-                        <i class="fa-solid fa-ban"></i>
-                    </div>
-
+            <div class="dash-stat stat-purple">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Disabled</div>
                         <div class="stat-value"><?= $disabledCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-ban"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">Not in use</div>
             </div>
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-amber">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                    </div>
-
+            <div class="dash-stat stat-red">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Low Stock</div>
                         <div class="stat-value"><?= $lowStockCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend down">Needs attention</div>
             </div>
 
         </div>
+<style>
+        /* =========================================================
+   STOCK TABS - FIX
+========================================================= */
 
+.stock-tabs {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-bottom: 1px solid #dee2e6 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
 
+.stock-tabs .nav-item {
+    display: block !important;
+}
+
+.stock-tabs .nav-link {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #495057 !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px 8px 0 0 !important;
+    padding: 10px 18px !important;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.stock-tabs .nav-link:hover {
+    color: #0d6efd !important;
+    background: #f8f9fa !important;
+}
+
+.stock-tabs .nav-link.active {
+    color: #0d6efd !important;
+    background: #fff !important;
+    border-color: #dee2e6 #dee2e6 #fff !important;
+}
+
+/* IMPORTANT:
+   Do not override Bootstrap's tab-pane display rules.
+*/
+#stockTabsContent {
+    width: 100%;
+    background: #fff;
+}
+
+#stockTabsContent .tab-pane {
+    width: 100%;
+}
+
+/* Tables */
+#stockTabsContent .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+#stockTabsContent table {
+    width: 100%;
+    margin-bottom: 0 !important;
+}
+
+#stockTabsContent th,
+#stockTabsContent td {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Material name */
+#stockTabsContent .food-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#stockTabsContent .table-avatar {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: 700;
+    background: #f1f3f5;
+    color: #495057;
+}
+
+/* Empty state */
+#stockTabsContent .empty-state {
+    text-align: center;
+    padding: 40px 20px !important;
+    color: #6c757d;
+}
+
+/* Low stock quantity */
+#stockTabsContent .low-stock-quantity {
+    min-width: 110px;
+}
+
+/* Keep Bootstrap tab functionality */
+#stockTabsContent .tab-pane:not(.active) {
+    display: none;
+}
+
+#stockTabsContent .tab-pane.active {
+    display: block;
+}
+
+        </style>
         <!-- MATERIAL TABLE -->
-        <div class="content-card">
+         
+        <div class="dashboard-table">
 
-            <div class="content-card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <strong>
-                        <i class="fa-solid fa-boxes-stacked me-1"></i>
-                        Materials
-                    </strong>
-                    <span class="text-muted small">
-                        <?= count($materials) ?> material(s)
-                    </span>
-                </div>
+            <div class="table-header">
+                <strong>
+                    <i class="fa-solid fa-boxes-stacked me-1"></i>
+                    Materials
+                </strong>
+                <span class="fs-6 fw-medium"><?= count($materials) ?> material(s)</span>
             </div>
 
             <div class="p-3 border-bottom">
@@ -519,7 +608,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 data-bs-target="#all-stock" type="button" role="tab">
                             <i class="fa-solid fa-boxes-stacked me-1"></i>
                             All Stock
-                            <span class="badge bg-secondary ms-1"><?= count($materials) ?></span>
+                            <span class="badge-count ms-1" style="padding:2px 8px;border-radius:8px;"><?= count($materials) ?></span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -527,7 +616,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 data-bs-target="#low-stock" type="button" role="tab">
                             <i class="fa-solid fa-triangle-exclamation me-1"></i>
                             Low Stock
-                            <span class="badge bg-danger ms-1"><?= $lowStockCount ?></span>
+                            <span class="status-pill status-danger ms-1"><?= $lowStockCount ?></span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -535,7 +624,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 data-bs-target="#out-stock" type="button" role="tab">
                             <i class="fa-solid fa-circle-xmark me-1"></i>
                             Out of Stock
-                            <span class="badge bg-dark ms-1">
+                            <span class="status-pill status-neutral ms-1">
                                 <?php
                                 $outOfStockCount = 0;
                                 foreach ($materials as $m) {
@@ -572,7 +661,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             <tbody>
                             <?php if (empty($materials)): ?>
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-5">
+                                    <td colspan="8" class="empty-state">
                                         <i class="fa-solid fa-box-open fs-2 d-block mb-2"></i>
                                         No materials found.
                                     </td>
@@ -588,8 +677,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                     <tr>
                                         <td><?= $index + 1 ?></td>
                                         <td>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <span class="row-avatar"><?= e($initials) ?></span>
+                                            <div class="food-cell">
+                                                <span class="table-avatar"><?= e($initials) ?></span>
                                                 <div>
                                                     <div class="fw-semibold"><?= e($material['material_name']) ?></div>
                                                     <div class="text-muted small"><?= e($material['material_code']) ?></div>
@@ -597,25 +686,25 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             </div>
                                         </td>
                                         <td><?= e($material['category'] ?: '-') ?></td>
-                                        <td><span class="badge bg-light text-dark border"><?= e($material['unit']) ?></span></td>
+                                        <td><span class="status-pill status-neutral"><?= e($material['unit']) ?></span></td>
                                         <td><?= number_format($minimumStock, 2) ?></td>
                                         <td>
                                             <span class="<?= $isLowStock ? 'text-danger fw-bold' : 'text-success fw-semibold' ?>">
                                                 <?= number_format($currentStock, 2) ?>
                                             </span>
                                             <?php if ($isLowStock): ?>
-                                                <span class="badge badge-disabled ms-1">Low</span>
+                                                <span class="status-pill status-danger ms-1">Low</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php if ($material['status'] === 'Enable'): ?>
-                                                <span class="badge badge-enable">Enable</span>
+                                                <span class="status-pill status-success">Enable</span>
                                             <?php else: ?>
-                                                <span class="badge badge-disabled">Disabled</span>
+                                                <span class="status-pill status-danger">Disabled</span>
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-center">
-                                            <div class="btn-group">
+                                            <div class="d-flex justify-content-center gap-2">
                                                 <a href="?edit=<?= (int)$material['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit">
                                                     <i class="fa-solid fa-pen"></i>
                                                 </a>
@@ -705,8 +794,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         </td>
                                         <td><?= $lowIndex ?></td>
                                         <td>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <span class="row-avatar"><?= e($initials) ?></span>
+                                            <div class="food-cell">
+                                                <span class="table-avatar"><?= e($initials) ?></span>
                                                 <div>
                                                     <div class="fw-semibold"><?= e($material['material_name']) ?></div>
                                                     <div class="text-muted small"><?= e($material['material_code']) ?></div>
@@ -714,12 +803,12 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             </div>
                                         </td>
                                         <td><?= e($material['category'] ?: '-') ?></td>
-                                        <td><span class="badge bg-light text-dark border"><?= e($material['unit']) ?></span></td>
+                                        <td><span class="status-pill status-neutral"><?= e($material['unit']) ?></span></td>
                                         <td><?= number_format($minimumStock, 2) ?></td>
                                         <td>
                                             <span class="text-danger fw-bold"><?= number_format($currentStock, 2) ?></span>
                                             <?php if ($currentStock <= 0): ?>
-                                                <span class="badge bg-dark ms-1">Out</span>
+                                                <span class="status-pill status-neutral ms-1">Out</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
@@ -736,7 +825,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <?php if ($lowIndex === 0): ?>
                                     <tr>
-                                        <td colspan="8" class="text-center text-muted py-5">
+                                        <td colspan="8" class="empty-state">
                                             <i class="fa-solid fa-circle-check fs-2 d-block mb-2"></i>
                                             No low-stock materials found.
                                         </td>
@@ -778,8 +867,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 <tr>
                                     <td><?= $outIndex ?></td>
                                     <td>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="row-avatar"><?= e($initials) ?></span>
+                                        <div class="food-cell">
+                                            <span class="table-avatar"><?= e($initials) ?></span>
                                             <div>
                                                 <div class="fw-semibold"><?= e($material['material_name']) ?></div>
                                                 <div class="text-muted small"><?= e($material['material_code']) ?></div>
@@ -787,14 +876,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         </div>
                                     </td>
                                     <td><?= e($material['category'] ?: '-') ?></td>
-                                    <td><span class="badge bg-light text-dark border"><?= e($material['unit']) ?></span></td>
+                                    <td><span class="status-pill status-neutral"><?= e($material['unit']) ?></span></td>
                                     <td><?= number_format((float)$material['minimum_stock'], 2) ?></td>
-                                    <td><span class="text-danger fw-bold">0.00</span> <span class="badge bg-dark ms-1">Out</span></td>
+                                    <td><span class="text-danger fw-bold">0.00</span> <span class="status-pill status-neutral ms-1">Out</span></td>
                                     <td>
                                         <?php if ($material['status'] === 'Enable'): ?>
-                                            <span class="badge badge-enable">Enable</span>
+                                            <span class="status-pill status-success">Enable</span>
                                         <?php else: ?>
-                                            <span class="badge badge-disabled">Disabled</span>
+                                            <span class="status-pill status-danger">Disabled</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
@@ -807,7 +896,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <?php if ($outIndex === 0): ?>
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-5">
+                                    <td colspan="8" class="empty-state">
                                         <i class="fa-solid fa-circle-check fs-2 d-block mb-2"></i>
                                         No out-of-stock materials found.
                                     </td>
@@ -829,7 +918,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 ========================================================== -->
 
 <div
-    class="modal fade edit-user-modal"
+    class="modal fade edit-user-modal material-modal"
     id="addMaterialModal"
     tabindex="-1"
     aria-hidden="true">
@@ -1051,7 +1140,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                     <button
                         type="submit"
-                        class="btn btn-primary">
+                        class="btn btn-primary material-save-btn">
 
                         <i class="fa-solid fa-save me-1"></i>
 
@@ -1077,7 +1166,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 <?php if ($editMaterial !== false && $editMaterial !== null): ?>
 
 <div
-    class="modal fade edit-user-modal"
+    class="modal fade edit-user-modal material-modal"
     id="editMaterialModal"
     tabindex="-1"
     aria-hidden="true">
@@ -1144,13 +1233,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <?php if ($editMaterial['status'] === 'Enable'): ?>
 
-                                    <span class="badge badge-enable">
+                                    <span class="status-pill status-success">
                                         Enable
                                     </span>
 
                                 <?php else: ?>
 
-                                    <span class="badge badge-disabled">
+                                    <span class="status-pill status-danger">
                                         Disabled
                                     </span>
 
@@ -1368,7 +1457,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                     <button
                         type="submit"
-                        class="btn btn-primary">
+                        class="btn btn-primary material-save-btn">
 
                         <i class="fa-solid fa-save me-1"></i>
 

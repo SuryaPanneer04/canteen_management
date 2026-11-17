@@ -377,688 +377,223 @@ function dashboardMealClass(string $meal): string
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
-require_once __DIR__ . '/../includes/topbar.php';
-
 ?>
-
-<div class="main-content">
-
-<!--
-|--------------------------------------------------------------------------
-| HEADER
-|--------------------------------------------------------------------------
--->
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-
-    <div>
-
-        <h4 class="mb-1">
-            <i class="fa-solid fa-kitchen-set me-2"></i>
-            Kitchen Dashboard
-        </h4>
-
-        <p class="text-muted mb-0">
-            Cooking plan, material issue and food preparation overview.
-        </p>
-
-    </div>
-
-    <div>
-
-        <span class="badge bg-light text-dark border">
-            <?= date('d-m-Y') ?>
-        </span>
-
-    </div>
-
-</div>
-
-
-<!--
-|--------------------------------------------------------------------------
-| ERROR
-|--------------------------------------------------------------------------
--->
-
-<?php if ($error): ?>
-
-    <div class="alert alert-danger">
-
-        <i class="fa-solid fa-circle-exclamation me-2"></i>
-
-        <?= e($error) ?>
-
-    </div>
-
-<?php endif; ?>
-
-
-<!--
-|--------------------------------------------------------------------------
-| SUMMARY CARDS
-|--------------------------------------------------------------------------
--->
-
-<div class="row g-3 mb-4">
-
-
-    <!-- TODAY PLANS -->
-
-    <div class="col-xl-2 col-md-4 col-sm-6">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Today's Plans
-                        </small>
-
-                        <h3 class="mb-0">
-                            <?= $todayPlans ?>
-                        </h3>
-
-                    </div>
-
-                    <div class="text-primary fs-3">
-                        <i class="fa-solid fa-calendar-day"></i>
-                    </div>
-
-                </div>
-
+<main class="main-content">
+    <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
+    <div class="page-body">
+        <div class="dashboard-hero">
+            <div class="dashboard-heading">
+                
             </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- PENDING APPROVAL -->
-
-    <div class="col-xl-2 col-md-4 col-sm-6">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
+            <div class="hero-right">
+                <div class="date-chip">
+                    <i class="fa-regular fa-calendar-days"></i>
                     <div>
-
-                        <small class="text-muted">
+                        <strong><?= date('d-m-Y') ?></strong>
+                        <span><?= date('l') ?></span>
+                    </div>
+                </div>
+                <div class="motto-chip">
+                    <i class="fa-solid fa-utensils"></i>
+                    <div>
+                        <strong>Fresh Food</strong>
+                        <span>Every Day</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php if ($error): ?>
+        <div class="alert alert-danger py-2 mb-3">
+            <?= e($error) ?>
+        </div>
+        <?php endif; ?>
+        <div class="stats-grid">
+            <div class="dash-stat">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Today's Plans</div>
+                            <div class="stat-value">
+                                <?= $todayPlans ?>
+                            </div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </div>
+                    </div>
+                    <div class="stat-trend">↗ From yesterday</div>
+                </div>
+                <div class="dash-stat stat-orange">
+                    <div class="stat-top">
+                        <div>
+                            <div class="stat-label">Chef Approval</div>
+                            <div class="stat-value">
+                                <?= $pendingApproval ?>
+                            </div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                    </div>
+                    <div class="stat-trend neutral">→ No change</div>
+                </div>
+                <div class="dash-stat stat-purple">
+                    <div class="stat-top">
+                        <div>
+                            <div class="stat-label">Store Pending</div>
+                            <div class="stat-value"><?= $waitingStore ?></div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-box-open"></i>
+                        </div>
+                    </div>
+                    <div class="stat-trend neutral">
+                        → Materials waiting
+                    </div>
+                </div>
+                <div class="dash-stat stat-green">
+                    <div class="stat-top">
+                        <div>
+                            <div class="stat-label">
+                                Materials Issued
+                            </div>
+                            <div class="stat-value">
+                                <?= $materialsIssued ?>
+                            </div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-boxes-stacked"></i>
+                        </div>
+                    </div>
+                    <div class="stat-trend">
+                        ↗ Completed
+                    </div>
+                </div>
+                <div class="dash-stat stat-red">
+                    <div class="stat-top">
+                        <div>
+                            <div class="stat-label">
+                                Ready to Cook
+                            </div>
+                            <div class="stat-value">
+                                <?= $readyForPreparation ?>
+                            </div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-fire-burner"></i>
+                        </div>
+                    </div>
+                    <div class="stat-trend neutral">
+                        → Ready items
+                    </div>
+                </div>
+                <div class="dash-stat stat-cyan">
+                    <div class="stat-top">
+                        <div>
+                            <div class="stat-label">
+                                Sent to Canteen
+                            </div>
+                            <div class="stat-value">
+                                <?= $sentToCanteen ?>
+                            </div>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-truck"></i>
+                        </div>
+                    </div>
+                    <div class="stat-trend">
+                        ↗ Food transfers
+                    </div>
+                </div>
+            </div>
+            <div class="quick-card">
+                <div class="section-title">
+                    <i class="fa-solid fa-bolt"></i>
+                     Quick Actions
+                    </div>
+                    <div class="quick-actions">
+                        <a class="quick-action primary" href="daily_cooking_plan.php">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            Daily Cooking Plan
+                        </a>
+                        <a class="quick-action orange" href="chef_approval.php">
+                            <i class="fa-solid fa-user-check"></i>
                             Chef Approval
-                        </small>
-
-                        <h3 class="mb-0 text-warning">
-                            <?= $pendingApproval ?>
-                        </h3>
-
+                        </a>
+                        <a class="quick-action green" href="food_preparation.php">
+                            <i class="fa-solid fa-kitchen-set"></i>
+                            Food Preparation
+                        </a>
+                        <a class="quick-action purple" href="issue_history.php">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            Issue History
+                        </a>
                     </div>
-
-                    <div class="text-warning fs-3">
-                        <i class="fa-solid fa-user-check"></i>
-                    </div>
-
                 </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- WAITING STORE -->
-
-    <div class="col-xl-2 col-md-4 col-sm-6">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Store Pending
-                        </small>
-
-                        <h3 class="mb-0 text-primary">
-                            <?= $waitingStore ?>
-                        </h3>
-
+                <div class="dashboard-table">
+                    <div class="table-header">
+                        <div class="section-title mb-0">
+                            <i class="fa-solid fa-calendar-days"></i>
+                             Today's Cooking Plan
+                            </div>
+                            <a href="daily_cooking_plan.php">
+                                View All ›
+                            </a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Meal</th>
+                                        <th>Food Items</th>
+                                        <th>Total Plates</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!$mealSummary): ?>
+                                    <tr>
+                                        <td colspan="6">
+                                            <div class="empty-state">
+                                                No cooking plans found for today.
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php else: foreach ($mealSummary as $i=>$plan): $status=$plan['status']; 
+                                    $cls=$status==='Completed'?'status-success':
+                                    ($status==='Pending Approval'?'status-warning':
+                                    ($status==='Cancelled'?'status-danger':'status-info')); 
+                                    $meal=strtolower((string)$plan['meal_type']);
+                                    $mealCls='meal-'.($meal==='breakfast'?'breakfast':
+                                    ($meal==='lunch'?'lunch':($meal==='snacks'?'snacks':'dinner'))); ?>
+                                    <tr>
+                                        <td><?= $i+1 ?></td>
+                                        <td>
+                                            <span class="meal-pill <?= $mealCls ?>"><?= e($plan['meal_type']) ?></span>
+                                        </td>
+                                        <td>
+                                            <?= (int)$plan['food_count'] ?> 
+                                            food
+                                        </td>
+                                        <td>
+                                            <?= number_format((float)$plan['total_plates'],0) ?>
+                                            plates
+                                        </td>
+                                        <td>
+                                            <span class="status-pill <?= $cls ?>"><?= e($status) ?></span>
+                                        </td>
+                                        <td>
+                                            <a class="view-btn" href="daily_cooking_plan.php?edit=<?= (int)$plan['id'] ?>">
+                                                View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-
-                    <div class="text-primary fs-3">
-                        <i class="fa-solid fa-boxes-stacked"></i>
-                    </div>
-
                 </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- MATERIALS ISSUED -->
-
-    <div class="col-xl-2 col-md-4 col-sm-6">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Materials Issued
-                        </small>
-
-                        <h3 class="mb-0 text-success">
-                            <?= $materialsIssued ?>
-                        </h3>
-
-                    </div>
-
-                    <div class="text-success fs-3">
-                        <i class="fa-solid fa-box-open"></i>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- READY TO COOK -->
-
-    <div class="col-xl-2 col-md-4 col-sm-6">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Ready to Cook
-                        </small>
-
-                        <h3 class="mb-0 text-danger">
-                            <?= $readyForPreparation ?>
-                        </h3>
-
-                    </div>
-
-                    <div class="text-danger fs-3">
-                        <i class="fa-solid fa-fire-burner"></i>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- SENT TO CANTEEN -->
-
-    <div class="col-xl-2 col-md-4 col-sm-6">
-
-        <div class="card shadow-sm border-0 h-100">
-
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between">
-
-                    <div>
-
-                        <small class="text-muted">
-                            Sent to Canteen
-                        </small>
-
-                        <h3 class="mb-0 text-info">
-                            <?= $sentToCanteen ?>
-                        </h3>
-
-                    </div>
-
-                    <div class="text-info fs-3">
-                        <i class="fa-solid fa-truck"></i>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!--
-|--------------------------------------------------------------------------
-| QUICK ACTIONS
-|--------------------------------------------------------------------------
--->
-
-<div class="card shadow-sm mb-4">
-
-    <div class="card-header">
-
-        <h5 class="mb-0">
-            <i class="fa-solid fa-bolt me-2"></i>
-            Quick Actions
-        </h5>
-
-    </div>
-
-    <div class="card-body">
-
-        <div class="row g-3">
-
-            <div class="col-md-3">
-
-                <a
-                    href="daily_cooking_plan.php"
-                    class="btn btn-outline-primary w-100 py-3"
-                >
-
-                    <i class="fa-solid fa-calendar-plus fa-lg me-2"></i>
-
-                    Daily Cooking Plan
-
-                </a>
-
-            </div>
-
-
-            <div class="col-md-3">
-
-                <a
-                    href="chef_approval.php"
-                    class="btn btn-outline-warning w-100 py-3"
-                >
-
-                    <i class="fa-solid fa-user-check fa-lg me-2"></i>
-
-                    Chef Approval
-
-                    <?php if ($pendingApproval > 0): ?>
-
-                        <span class="badge bg-danger ms-1">
-                            <?= $pendingApproval ?>
-                        </span>
-
-                    <?php endif; ?>
-
-                </a>
-
-            </div>
-
-
-            <div class="col-md-3">
-
-                <a
-                    href="food_preparation.php"
-                    class="btn btn-outline-success w-100 py-3"
-                >
-
-                    <i class="fa-solid fa-utensils fa-lg me-2"></i>
-
-                    Food Preparation
-
-                    <?php if ($readyForPreparation > 0): ?>
-
-                        <span class="badge bg-danger ms-1">
-                            <?= $readyForPreparation ?>
-                        </span>
-
-                    <?php endif; ?>
-
-                </a>
-
-            </div>
-
-
-            <div class="col-md-3">
-
-                <a
-                    href="issue_history.php"
-                    class="btn btn-outline-secondary w-100 py-3"
-                >
-
-                    <i class="fa-solid fa-clock-rotate-left fa-lg me-2"></i>
-
-                    Issue History
-
-                </a>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!--
-|--------------------------------------------------------------------------
-| TODAY'S COOKING PLAN
-|--------------------------------------------------------------------------
--->
-
-<div class="card shadow-sm mb-4">
-
-    <div class="card-header">
-
-        <h5 class="mb-0">
-
-            <i class="fa-solid fa-calendar-day me-2"></i>
-
-            Today's Cooking Plan
-
-        </h5>
-
-    </div>
-
-    <div class="card-body">
-
-        <?php if (empty($mealSummary)): ?>
-
-            <div class="text-center py-4">
-
-                <i class="fa-solid fa-calendar-xmark fa-3x text-muted mb-3"></i>
-
-                <h5>
-                    No cooking plan for today
-                </h5>
-
-                <p class="text-muted mb-3">
-                    Create a daily cooking plan for today's meals.
-                </p>
-
-                <a
-                    href="daily_cooking_plan.php"
-                    class="btn btn-primary"
-                >
-                    <i class="fa-solid fa-plus me-1"></i>
-                    Create Cooking Plan
-                </a>
-
-            </div>
-
-        <?php else: ?>
-
-            <div class="table-responsive">
-
-                <table class="table table-bordered table-hover align-middle">
-
-                    <thead class="table-light">
-
-                        <tr>
-
-                            <th>#</th>
-
-                            <th>Meal</th>
-
-                            <th>Food Items</th>
-
-                            <th>Total Plates</th>
-
-                            <th>Status</th>
-
-                            <th>Action</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                    <?php foreach ($mealSummary as $index => $plan): ?>
-
-                        <tr>
-
-                            <td>
-                                <?= $index + 1 ?>
-                            </td>
-
-                            <td>
-
-                                <span class="badge <?= dashboardMealClass(
-                                    (string)$plan['meal_type']
-                                ) ?>">
-
-                                    <?= e($plan['meal_type']) ?>
-
-                                </span>
-
-                            </td>
-
-                            <td>
-
-                                <?= (int)$plan['food_count'] ?>
-
-                                <?= (int)$plan['food_count'] === 1
-                                    ? 'food'
-                                    : 'foods' ?>
-
-                            </td>
-
-                            <td>
-
-                                <strong>
-
-                                    <?= number_format(
-                                        (float)$plan['total_plates'],
-                                        0
-                                    ) ?>
-
-                                </strong>
-
-                                plates
-
-                            </td>
-
-                            <td>
-
-                                <span class="badge <?= dashboardStatusClass(
-                                    (string)$plan['status']
-                                ) ?>">
-
-                                    <?= e($plan['status']) ?>
-
-                                </span>
-
-                            </td>
-
-                            <td>
-
-                                <a
-                                    href="daily_cooking_plan.php?edit=<?= (int)$plan['id'] ?>"
-                                    class="btn btn-sm btn-outline-primary"
-                                >
-
-                                    <i class="fa-solid fa-eye"></i>
-
-                                    View
-
-                                </a>
-
-                            </td>
-
-                        </tr>
-
-                    <?php endforeach; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        <?php endif; ?>
-
-    </div>
-
-</div>
-
-
-<!--
-|--------------------------------------------------------------------------
-| RECENT COOKING PLANS
-|--------------------------------------------------------------------------
--->
-
-<div class="card shadow-sm">
-
-    <div class="card-header">
-
-        <h5 class="mb-0">
-
-            <i class="fa-solid fa-clock-rotate-left me-2"></i>
-
-            Recent Cooking Plans
-
-        </h5>
-
-    </div>
-
-    <div class="card-body">
-
-        <?php if (empty($recentPlans)): ?>
-
-            <div class="text-center text-muted py-4">
-
-                No cooking plans found.
-
-            </div>
-
-        <?php else: ?>
-
-            <div class="table-responsive">
-
-                <table class="table table-bordered table-hover align-middle">
-
-                    <thead class="table-light">
-
-                        <tr>
-
-                            <th>#</th>
-
-                            <th>Date</th>
-
-                            <th>Meal</th>
-
-                            <th>Foods</th>
-
-                            <th>Plates</th>
-
-                            <th>Status</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                    <?php foreach ($recentPlans as $index => $plan): ?>
-
-                        <tr>
-
-                            <td>
-                                <?= $index + 1 ?>
-                            </td>
-
-                            <td>
-
-                                <?= e(
-                                    date(
-                                        'd-m-Y',
-                                        strtotime(
-                                            $plan['cooking_date']
-                                        )
-                                    )
-                                ) ?>
-
-                            </td>
-
-                            <td>
-
-                                <span class="badge <?= dashboardMealClass(
-                                    (string)$plan['meal_type']
-                                ) ?>">
-
-                                    <?= e($plan['meal_type']) ?>
-
-                                </span>
-
-                            </td>
-
-                            <td>
-
-                                <?= (int)$plan['food_count'] ?>
-
-                            </td>
-
-                            <td>
-
-                                <?= number_format(
-                                    (float)$plan['total_plates'],
-                                    0
-                                ) ?>
-
-                            </td>
-
-                            <td>
-
-                                <span class="badge <?= dashboardStatusClass(
-                                    (string)$plan['status']
-                                ) ?>">
-
-                                    <?= e($plan['status']) ?>
-
-                                </span>
-
-                            </td>
-
-                        </tr>
-
-                    <?php endforeach; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        <?php endif; ?>
-
-    </div>
-
-</div>
-
-</div>
-
+    </main>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

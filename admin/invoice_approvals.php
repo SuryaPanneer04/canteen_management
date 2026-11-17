@@ -74,10 +74,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="page-body">
             <!-- PAGE HEADER -->
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h4 class="mb-1"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Invoice Approvals</h4>
-                    <p class="text-muted mb-0">Review and approve supplier invoices for payment.</p>
-                </div>
+                
             </div>
 
             <!-- ALERTS -->

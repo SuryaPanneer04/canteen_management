@@ -306,12 +306,20 @@ $stmt = $con->query("
 
         fi.food_code,
         fi.food_name,
-        fi.unit
+        fi.unit,
+        
+        kr.cook_remarks AS meal_type
 
     FROM food_transfers ft
 
     INNER JOIN food_items fi
         ON fi.id = ft.food_id
+        
+    LEFT JOIN food_preparations fp
+        ON fp.id = ft.preparation_id
+        
+    LEFT JOIN kitchen_requests kr
+        ON kr.id = fp.request_id
 
     WHERE ft.status = 'Sent'
 
@@ -340,6 +348,8 @@ $stmt = $con->query("
         fi.food_code,
         fi.food_name,
         fi.unit,
+        
+        kr.cook_remarks AS meal_type,
 
         cfs.received_qty,
         cfs.served_qty,
@@ -350,6 +360,12 @@ $stmt = $con->query("
 
     INNER JOIN food_items fi
         ON fi.id = ft.food_id
+        
+    LEFT JOIN food_preparations fp
+        ON fp.id = ft.preparation_id
+        
+    LEFT JOIN kitchen_requests kr
+        ON kr.id = fp.request_id
 
     INNER JOIN canteen_food_serving cfs
         ON cfs.transfer_id = ft.id
@@ -395,11 +411,13 @@ foreach ($receivedTransfers as $row) {
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
-require_once __DIR__ . '/../includes/topbar.php';
+
 
 ?>
 
 <div class="main-content">
+
+<?php require_once '../includes/topbar.php'; ?>
 
 <div class="page-body">
 
@@ -409,18 +427,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
     <div class="page-header">
 
-        <div>
-
-            <h4 class="page-header-title">
-                <i class="fa-solid fa-hand-holding-heart me-2"></i>
-                Food Receiving
-            </h4>
-
-            <p class="page-header-subtitle">
-                Receive food sent from Kitchen.
-            </p>
-
-        </div>
+        
 
     </div>
 
@@ -662,10 +669,23 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                 <br>
 
                                                 <small class="text-muted">
-
                                                     <?= e($row['food_code']) ?>
-
                                                 </small>
+                                                
+                                                <?php
+                                                    $mealBadge = '';
+                                                    if (!empty($row['meal_type'])) {
+                                                        // "Daily Cooking Plan - " ah cut panni verum Breakfast/Dinner mattum edukka
+                                                        $parts = explode('-', $row['meal_type']);
+                                                        $mealBadge = trim(end($parts)); 
+                                                    }
+                                                ?>
+                                                <?php if ($mealBadge !== ''): ?>
+                                                <br>
+                                                <span class="badge" style="background-color: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; font-size: 10.5px; padding: 4px 6px; margin-top: 5px; font-weight: 600;">
+                                                    <?= e($mealBadge) ?>
+                                                </span>
+                                                <?php endif; ?>
 
                                             </div>
 
@@ -865,7 +885,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <td>
 
-                                        <div class="food-cell">
+                                       <div class="food-cell">
 
                                             <span class="food-icon">
                                                 <i class="fa-solid fa-utensils"></i>
@@ -880,10 +900,23 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                 <br>
 
                                                 <small class="text-muted">
-
                                                     <?= e($row['food_code']) ?>
-
                                                 </small>
+                                                
+                                                <?php
+                                                    $mealBadge = '';
+                                                    if (!empty($row['meal_type'])) {
+                                                        // "Daily Cooking Plan - " ah cut panni verum Breakfast/Dinner mattum edukka
+                                                        $parts = explode('-', $row['meal_type']);
+                                                        $mealBadge = trim(end($parts)); 
+                                                    }
+                                                ?>
+                                                <?php if ($mealBadge !== ''): ?>
+                                                <br>
+                                                <span class="badge" style="background-color: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; font-size: 10.5px; padding: 4px 6px; margin-top: 5px; font-weight: 600;">
+                                                    <?= e($mealBadge) ?>
+                                                </span>
+                                                <?php endif; ?>
 
                                             </div>
 

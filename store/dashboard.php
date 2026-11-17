@@ -115,474 +115,214 @@ $recentTransactions = $stmt->fetchAll();
 |--------------------------------------------------------------------------
 */
 
+$todayReceipts = 0.0;
+$todayIssued = 0.0;
+try 
+{
+    $q=$con->prepare("SELECT COALESCE(SUM(quantity),0) 
+    FROM stock_transactions WHERE DATE(created_at)=? 
+    AND transaction_type='PURCHASE'"); 
+    $q->execute([date('Y-m-d')]); 
+    $todayReceipts=(float)
+    $q->fetchColumn(); 
+} catch (Throwable $e) {}
+try 
+{ 
+    $q=$con->prepare("SELECT COALESCE(SUM(quantity),0) 
+    FROM stock_transactions WHERE DATE(created_at)=? 
+    AND transaction_type='ISSUE_KITCHEN'"); 
+    $q->execute([date('Y-m-d')]); 
+    $todayIssued=(float)
+    $q->fetchColumn(); 
+} catch (Throwable $e) {}
+
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 ?>
-
 <main class="main-content">
-
     <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
-
     <div class="page-body">
-
-        <!-- PAGE HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-
-            <div>
-                <h4 class="mb-1">Store Dashboard</h4>
-
-                <div class="text-muted">
-                    Monitor materials, stock and purchase requests.
+        <div class="dashboard-hero">
+            <div class="dashboard-heading">
+            
+            </div>
+            <div class="hero-right">
+                <div class="date-chip">
+                    <i class="fa-regular fa-calendar-days"></i>
+                    <div>
+                        <strong><?= date('d-m-Y') ?></strong>
+                        <span><?= date('l') ?></span>
+                    </div>
+                </div>
+                <div class="motto-chip">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <div>
+                        <strong>Right Stock Right Time</strong>
+                        <span>Smart stock management</span>
+                    </div>
                 </div>
             </div>
-
-            <a href="purchase_requests.php" class="btn btn-primary">
-                <i class="fa-solid fa-plus me-1"></i>
-                Create Purchase Request
-            </a>
-
         </div>
-
-
-        <!-- STAT CARDS -->
-        <div class="row g-3 mb-4">
-
-            <!-- Materials -->
-            <div class="col-xl-3 col-md-6">
-
-                <div class="stat-card">
-
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <div>
-                            <div class="stat-label">
-                                Active Materials
-                            </div>
-
-                            <div class="stat-value">
-                                <?= $totalMaterials ?>
-                            </div>
-                        </div>
-
-                        <div class="fs-2 text-primary">
-                            <i class="fa-solid fa-boxes-stacked"></i>
-                        </div>
-
+        <div class="stats-grid">
+            <div class="dash-stat">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Total Stock Items</div>
+                        <div class="stat-value"><?= $totalMaterials ?></div>
                     </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- Stock -->
-            <div class="col-xl-3 col-md-6">
-
-                <div class="stat-card">
-
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <div>
-                            <div class="stat-label">
-                                Current Stock Qty
-                            </div>
-
-                            <div class="stat-value">
-                                <?= number_format($totalStock, 2) ?>
-                            </div>
-                        </div>
-
-                        <div class="fs-2 text-success">
-                            <i class="fa-solid fa-warehouse"></i>
-                        </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-boxes-stacked"></i>
                     </div>
-
                 </div>
-
+                <div class="stat-trend">
+                    ↗ <?= number_format($totalStock,0) ?> 
+                    total qty
+                </div>
             </div>
-
-
-            <!-- Low Stock -->
-            <div class="col-xl-3 col-md-6">
-
-                <div class="stat-card">
-
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <div>
-                            <div class="stat-label">
-                                Low Stock Items
-                            </div>
-
-                            <div class="stat-value text-danger">
-                                <?= $lowStockCount ?>
-                            </div>
-                        </div>
-
-                        <div class="fs-2 text-danger">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-
+            <div class="dash-stat stat-red">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Low Stock Items</div>
+                        <div class="stat-value"><?= $lowStockCount ?></div>
                     </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- Purchase Requests -->
-            <div class="col-xl-3 col-md-6">
-
-                <div class="stat-card">
-
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <div>
-                            <div class="stat-label">
-                                Pending Requests
-                            </div>
-
-                            <div class="stat-value">
-                                <?= $pendingRequests ?>
-                            </div>
-                        </div>
-
-                        <div class="fs-2 text-warning">
-                            <i class="fa-solid fa-file-circle-exclamation"></i>
-                        </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
                     </div>
-
                 </div>
-
+                <div class="stat-trend down">↘ Needs attention</div>
             </div>
-
+            <div class="dash-stat stat-purple">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">
+                            Pending Purchase
+                        </div>
+                        <div class="stat-value">
+                            <?= $pendingRequests ?>
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">
+                    • Requests waiting
+                </div>
+            </div>
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">
+                            Today's Receipts
+                        </div>
+                        <div class="stat-value">
+                            <?= number_format($todayReceipts,0) ?>
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-truck"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">
+                    ↗ Received today
+                </div>
+            </div>
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Total Issued</div>
+                        <div class="stat-value"><?= number_format($todayIssued,0) ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">
+                    ↗ Issued today
+                </div>
+            </div>
         </div>
-
-
-        <!-- LOW STOCK ALERT -->
-        <div class="content-card mb-4">
-
-            <div class="content-card-header d-flex justify-content-between align-items-center">
-
-                <div>
-                    <strong>
-                        <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i>
-                        Low Stock Alert
-                    </strong>
-                </div>
-
-                <a href="stock.php"
-                   class="btn btn-sm btn-outline-secondary">
-
-                    <i class="fa-solid fa-boxes-stacked me-1"></i>
-                    View Stock
-
+        <div class="quick-card">
+            <div class="section-title">
+                <i class="fa-solid fa-bolt"></i> 
+                Quick Actions
+            </div>
+            <div class="quick-actions">
+                <a class="quick-action primary" href="purchase_requests.php">
+                    <i class="fa-solid fa-cart-plus"></i>
+                    Purchase Order
                 </a>
-
-            </div>
-
-
-            <div class="table-responsive">
-
-                <table class="table table-hover mb-0">
-
-                    <thead>
-
-                        <tr>
-
-                            <th>#</th>
-
-                            <th>Material Code</th>
-
-                            <th>Material</th>
-
-                            <th>Category</th>
-
-                            <th>Unit</th>
-
-                            <th>Current Stock</th>
-
-                            <th>Minimum Stock</th>
-
-                            <th>Status</th>
-
-                        </tr>
-
-                    </thead>
-
-
-                    <tbody>
-
-                    <?php if (empty($lowStockMaterials)): ?>
-
-                        <tr>
-
-                            <td colspan="8"
-                                class="text-center text-muted py-4">
-
-                                <i class="fa-solid fa-circle-check text-success me-1"></i>
-
-                                No low-stock materials.
-
-                            </td>
-
-                        </tr>
-
-                    <?php else: ?>
-
-                        <?php foreach ($lowStockMaterials as $index => $material): ?>
-
-                            <tr>
-
-                                <td>
-                                    <?= $index + 1 ?>
-                                </td>
-
-                                <td>
-                                    <?= e($material['material_code']) ?>
-                                </td>
-
-                                <td>
-                                    <strong>
-                                        <?= e($material['material_name']) ?>
-                                    </strong>
-                                </td>
-
-                                <td>
-                                    <?= e($material['category']) ?>
-                                </td>
-
-                                <td>
-                                    <?= e($material['unit']) ?>
-                                </td>
-
-                                <td>
-                                    <strong class="text-danger">
-                                        <?= number_format(
-                                            (float)$material['current_stock'],
-                                            2
-                                        ) ?>
-                                    </strong>
-                                </td>
-
-                                <td>
-                                    <?= number_format(
-                                        (float)$material['minimum_stock'],
-                                        2
-                                    ) ?>
-                                </td>
-
-                                <td>
-
-                                    <span class="badge bg-danger">
-                                        Low Stock
-                                    </span>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-                    <?php endif; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-
-        <!-- RECENT STOCK TRANSACTIONS -->
-        <div class="content-card">
-
-            <div class="content-card-header d-flex justify-content-between align-items-center">
-
-                <strong>
-                    <i class="fa-solid fa-clock-rotate-left me-1"></i>
-                    Recent Stock Transactions
-                </strong>
-
-                <a href="stock.php"
-                   class="btn btn-sm btn-outline-secondary">
-
-                    View Stock
-
+                <a class="quick-action orange" href="stock.php">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    Stock Management
                 </a>
-
+                <a class="quick-action green" href="stock_inward.php">
+                    <i class="fa-solid fa-box-open"></i>
+                    Material Receive
+                </a>
+                <a class="quick-action purple" href="kitchen_requests.php">
+                    <i class="fa-solid fa-utensils"></i>
+                    Kitchen Requests
+                </a>
             </div>
-
-
+        </div>
+        <div class="dashboard-table">
+            <div class="table-header">
+                <div class="section-title mb-0">
+                    <i class="fa-solid fa-boxes-stacked"></i> 
+                    Recent Stock Movements
+                </div>
+                <a href="item_history.php">View All ›</a>
+            </div>
             <div class="table-responsive">
-
-                <table class="table table-hover mb-0">
-
+                <table class="table align-middle">
                     <thead>
-
                         <tr>
-
-                            <th>#</th>
-
-                            <th>Material</th>
-
-                            <th>Transaction</th>
-
-                            <th>Quantity</th>
-
-                            <th>Remarks</th>
-
-                            <th>Created By</th>
-
                             <th>Date</th>
-
+                            <th>Material</th>
+                            <th>Type</th>
+                            <th>Qty</th>
+                            <th>Remarks</th>
                         </tr>
-
                     </thead>
-
-
                     <tbody>
-
-                    <?php if (empty($recentTransactions)): ?>
-
+                        <?php if (!$recentTransactions): ?>
                         <tr>
-
-                            <td colspan="7"
-                                class="text-center text-muted py-4">
-
-                                No stock transactions found.
-
+                            <td colspan="5">
+                                <div class="empty-state">No stock transactions found.</div>
                             </td>
-
                         </tr>
-
-                    <?php else: ?>
-
-                        <?php foreach ($recentTransactions as $index => $transaction): ?>
-
-                            <tr>
-
-                                <td>
-                                    <?= $index + 1 ?>
-                                </td>
-
-
-                                <td>
-
-                                    <strong>
-                                        <?= e($transaction['material_name']) ?>
-                                    </strong>
-
-                                    <br>
-
-                                    <small class="text-muted">
-                                        <?= e($transaction['unit']) ?>
-                                    </small>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?php
-
-                                    $transactionType =
-                                        $transaction['transaction_type'];
-
-                                    if ($transactionType === 'PURCHASE') {
-
-                                        $badgeClass = 'bg-success';
-                                        $label = 'Purchase';
-
-                                    } elseif ($transactionType === 'ISSUE_KITCHEN') {
-
-                                        $badgeClass = 'bg-warning text-dark';
-                                        $label = 'Kitchen Issue';
-
-                                    } elseif ($transactionType === 'RETURN') {
-
-                                        $badgeClass = 'bg-info text-dark';
-                                        $label = 'Return';
-
-                                    } else {
-
-                                        $badgeClass = 'bg-secondary';
-                                        $label = 'Adjustment';
-
-                                    }
-
-                                    ?>
-
-                                    <span class="badge <?= $badgeClass ?>">
-                                        <?= e($label) ?>
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <strong>
-                                        <?= number_format(
-                                            (float)$transaction['quantity'],
-                                            2
-                                        ) ?>
-                                    </strong>
-
-                                    <?= e($transaction['unit']) ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?= e(
-                                        $transaction['remarks'] ?? ''
-                                    ) ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?= e(
-                                        $transaction['employee_name']
-                                        ?? 'System'
-                                    ) ?>
-
-                                </td>
-
-
-                                <td>
-
-                                    <?= e(
-                                        $transaction['created_at']
-                                    ) ?>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-                    <?php endif; ?>
-
+                        <?php else: foreach (array_slice($recentTransactions,0,5) as $tx): 
+                            $type=$tx['transaction_type']; 
+                            $cls=$type==='PURCHASE'?'status-success':
+                            ($type==='ISSUE_KITCHEN'?'status-warning':'status-info'); 
+                            $label=$type==='PURCHASE'?'Received':
+                            ($type==='ISSUE_KITCHEN'?'Issued':ucwords(strtolower($type))); 
+                        ?>
+                        <tr>
+                            <td>
+                                <?= e(date('d-m-Y',strtotime($tx['created_at']))) ?>
+                            </td>
+                            <td>
+                                <strong><?= e($tx['material_name']) ?></strong>
+                            </td>
+                            <td>
+                                <span class="status-pill <?= $cls ?>"><?= e($label) ?></span>
+                            </td>
+                            <td>
+                                <?= number_format((float)$tx['quantity'],2) ?> 
+                                <?= e($tx['unit']) ?>
+                            </td>
+                            <td>
+                                <?= e($tx['remarks']??'-') ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; endif; ?>
                     </tbody>
-
+                
                 </table>
-
             </div>
-
         </div>
-
     </div>
-
 </main>
-
-
-<?php
-require_once __DIR__ . '/../includes/footer.php';
-?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

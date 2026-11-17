@@ -78,12 +78,9 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h4 class="mb-1">
-                        <i class="fa-solid fa-chart-pie me-2"></i>
-                        Canteen Daily Report
+                     
                     </h4>
-                    <p class="text-muted mb-0">
-                        View food serving, staff consumption, and actual wastage.
-                    </p>
+                    
                 </div>
                 <button class="btn btn-outline-primary" onclick="window.print()">
                     <i class="fa-solid fa-print me-1"></i> Print Report

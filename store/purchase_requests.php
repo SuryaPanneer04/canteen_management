@@ -400,6 +400,22 @@ $requests = $con->query("
     ORDER BY pr.id DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
+/*
+|--------------------------------------------------------------------------
+| FETCH ALL PURCHASE REQUEST ITEMS FOR MODAL VIEW
+|--------------------------------------------------------------------------
+*/
+
+$requestItemsData = $con->query("
+    SELECT 
+        i.request_id,
+        m.material_code,
+        m.material_name,
+        m.unit,
+        i.requested_qty
+    FROM purchase_request_items i
+    INNER JOIN materials m ON m.id = i.material_id
+")->fetchAll(PDO::FETCH_ASSOC);
 
 /*
 |--------------------------------------------------------------------------
@@ -453,14 +469,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <div class="page-body">
 
         <!-- PAGE HEADER -->
-        <div class="mb-4">
 
-            <h4 class="mb-1">
-                Purchase Requests
-            </h4>
+        <div class="dashboard-hero">
 
-            <div class="text-muted">
-                Create purchase requests for required materials and track their status.
+            <div class="dashboard-heading">
+
+                
+
             </div>
 
         </div>
@@ -510,121 +525,69 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <!-- STAT CARDS -->
 
-        <div class="row g-3 mb-4">
+        <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
 
             <!-- Pending -->
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-amber">
-
-                        <i class="fa-solid fa-hourglass-half"></i>
-
-                    </div>
-
+            <div class="dash-stat stat-orange">
+                <div class="stat-top">
                     <div>
-
-                        <div class="stat-label">
-                            Pending
-                        </div>
-
-                        <div class="stat-value">
-                            <?= $pendingCount ?>
-                        </div>
-
+                        <div class="stat-label">Pending</div>
+                        <div class="stat-value"><?= $pendingCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">Awaiting approval</div>
             </div>
 
 
             <!-- Approved -->
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-green">
-
-                        <i class="fa-solid fa-circle-check"></i>
-
-                    </div>
-
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
                     <div>
-
-                        <div class="stat-label">
-                            Approved
-                        </div>
-
-                        <div class="stat-value">
-                            <?= $approvedCount ?>
-                        </div>
-
+                        <div class="stat-label">Approved</div>
+                        <div class="stat-value"><?= $approvedCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend">Ready for PO</div>
             </div>
 
 
             <!-- Rejected -->
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-purple">
-
-                        <i class="fa-solid fa-circle-xmark"></i>
-
-                    </div>
-
+            <div class="dash-stat stat-red">
+                <div class="stat-top">
                     <div>
-
-                        <div class="stat-label">
-                            Rejected
-                        </div>
-
-                        <div class="stat-value">
-                            <?= $rejectedCount ?>
-                        </div>
-
+                        <div class="stat-label">Rejected</div>
+                        <div class="stat-value"><?= $rejectedCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend down">Not approved</div>
             </div>
 
 
             <!-- Completed -->
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-primary">
-
-                        <i class="fa-solid fa-flag-checkered"></i>
-
-                    </div>
-
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
                     <div>
-
-                        <div class="stat-label">
-                            Completed
-                        </div>
-
-                        <div class="stat-value">
-                            <?= $completedCount ?>
-                        </div>
-
+                        <div class="stat-label">Completed</div>
+                        <div class="stat-value"><?= $completedCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-flag-checkered"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">Fully processed</div>
             </div>
 
         </div>
@@ -634,134 +597,120 @@ require_once __DIR__ . '/../includes/sidebar.php';
              CREATE PURCHASE REQUEST
         =========================================================== -->
 
-        <div class="content-card mb-4">
+        <div class="quick-card">
 
-            <div class="content-card-header">
+            <div class="section-title">
 
-                <div>
+                <i class="fa-solid fa-cart-plus"></i>
 
-                    <strong>
-
-                        <i class="fa-solid fa-cart-plus me-2"></i>
-
-                        Create Purchase Request
-
-                    </strong>
-
-                    <div class="text-muted small">
-
-                        Select the materials and enter the required quantity.
-
-                    </div>
-
-                </div>
+                Create Purchase Request
 
             </div>
 
-
-            <div class="content-card-body">
-
-                <form
-                    method="POST"
-                    id="purchaseRequestForm"
-                >
-
-                    <div id="requestItems">
+            <div class="text-muted small mb-3">
+                Select the materials and enter the required quantity.
+            </div>
 
 
-                        <!-- FIRST ITEM -->
+            <form
+                method="POST"
+                id="purchaseRequestForm"
+            >
 
-                        <div class="request-item border rounded p-3 mb-3">
-
-                            <div class="row g-3 align-items-end">
+                <div id="requestItems">
 
 
-                                <!-- MATERIAL -->
+                    <!-- FIRST ITEM -->
 
-                                <div class="col-md-7">
+                    <div class="request-item border rounded p-3 mb-3">
 
-                                    <label class="form-label">
-                                        Material
-                                    </label>
+                        <div class="row g-3 align-items-end">
 
-                                    <select
-                                        name="material_id[]"
-                                        class="form-select material-select"
-                                        required
-                                    >
 
-                                        <option value="">
-                                            --- Select Material ---
+                            <!-- MATERIAL -->
+
+                            <div class="col-md-7">
+
+                                <label class="form-label">
+                                    Material
+                                </label>
+
+                                <select
+                                    name="material_id[]"
+                                    class="form-select material-select"
+                                    required
+                                >
+
+                                    <option value="">
+                                        --- Select Material ---
+                                    </option>
+
+                                    <?php foreach ($materials as $material): ?>
+
+                                        <option
+                                            value="<?= (int)$material['id'] ?>"
+                                        >
+
+                                            <?= e($material['material_code']) ?>
+
+                                            -
+
+                                            <?= e($material['material_name']) ?>
+
+                                            |
+                                            Stock:
+
+                                            <?= number_format(
+                                                (float)$material['current_stock'],
+                                                2
+                                            ) ?>
+
+                                            <?= e($material['unit']) ?>
+
                                         </option>
 
-                                        <?php foreach ($materials as $material): ?>
+                                    <?php endforeach; ?>
 
-                                            <option
-                                                value="<?= (int)$material['id'] ?>"
-                                            >
+                                </select>
 
-                                                <?= e($material['material_code']) ?>
-
-                                                -
-
-                                                <?= e($material['material_name']) ?>
-
-                                                |
-                                                Stock:
-
-                                                <?= number_format(
-                                                    (float)$material['current_stock'],
-                                                    2
-                                                ) ?>
-
-                                                <?= e($material['unit']) ?>
-
-                                            </option>
-
-                                        <?php endforeach; ?>
-
-                                    </select>
-
-                                </div>
+                            </div>
 
 
-                                <!-- QUANTITY -->
+                            <!-- QUANTITY -->
 
-                                <div class="col-md-3">
+                            <div class="col-md-3">
 
-                                    <label class="form-label">
-                                        Required Quantity
-                                    </label>
+                                <label class="form-label">
+                                    Required Quantity
+                                </label>
 
-                                    <input
-                                        type="number"
-                                        name="quantity[]"
-                                        class="form-control quantity-input"
-                                        min="0.01"
-                                        step="0.01"
-                                        placeholder="Enter quantity"
-                                        required
-                                    >
+                                <input
+                                    type="number"
+                                    name="quantity[]"
+                                    class="form-control quantity-input"
+                                    min="0.01"
+                                    step="0.01"
+                                    placeholder="Enter quantity"
+                                    required
+                                >
 
-                                </div>
+                            </div>
 
 
-                                <!-- REMOVE -->
+                            <!-- REMOVE -->
 
-                                <div class="col-md-2">
+                            <div class="col-md-2">
 
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-danger remove-item w-100"
-                                    >
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-danger remove-item w-100"
+                                >
 
-                                        <i class="fa-solid fa-trash me-1"></i>
+                                    <i class="fa-solid fa-trash me-1"></i>
 
-                                        Remove
+                                    Remove
 
-                                    </button>
-
-                                </div>
+                                </button>
 
                             </div>
 
@@ -769,91 +718,91 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                     </div>
 
-
-                    <!-- ADD MATERIAL / EXCEL UPLOAD -->
-
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-
-                        <button
-                            type="button"
-                            id="addItem"
-                            class="btn btn-outline-secondary"
-                        >
-                            <i class="fa-solid fa-plus me-1"></i>
-                            Add Material
-                        </button>
-
-                        <button
-                            type="button"
-                            id="uploadExcelBtn"
-                            class="btn btn-outline-success"
-                        >
-                            <i class="fa-solid fa-file-excel me-1"></i>
-                            Upload Excel
-                        </button>
-
-                        <input
-                            type="file"
-                            id="excelFile"
-                            accept=".xlsx,.xls"
-                            style="display:none;"
-                        >
-
-                    </div>
-
-                    <div class="text-muted small mb-3">
-
-                        <i class="fa-solid fa-circle-info me-1"></i>
-
-                        Excel format:
-
-                        <strong>Material Code</strong>,
-                        <strong>Material Name</strong>,
-                        <strong>Quantity</strong>
-
-                        <br>
-
-                        Example:
-                        <strong>MAT-001 | Cement | 10</strong>
-
-                    </div>
+                </div>
 
 
-                    <!-- REMARKS -->
+                <!-- ADD MATERIAL / EXCEL UPLOAD -->
 
-                    <div class="mb-3">
-
-                        <label class="form-label">
-                            Reason / Requirement
-                        </label>
-
-                        <textarea
-                            name="remarks"
-                            class="form-control"
-                            rows="3"
-                            placeholder="Enter reason or requirement..."
-                        ></textarea>
-
-                    </div>
-
-
-                    <!-- SUBMIT -->
+                <div class="d-flex flex-wrap gap-2 mb-3">
 
                     <button
-                        type="submit"
-                        class="btn btn-primary"
-                        id="submitRequestBtn"
+                        type="button"
+                        id="addItem"
+                        class="btn btn-outline-primary"
                     >
-
-                        <i class="fa-solid fa-paper-plane me-1"></i>
-
-                        Submit Purchase Request
-
+                        <i class="fa-solid fa-plus me-1"></i>
+                        Add Material
                     </button>
 
-                </form>
+                    <button
+                        type="button"
+                        id="uploadExcelBtn"
+                        class="btn btn-outline-success"
+                    >
+                        <i class="fa-solid fa-file-excel me-1"></i>
+                        Upload Excel
+                    </button>
 
-            </div>
+                    <input
+                        type="file"
+                        id="excelFile"
+                        accept=".xlsx,.xls"
+                        style="display:none;"
+                    >
+
+                </div>
+
+                <div class="text-muted small mb-3">
+
+                    <i class="fa-solid fa-circle-info me-1"></i>
+
+                    Excel format:
+
+                    <strong>Material Code</strong>,
+                    <strong>Material Name</strong>,
+                    <strong>Quantity</strong>
+
+                    <br>
+
+                    Example:
+                    <strong>MAT-001 | Rice | 10</strong>
+
+                </div>
+
+
+                <!-- REMARKS -->
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Reason / Requirement
+                    </label>
+
+                    <textarea
+                        name="remarks"
+                        class="form-control"
+                        rows="3"
+                        placeholder="Enter reason or requirement..."
+                    ></textarea>
+
+                </div>
+
+
+                <!-- SUBMIT -->
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                    id="submitRequestBtn"
+                >
+
+                    <i class="fa-solid fa-paper-plane me-1"></i>
+
+                    Submit Purchase Request
+
+                </button>
+
+            </form>
 
         </div>
 
@@ -862,9 +811,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
              PURCHASE REQUEST HISTORY
         =========================================================== -->
 
-        <div class="content-card">
+        <div class="dashboard-table">
 
-            <div class="content-card-header">
+            <div class="table-header">
 
                 <div>
 
@@ -883,6 +832,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </div>
 
                 </div>
+
+                <span class="fs-6 fw-small"><?= count($requests) ?> request(s)</span>
 
             </div>
 
@@ -911,6 +862,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <th>Remarks</th>
 
+                            <th>Actions</th>
+
                         </tr>
 
                     </thead>
@@ -924,10 +877,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <td
                                     colspan="8"
-                                    class="text-center text-muted py-4"
+                                    class="empty-state"
                                 >
 
-                                    <i class="fa-solid fa-inbox fa-2x mb-2"></i>
+                                    <i class="fa-solid fa-inbox fa-2x mb-2 d-block"></i>
 
                                     <div>
                                         No purchase requests found.
@@ -985,9 +938,27 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     <td>
 
-                                        <?= e(
-                                            $request['employee_name']
-                                        ) ?>
+                                        <div class="food-cell">
+
+                                            <span class="table-avatar">
+                                                <?= e(
+                                                    strtoupper(
+                                                        substr(
+                                                            (string)$request['employee_name'],
+                                                            0,
+                                                            1
+                                                        )
+                                                    )
+                                                ) ?>
+                                            </span>
+
+                                            <span>
+                                                <?= e(
+                                                    $request['employee_name']
+                                                ) ?>
+                                            </span>
+
+                                        </div>
 
                                     </td>
 
@@ -1024,33 +995,33 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         if ($status === 'Pending') {
 
                                             $badge =
-                                                'bg-warning text-dark';
+                                                'status-warning';
 
                                         } elseif ($status === 'Approved') {
 
                                             $badge =
-                                                'badge-enable';
+                                                'status-success';
 
                                         } elseif ($status === 'Rejected') {
 
                                             $badge =
-                                                'badge-disabled';
+                                                'status-danger';
 
                                         } elseif ($status === 'Completed') {
 
                                             $badge =
-                                                'bg-primary';
+                                                'status-info';
 
                                         } else {
 
                                             $badge =
-                                                'bg-secondary';
+                                                'status-neutral';
                                         }
 
                                         ?>
 
                                         <span
-                                            class="badge <?= $badge ?>"
+                                            class="status-pill <?= $badge ?>"
                                         >
 
                                             <?= e($status) ?>
@@ -1091,6 +1062,21 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     </td>
 
+                                    <!-- ACTIONS -->
+                                    <td>
+                                        <button 
+                                            type="button" 
+                                            class="btn btn-sm btn-primary view-request-btn"
+                                            data-request-id="<?= (int)$request['id'] ?>"
+                                            data-request-no="<?= e($request['request_no']) ?>"
+                                            data-request-date="<?= e($request['request_date']) ?>"
+                                            data-status="<?= e($request['status']) ?>"
+                                            data-remarks="<?= e($request['remarks']) ?>"
+                                        >
+                                            <i class="fa-solid fa-eye me-1"></i> View
+                                        </button>
+                                    </td>
+
                                 </tr>
 
                             <?php endforeach; ?>
@@ -1108,6 +1094,145 @@ require_once __DIR__ . '/../includes/sidebar.php';
     </div>
 
 </main>
+
+
+<!-- VIEW REQUEST DETAILS MODAL -->
+<div class="modal fade" id="viewRequestModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            
+            <!-- MODAL HEADER -->
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-file-invoice text-primary me-2"></i> 
+                    Purchase Request: <span id="modalRequestNo" class="text-secondary"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- MODAL BODY -->
+            <div class="modal-body p-4">
+                
+                <!-- METADATA CARD PANEL -->
+                <div class="card bg-light border-0 rounded-3 p-3 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="text-muted small mb-1">Request Date</div>
+                            <div id="modalRequestDate" class="fw-semibold text-dark">-</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small mb-1">Status</div>
+                            <div><span id="modalRequestStatus" class="status-pill status-neutral">-</span></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small mb-1">Remarks / Reason</div>
+                            <div id="modalRequestRemarks" class="fw-semibold text-dark text-truncate" title="">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ITEMS TABLE HEADER -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-secondary mb-0">
+                        <i class="fa-solid fa-boxes-stacked me-1"></i> Requested Materials
+                    </h6>
+                </div>
+
+                <!-- ITEMS TABLE -->
+                <div class="table-responsive border rounded-3 overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-uppercase fs-7 text-muted">
+                            <tr>
+                                <th class="py-3 ps-3" style="width: 60px;">#</th>
+                                <th class="py-3">Material Code</th>
+                                <th class="py-3">Material Name</th>
+                                <th class="py-3 text-end pe-3">Requested Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalItemsTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- MODAL FOOTER -->
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const allRequestItems = <?= json_encode($requestItemsData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+    document.querySelectorAll('.view-request-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const requestId = this.getAttribute('data-request-id');
+            const requestNo = this.getAttribute('data-request-no');
+            const requestDate = this.getAttribute('data-request-date');
+            const status = this.getAttribute('data-status');
+            const remarks = this.getAttribute('data-remarks');
+
+            // Set header info
+            document.getElementById('modalRequestNo').textContent = requestNo;
+            document.getElementById('modalRequestDate').textContent = requestDate;
+            
+            // Set dynamic status badge inside modal
+            const statusSpan = document.getElementById('modalRequestStatus');
+            statusSpan.textContent = status;
+            statusSpan.className = 'status-pill ';
+            if (status === 'Pending') statusSpan.classList.add('status-warning');
+            else if (status === 'Approved') statusSpan.classList.add('status-success');
+            else if (status === 'Rejected') statusSpan.classList.add('status-danger');
+            else if (status === 'Completed') statusSpan.classList.add('status-info');
+            else statusSpan.classList.add('status-neutral');
+
+            // Set remarks with title attribute for hover capability
+            const remarksEl = document.getElementById('modalRequestRemarks');
+            remarksEl.textContent = remarks ? remarks : '-';
+            remarksEl.title = remarks ? remarks : '';
+
+            // Filter items for this request
+            const tbody = document.getElementById('modalItemsTableBody');
+            tbody.innerHTML = '';
+
+            const matchedItems = allRequestItems.filter(item => String(item.request_id) === String(requestId));
+
+            if (matchedItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No materials found for this request.</td></tr>';
+            } else {
+                matchedItems.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="ps-3 text-muted">${index + 1}</td>
+                        <td class="fw-semibold">${item.material_code}</td>
+                        <td>${item.material_name}</td>
+                        <td class="text-end pe-3 fw-bold text-primary">${parseFloat(item.requested_qty).toFixed(2)} <span class="text-muted fw-normal">${item.unit}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Show Bootstrap Modal
+            const modal = new bootstrap.Modal(document.getElementById('viewRequestModal'));
+            modal.show();
+        });
+    });
+});
+</script>
+
+<?php
+
+require_once __DIR__ . '/../includes/footer.php';
+
+?>
 
 
 <!-- SheetJS Excel Library -->
@@ -1932,10 +2057,10 @@ document.getElementById(
                     */
 
                     let message =
-                        'Excel upload completed.\\n\\n' +
+                        'Excel upload completed.\n\n' +
                         'Materials added: ' +
                         addedCount +
-                        '\\n' +
+                        '\n' +
                         'Rows skipped: ' +
                         skippedCount;
 
@@ -1951,9 +2076,9 @@ document.getElementById(
                     ) {
 
                         message +=
-                            '\\n\\nDetails:\\n' +
+                            '\n\nDetails:\n' +
                             errors.join(
-                                '\\n'
+                                '\n'
                             );
 
                     }

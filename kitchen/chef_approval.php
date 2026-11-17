@@ -1361,6 +1361,33 @@ foreach ($plans as $plan) {
 
 /*
 |--------------------------------------------------------------------------
+| SUMMARY COUNTS (for the stat cards)
+|--------------------------------------------------------------------------
+*/
+
+$totalPendingPlans = count($plans);
+$totalFoodItemsAll = 0;
+$totalPlatesAll = 0;
+$lowStockMaterialIds = [];
+
+foreach ($plans as $plan) {
+    $totalFoodItemsAll += (int)$plan['food_count'];
+    $totalPlatesAll += (int)$plan['total_plates'];
+}
+
+foreach ($planDetails as $detail) {
+    foreach (($detail['materials'] ?? []) as $material) {
+        if ((float)$material['current_stock'] < (float)$material['calculated_qty']) {
+            $lowStockMaterialIds[(int)$material['material_id']] = true;
+        }
+    }
+}
+
+$lowStockAlertCount = count($lowStockMaterialIds);
+
+
+/*
+|--------------------------------------------------------------------------
 | HEADER
 |--------------------------------------------------------------------------
 */
@@ -1369,12 +1396,11 @@ require_once __DIR__ . '/../includes/header.php';
 
 require_once __DIR__ . '/../includes/sidebar.php';
 
-require_once __DIR__ . '/../includes/topbar.php';
-
 ?>
 
+<div class="main-content cooking-plan-page">
 
-<div class="main-content">
+    <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
     <div class="page-body">
 
@@ -1383,42 +1409,27 @@ require_once __DIR__ . '/../includes/topbar.php';
              PAGE HEADER
         ====================================================== -->
 
-        <div
-            class="d-flex justify-content-between align-items-center mb-4"
-        >
+        <div class="dashboard-hero">
 
-            <div>
-
-                <h4 class="mb-1">
-
-                    Chef Approval
-
-                </h4>
-
-
-                <p class="text-muted mb-0">
-
-                    Review the daily cooking plan,
-                    verify automatically calculated materials,
-                    make changes if required and send to Store.
-
-                </p>
+            <div class="dashboard-heading">
 
             </div>
 
+            <div class="hero-right">
 
-            <a
-                href="dashboard.php"
-                class="btn btn-outline-secondary"
-            >
+                <a
+                    href="dashboard.php"
+                    class="btn btn-kitchen-outline"
+                    style="padding:10px 18px; font-size:13px;"
+                >
 
-                <i
-                    class="fa-solid fa-arrow-left me-1"
-                ></i>
+                    <i class="fa-solid fa-arrow-left me-1"></i>
 
-                Dashboard
+                    Dashboard
 
-            </a>
+                </a>
+
+            </div>
 
         </div>
 
@@ -1429,22 +1440,13 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <?php if ($success !== ''): ?>
 
-            <div
-                class="alert alert-success alert-dismissible fade show"
-            >
+            <div class="alert alert-success alert-dismissible fade show">
 
-                <i
-                    class="fa-solid fa-circle-check me-2"
-                ></i>
+                <i class="fa-solid fa-circle-check me-2"></i>
 
                 <?= e($success) ?>
 
-
-                <button
-                    type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"
-                ></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 
             </div>
 
@@ -1453,26 +1455,78 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <?php if ($error !== ''): ?>
 
-            <div
-                class="alert alert-danger alert-dismissible fade show"
-            >
+            <div class="alert alert-danger alert-dismissible fade show">
 
-                <i
-                    class="fa-solid fa-circle-exclamation me-2"
-                ></i>
+                <i class="fa-solid fa-circle-exclamation me-2"></i>
 
                 <?= e($error) ?>
 
-
-                <button
-                    type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"
-                ></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 
             </div>
 
         <?php endif; ?>
+
+
+        <!-- =====================================================
+             STAT CARDS
+        ====================================================== -->
+
+        <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+
+            <div class="dash-stat stat-brown">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Plans Pending</div>
+                        <div class="stat-value"><?= $totalPendingPlans ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">Waiting for Chef</div>
+            </div>
+
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Food Items</div>
+                        <div class="stat-value"><?= $totalFoodItemsAll ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-bowl-food"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">Across pending plans</div>
+            </div>
+
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Total Plates</div>
+                        <div class="stat-value"><?= number_format($totalPlatesAll) ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">To be cooked</div>
+            </div>
+
+            <div class="dash-stat stat-red">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Stock Alerts</div>
+                        <div class="stat-value"><?= $lowStockAlertCount ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+                <div class="stat-trend down">Insufficient stock</div>
+            </div>
+
+        </div>
 
 
         <!-- =====================================================
@@ -1481,25 +1535,17 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <?php if (!$plans): ?>
 
-            <div
-                class="card border-0 shadow-sm"
-            >
+            <div class="dashboard-table">
 
-                <div
-                    class="card-body text-center py-5"
-                >
+                <div class="empty-state py-5">
 
-                    <i
-                        class="fa-solid fa-clipboard-check fa-3x text-muted mb-3"
-                    ></i>
-
+                    <i class="fa-solid fa-clipboard-check fs-1 text-muted d-block mb-3"></i>
 
                     <h5>
 
                         No Cooking Plans Pending Approval
 
                     </h5>
-
 
                     <p class="text-muted mb-0">
 
@@ -1542,47 +1588,35 @@ require_once __DIR__ . '/../includes/topbar.php';
                 ?>
 
 
-                <div
-                    class="card border-0 shadow-sm mb-4"
-                >
+                <div class="dashboard-table mb-4">
 
 
                     <!-- =========================================
                          PLAN HEADER
                     ========================================== -->
 
-                    <div
-                        class="card-header bg-white py-3"
-                    >
+                    <div class="table-header">
 
-                        <div
-                            class="row align-items-center"
-                        >
+                        <div class="row align-items-center w-100 g-2">
 
 
                             <div class="col-md-7">
 
-                                <h5 class="mb-1">
+                                <strong>
 
-                                    <i
-                                        class="fa-solid fa-utensils me-2"
-                                    ></i>
+                                    <i class="fa-solid fa-utensils me-2"></i>
 
                                     <?= e(
                                         $plan['meal_type']
                                     ) ?>
 
-                                </h5>
+                                </strong>
 
 
-                                <div
-                                    class="text-muted small"
-                                >
+                                <div class="small" style="opacity:.85;">
 
                                     Cooking Date:
-
                                     <strong>
-
                                         <?= e(
                                             date(
                                                 'd-m-Y',
@@ -1591,31 +1625,22 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                 )
                                             )
                                         ) ?>
-
                                     </strong>
 
-
-                                    &nbsp; | &nbsp;
+                                    &nbsp;|&nbsp;
 
                                     Total Plates:
-
                                     <strong>
-
                                         <?= number_format(
                                             (int)$plan['total_plates']
                                         ) ?>
-
                                     </strong>
 
-
-                                    &nbsp; | &nbsp;
+                                    &nbsp;|&nbsp;
 
                                     Food Items:
-
                                     <strong>
-
                                         <?= (int)$plan['food_count'] ?>
-
                                     </strong>
 
                                 </div>
@@ -1623,17 +1648,11 @@ require_once __DIR__ . '/../includes/topbar.php';
                             </div>
 
 
-                            <div
-                                class="col-md-5 text-md-end mt-2 mt-md-0"
-                            >
+                            <div class="col-md-5 text-md-end">
 
-                                <span
-                                    class="badge bg-warning text-dark px-3 py-2"
-                                >
+                                <span class="status-pill status-warning">
 
-                                    <i
-                                        class="fa-solid fa-clock me-1"
-                                    ></i>
+                                    <i class="fa-solid fa-clock me-1"></i>
 
                                     Waiting for Chef
 
@@ -1646,7 +1665,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                     </div>
 
 
-                    <div class="card-body">
+                    <div class="card-section">
 
 
                         <!-- =====================================
@@ -1655,46 +1674,30 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                         <div class="mb-4">
 
-                            <h6 class="mb-3">
+                            <div class="section-title">
 
-                                <i
-                                    class="fa-solid fa-bowl-food me-2"
-                                ></i>
+                                <i class="fa-solid fa-bowl-food"></i>
 
                                 Food to Cook
 
-                            </h6>
+                            </div>
 
 
-                            <div
-                                class="table-responsive"
-                            >
+                            <div class="table-responsive">
 
-                                <table
-                                    class="table table-bordered align-middle mb-0"
-                                >
+                                <table class="table table-bordered align-middle mb-0 plan-food-table">
 
-                                    <thead
-                                        class="table-light"
-                                    >
+                                    <thead>
 
                                         <tr>
 
-                                            <th>
-                                                #
-                                            </th>
+                                            <th>#</th>
 
-                                            <th>
-                                                Food Code
-                                            </th>
+                                            <th>Food Code</th>
 
-                                            <th>
-                                                Food
-                                            </th>
+                                            <th>Food</th>
 
-                                            <th>
-                                                Required Plates
-                                            </th>
+                                            <th>Required Plates</th>
 
                                         </tr>
 
@@ -1730,22 +1733,36 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                                 <td>
 
-                                                    <strong>
+                                                    <div class="food-cell">
 
-                                                        <?= e(
-                                                            $food['food_name']
-                                                        ) ?>
+                                                        <span class="table-avatar">
+                                                            <?= e(
+                                                                strtoupper(
+                                                                    substr(
+                                                                        (string)$food['food_name'],
+                                                                        0,
+                                                                        1
+                                                                    )
+                                                                )
+                                                            ) ?>
+                                                        </span>
 
-                                                    </strong>
+                                                        <strong>
+
+                                                            <?= e(
+                                                                $food['food_name']
+                                                            ) ?>
+
+                                                        </strong>
+
+                                                    </div>
 
                                                 </td>
 
 
                                                 <td>
 
-                                                    <span
-                                                        class="badge bg-primary"
-                                                    >
+                                                    <span class="status-pill status-brown">
 
                                                         <?= number_format(
                                                             (int)$food['required_plates']
@@ -1794,15 +1811,13 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                             <div class="mb-3">
 
-                                <h6 class="mb-1">
+                                <div class="section-title">
 
-                                    <i
-                                        class="fa-solid fa-calculator me-2"
-                                    ></i>
+                                    <i class="fa-solid fa-calculator"></i>
 
                                     Automatically Calculated Materials
 
-                                </h6>
+                                </div>
 
 
                                 <small class="text-muted">
@@ -1824,13 +1839,9 @@ require_once __DIR__ . '/../includes/topbar.php';
                             ): ?>
 
 
-                                <div
-                                    class="alert alert-danger"
-                                >
+                                <div class="alert alert-danger">
 
-                                    <i
-                                        class="fa-solid fa-triangle-exclamation me-2"
-                                    ></i>
+                                    <i class="fa-solid fa-triangle-exclamation me-2"></i>
 
                                     No recipe materials were found
                                     for the selected food.
@@ -1847,61 +1858,27 @@ require_once __DIR__ . '/../includes/topbar.php';
                             <?php else: ?>
 
 
-                                <div
-                                    class="table-responsive"
-                                >
+                                <div class="table-responsive">
 
-                                    <table
-                                        class="table table-bordered align-middle"
-                                    >
+                                    <table class="table table-bordered align-middle plan-food-table">
 
-                                        <thead
-                                            class="table-light"
-                                        >
+                                        <thead>
 
                                             <tr>
 
-                                                <th
-                                                    style="width:5%;"
-                                                >
-                                                    #
-                                                </th>
+                                                <th style="width:5%;">#</th>
 
-                                                <th
-                                                    style="width:20%;"
-                                                >
-                                                    Material
-                                                </th>
+                                                <th style="width:20%;">Material</th>
 
-                                                <th
-                                                    style="width:10%;"
-                                                >
-                                                    Unit
-                                                </th>
+                                                <th style="width:10%;">Unit</th>
 
-                                                <th
-                                                    style="width:15%;"
-                                                >
-                                                    Available Stock
-                                                </th>
+                                                <th style="width:15%;">Available Stock</th>
 
-                                                <th
-                                                    style="width:15%;"
-                                                >
-                                                    Calculated Qty
-                                                </th>
+                                                <th style="width:15%;">Calculated Qty</th>
 
-                                                <th
-                                                    style="width:15%;"
-                                                >
-                                                    Chef Final Qty
-                                                </th>
+                                                <th style="width:15%;">Chef Final Qty</th>
 
-                                                <th
-                                                    style="width:20%;"
-                                                >
-                                                    Remarks
-                                                </th>
+                                                <th style="width:20%;">Remarks</th>
 
                                             </tr>
 
@@ -1933,27 +1910,39 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                                     <td>
 
-                                                        <strong>
+                                                        <div class="food-cell">
 
-                                                            <?= e(
-                                                                $material['material_name']
-                                                            ) ?>
+                                                            <span class="table-avatar">
+                                                                <?= e(
+                                                                    strtoupper(
+                                                                        substr(
+                                                                            (string)$material['material_name'],
+                                                                            0,
+                                                                            1
+                                                                        )
+                                                                    )
+                                                                ) ?>
+                                                            </span>
 
-                                                        </strong>
+                                                            <div>
 
+                                                                <div class="fw-semibold">
+                                                                    <?= e(
+                                                                        $material['material_name']
+                                                                    ) ?>
+                                                                </div>
 
-                                                        <br>
+                                                                <small class="text-muted">
 
+                                                                    <?= e(
+                                                                        $material['material_code']
+                                                                    ) ?>
 
-                                                        <small
-                                                            class="text-muted"
-                                                        >
+                                                                </small>
 
-                                                            <?= e(
-                                                                $material['material_code']
-                                                            ) ?>
+                                                            </div>
 
-                                                        </small>
+                                                        </div>
 
 
                                                         <input
@@ -1969,9 +1958,11 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                                     <td>
 
-                                                        <?= e(
-                                                            $material['unit']
-                                                        ) ?>
+                                                        <span class="status-pill status-neutral">
+                                                            <?= e(
+                                                                $material['unit']
+                                                            ) ?>
+                                                        </span>
 
                                                     </td>
 
@@ -2016,13 +2007,11 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                                             <br>
 
-                                                            <small
-                                                                class="text-danger"
-                                                            >
+                                                            <span class="status-pill status-danger mt-1">
 
                                                                 Insufficient stock
 
-                                                            </small>
+                                                            </span>
 
                                                         <?php endif; ?>
 
@@ -2033,9 +2022,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                                     <td>
 
-                                                        <span
-                                                            class="badge bg-info text-dark"
-                                                        >
+                                                        <span class="status-pill status-info">
 
                                                             <?= number_format(
                                                                 $calculated,
@@ -2054,18 +2041,14 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                         details
                                                         -->
 
-                                                        <div
-                                                            class="mt-2"
-                                                        >
+                                                        <div class="mt-2">
 
                                                             <?php foreach (
                                                                 $material['food_details']
                                                                 as $detail
                                                             ): ?>
 
-                                                                <small
-                                                                    class="d-block text-muted"
-                                                                >
+                                                                <small class="d-block text-muted">
 
                                                                     <?= e(
                                                                         $detail['food_name']
@@ -2121,9 +2104,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                                             required
                                                         >
 
-                                                        <small
-                                                            class="text-muted"
-                                                        >
+                                                        <small class="text-muted">
 
                                                             Chef can change this quantity.
 
@@ -2164,9 +2145,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                 <div class="mb-4 mt-4">
 
-                                    <label
-                                        class="form-label fw-semibold"
-                                    >
+                                    <label class="form-label fw-semibold">
 
                                         Chef Remarks
 
@@ -2187,9 +2166,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                      ACTIONS
                                 ================================== -->
 
-                                <div
-                                    class="d-flex justify-content-between align-items-center"
-                                >
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
 
 
                                     <!-- REJECT -->
@@ -2207,9 +2184,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                         "
                                     >
 
-                                        <i
-                                            class="fa-solid fa-xmark me-1"
-                                        ></i>
+                                        <i class="fa-solid fa-xmark me-1"></i>
 
                                         Reject Plan
 
@@ -2222,12 +2197,10 @@ require_once __DIR__ . '/../includes/topbar.php';
                                         type="submit"
                                         name="approve_plan"
                                         value="1"
-                                        class="btn btn-success px-4"
+                                        class="btn btn-kitchen px-4"
                                     >
 
-                                        <i
-                                            class="fa-solid fa-paper-plane me-1"
-                                        ></i>
+                                        <i class="fa-solid fa-paper-plane me-1"></i>
 
                                         Approve & Send to Store
 

@@ -128,425 +128,248 @@ $recentRequests = $stmt->fetchAll();
 |--------------------------------------------------------------------------
 */
 
+$totalPO = 0; 
+$receivedToday = 0; 
+$totalSuppliers = 0; 
+$totalValue = 0.0; 
+$recentPOs = [];
+try 
+{ 
+    $totalPO=(int)
+    $con->query("SELECT COUNT(*) FROM purchase_orders")->fetchColumn(); 
+} catch(Throwable $e) {}
+try 
+{ 
+    $q=$con->prepare("SELECT COUNT(*) FROM purchase_orders WHERE status='Received' AND po_date=?"); 
+    $q->execute([date('Y-m-d')]); 
+    $receivedToday=(int)
+    $q->fetchColumn(); 
+} catch(Throwable $e) {}
+try 
+{ 
+    $totalSuppliers=(int)
+    $con->query("SELECT COUNT(*) FROM suppliers WHERE status='Enable'")->fetchColumn(); 
+} catch(Throwable $e) {}
+try 
+{ 
+    $totalValue=(float)
+    $con->query("SELECT COALESCE(SUM(total_amount),0) FROM purchase_order_items")->fetchColumn(); 
+} catch(Throwable $e) {}
+try
+{ 
+    $recentPOs=$con->query("SELECT po.po_no, po.po_date, po.status, s.supplier_name, 
+    COALESCE(SUM(poi.total_amount),0) total_amount 
+    FROM purchase_orders po 
+    LEFT JOIN suppliers s ON s.id=po.supplier_id 
+    LEFT JOIN purchase_order_items poi ON poi.po_id=po.id 
+    GROUP BY po.id,po.po_no,po.po_date,po.status,s.supplier_name 
+    ORDER BY po.id DESC LIMIT 5")->fetchAll(); 
+} catch(Throwable $e) {}
+
 require_once __DIR__ . '/../includes/header.php';
-
 require_once __DIR__ . '/../includes/sidebar.php';
-
 ?>
-
 <main class="main-content">
-
     <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
-
-
     <div class="page-body">
-
-        <!-- =====================================================
-             HEADER
-        ====================================================== -->
-
-        <div class="mb-4">
-
-            <h4 class="mb-1">
-                Purchase Dashboard
-            </h4>
-
-            <p class="text-muted mb-0">
-                Manage purchase requests and procurement activities.
-            </p>
-
-        </div>
-
-
-        <!-- =====================================================
-             SUMMARY CARDS
-        ====================================================== -->
-
-        <div class="row g-3 mb-4">
-
-
-            <!-- TOTAL -->
-
-            <div class="col-xl-3 col-md-6">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-primary">
-                        <i class="fa-solid fa-file-invoice"></i>
-                    </div>
-
-                    <div>
-
-                        <div class="stat-label">
-                            Total Requests
-                        </div>
-
-                        <div class="stat-value">
-                            <?= $totalRequests ?>
-                        </div>
-
-                    </div>
-
-                </div>
-
+        <div class="dashboard-hero">
+            <div class="dashboard-heading">
+                
+                
             </div>
-
-
-            <!-- PENDING -->
-
-            <div class="col-xl-3 col-md-6">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-amber">
-                        <i class="fa-solid fa-clock"></i>
-                    </div>
-
+            <div class="hero-right">
+                <div class="date-chip">
+                    <i class="fa-regular fa-calendar-days"></i>
                     <div>
-
+                        <strong><?= date('d-m-Y') ?></strong>
+                        <span><?= date('l') ?></span>
+                    </div>
+                </div>
+                <div class="motto-chip">
+                    <i class="fa-solid fa-basket-shopping"></i>
+                    <div>
+                        <strong>Better Purchase</strong>
+                        <span>Better Business</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="dash-stat">
+                <div class="stat-top">
+                    <div>
                         <div class="stat-label">
-                            Pending
+                            Total PO
                         </div>
-
+                        <div class="stat-value">
+                            <?= $totalPO ?>
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">
+                    ↗ All purchase orders
+                </div>
+            </div>
+            <div class="dash-stat stat-orange">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">
+                            Pending PO
+                        </div>
                         <div class="stat-value">
                             <?= $pendingRequests ?>
                         </div>
-
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend down">
+                    ↘ Awaiting action
+                </div>
             </div>
-
-
-            <!-- APPROVED -->
-
-            <div class="col-xl-3 col-md-6">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-green">
-                        <i class="fa-solid fa-circle-check"></i>
-                    </div>
-
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
                     <div>
-
                         <div class="stat-label">
-                            Approved
+                            Received Today
                         </div>
-
                         <div class="stat-value">
-                            <?= $approvedRequests ?>
+                            <?= $receivedToday ?>
                         </div>
-
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend">
+                    ↗ Completed receipts
+                </div>
             </div>
-
-
-            <!-- REJECTED -->
-
-            <div class="col-xl-3 col-md-6">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-purple">
-                        <i class="fa-solid fa-circle-xmark"></i>
-                    </div>
-
+            <div class="dash-stat stat-purple">
+                <div class="stat-top">
                     <div>
-
                         <div class="stat-label">
-                            Rejected
+                            Total Suppliers
                         </div>
-
                         <div class="stat-value">
-                            <?= $rejectedRequests ?>
+                            <?= $totalSuppliers ?>
                         </div>
-
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">
+                    • Active suppliers
+                </div>
             </div>
-
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
+                    <div><div class="stat-label">
+                        Total Value
+                    </div>
+                    <div class="stat-value">
+                        ₹<?= number_format($totalValue,0) ?>
+                    </div>
+                </div>
+                <div class="stat-icon">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
+            </div>
+            <div class="stat-trend">
+                ↗ Order value
+            </div>
         </div>
-
-
-        <!-- =====================================================
-             QUICK ACTIONS
-        ====================================================== -->
-
-        <div class="content-card mb-4">
-
-            <div class="content-card-header">
-
-                <div>
-
-                    <h5 class="mb-1">
-                        Quick Actions
-                    </h5>
-
-                    <small class="text-muted">
-                        Frequently used purchase functions.
-                    </small>
-
-                </div>
-
-            </div>
-
-
-            <div class="content-card-body">
-
-                <div class="row g-3">
-
-
-                    <div class="col-md-4">
-
-                        <a
-                            href="requests.php"
-                            class="btn btn-primary w-100 py-3"
-                        >
-
-                            <i class="fa-solid fa-file-invoice me-2"></i>
-
-                            View Purchase Requests
-
-                        </a>
-
-                    </div>
-
-
-                    <div class="col-md-4">
-
-                        <a
-                            href="purchase_orders.php"
-                            class="btn btn-outline-primary w-100 py-3"
-                        >
-
-                            <i class="fa-solid fa-cart-shopping me-2"></i>
-
-                            Purchase Orders
-
-                        </a>
-
-                    </div>
-
-
-                    <div class="col-md-4">
-
-                        <a
-                            href="suppliers.php"
-                            class="btn btn-outline-secondary w-100 py-3"
-                        >
-
-                            <i class="fa-solid fa-truck-field me-2"></i>
-
-                            Suppliers
-
-                        </a>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- =====================================================
-             RECENT REQUESTS
-        ====================================================== -->
-
-        <div class="content-card">
-
-            <div class="content-card-header">
-
-                <div>
-
-                    <h5 class="mb-1">
-                        Recent Purchase Requests
-                    </h5>
-
-                    <small class="text-muted">
-                        Latest requests submitted by departments.
-                    </small>
-
-                </div>
-
-
-                <a
-                    href="requests.php"
-                    class="btn btn-sm btn-outline-primary"
-                >
-
-                    View All
-
-                    <i class="fa-solid fa-arrow-right ms-1"></i>
-
-                </a>
-
-            </div>
-
-
-            <div class="table-responsive">
-
-                <table class="table table-hover align-middle mb-0">
-
-                    <thead>
-
-                        <tr>
-
-                            <th>#</th>
-
-                            <th>Request No.</th>
-
-                            <th>Date</th>
-
-                            <th>Requested By</th>
-
-                            <th>Items</th>
-
-                            <th>Status</th>
-
-                        </tr>
-
-                    </thead>
-
-
-                    <tbody>
-
-                    <?php if (empty($recentRequests)): ?>
-
-                        <tr>
-
-                            <td
-                                colspan="6"
-                                class="text-center text-muted py-4"
-                            >
-
-                                <i class="fa-solid fa-inbox fa-2x mb-2"></i>
-
-                                <div>
-                                    No purchase requests found.
-                                </div>
-
-                            </td>
-
-                        </tr>
-
-                    <?php else: ?>
-
-                        <?php foreach ($recentRequests as $index => $request): ?>
-
-                            <?php
-
-                            $status = $request['status'];
-
-                            switch ($status) {
-
-                                case 'Pending':
-                                    $badge = 'badge-disabled';
-                                    break;
-
-                                case 'Approved':
-                                    $badge = 'badge-enable';
-                                    break;
-
-                                case 'Rejected':
-                                    $badge = 'badge-disabled';
-                                    break;
-
-                                case 'Completed':
-                                    $badge = 'badge-enable';
-                                    break;
-
-                                default:
-                                    $badge = 'bg-secondary';
-                                    break;
-                            }
-
-                            $initial = strtoupper(
-                                substr(trim((string)$request['employee_name']), 0, 1)
-                            );
-
-                            ?>
-
-                            <tr>
-
-                                <td>
-                                    <?= $index + 1 ?>
-                                </td>
-
-                                <td>
-                                    <strong>
-                                        <?= e($request['request_no']) ?>
-                                    </strong>
-                                </td>
-
-                                <td>
-
-                                    <?= e(
-                                        date(
-                                            'd-m-Y',
-                                            strtotime($request['request_date'])
-                                        )
-                                    ) ?>
-
-                                </td>
-
-                                <td>
-
-                                    <div class="d-flex align-items-center gap-2">
-
-                                        <span class="row-avatar">
-                                            <?= e($initial) ?>
-                                        </span>
-
-                                        <span>
-                                            <?= e($request['employee_name']) ?>
-                                        </span>
-
-                                    </div>
-
-                                </td>
-
-                                <td>
-                                    <?= (int)$request['item_count'] ?>
-                                </td>
-
-                                <td>
-
-                                    <span class="badge <?= $badge ?>">
-                                        <?= e($status) ?>
-                                    </span>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-                    <?php endif; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
     </div>
-
+    <div class="quick-card">
+        <div class="section-title">
+            <i class="fa-solid fa-bolt"></i> 
+            Quick Actions
+        </div>
+        <div class="quick-actions">
+            <a class="quick-action primary" href="purchase_orders.php">
+                <i class="fa-solid fa-cart-plus"></i>
+                Create PO
+            </a>
+            <a class="quick-action orange" href="suppliers.php">
+                <i class="fa-solid fa-user-plus"></i>
+                Supplier Master
+            </a>
+            <!--<a class="quick-action green" href="../store/purchase_order_receiving.php">
+                <i class="fa-solid fa-box-open"></i>
+                GRN
+            </a>-->
+            <a class="quick-action purple" href="requests.php">
+                <i class="fa-solid fa-chart-column"></i>
+                Purchase Report
+            </a>
+        </div>
+    </div>
+    <div class="dashboard-table">
+        <div class="table-header">
+            <div class="section-title mb-0">
+                <i class="fa-solid fa-cart-shopping"></i> 
+                Recent Purchase Orders
+            </div>
+            <a href="purchase_orders.php">
+                View All ›
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>PO No</th>
+                        <th>Supplier</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Total Amount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!$recentPOs): ?>
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">No purchase orders found.</div>
+                        </td>
+                    </tr>
+                    <?php else: foreach ($recentPOs as $po): 
+                        $cls=$po['status']==='Received'?'status-success':
+                        ($po['status']==='Pending'?'status-warning':
+                        ($po['status']==='Cancelled'?'status-danger':'status-info')); 
+                    ?>
+                    <tr>
+                        <td>
+                            <strong><?= e($po['po_no']) ?></strong>
+                        </td>
+                        <td>
+                            <?= e($po['supplier_name']??'-') ?>
+                        </td>
+                        <td>
+                            <?= e(date('d-m-Y',strtotime($po['po_date']))) ?>
+                        </td>
+                        <td>
+                            <span class="status-pill <?= $cls ?>"><?= e($po['status']) ?></span>
+                        </td>
+                        <td>
+                            ₹ <?= number_format((float)$po['total_amount'],2) ?>
+                        </td>
+                        <td>
+                            <a class="view-btn" href="purchase_orders.php">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    <?php endforeach; endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 </main>
-
-
-<?php
-
-require_once __DIR__ . '/../includes/footer.php';
-
-?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

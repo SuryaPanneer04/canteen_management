@@ -160,18 +160,14 @@ $servingRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
-require_once __DIR__ . '/../includes/topbar.php';
+
 ?>
 
 <div class="main-content">
+    <?php require_once '../includes/topbar.php'; ?>
 <div class="page-body">
 
-    <div class="page-header">
-        <div>
-            <h4 class="page-header-title"><i class="fa-solid fa-bowl-food me-2"></i>Food Serving</h4>
-            <p class="page-header-subtitle">Record remaining food and close service end of the day.</p>
-        </div>
-    </div>
+    
 
     <?php if ($success !== ''): ?>
         <div class="alert alert-success alert-dismissible fade show">

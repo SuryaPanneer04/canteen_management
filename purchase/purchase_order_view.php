@@ -169,8 +169,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $invNo = trim($_POST['invoice_no'] ?? '');
             $invDate = $_POST['invoice_date'] ?? date('Y-m-d');
             $taxAmt = (float)($_POST['tax_amount'] ?? 0);
-            $poTotal = (float)($_POST['po_total'] ?? 0);
-            $grandTotal = $poTotal + $taxAmt;
+            
+            $sumStmt = $con->prepare("
+                SELECT SUM(total_amount) 
+                FROM purchase_order_items 
+                WHERE po_id = ?
+            ");
+            $sumStmt->execute([$poId]);
+            $dbPoTotal = (float)$sumStmt->fetchColumn();
+            
+            $grandTotal = $dbPoTotal + $taxAmt;
 
             // File Upload Logic
             $docPath = null;

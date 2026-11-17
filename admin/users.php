@@ -200,10 +200,6 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
     <div class="page-body">
 
-        <div class="mb-4">
-            <h4 class="fw-bold mb-1">User Management</h4>
-            <div class="text-muted">Create login accounts and manage system access.</div>
-        </div>
 
         <?php if ($success): ?>
             <div class="alert alert-success"><?= e($success) ?></div>

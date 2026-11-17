@@ -325,11 +325,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['issue_selected_materi
 
 /*
 |--------------------------------------------------------------------------
-| REQUEST STATUS FILTER
+| REQUEST STATUS & DATE FILTER
 |--------------------------------------------------------------------------
 */
 
 $statusFilter = trim($_GET['status'] ?? '');
+$dateFilter   = trim($_GET['request_date'] ?? '');
 
 
 /*
@@ -362,7 +363,7 @@ $where[] = "
 
 /*
 |--------------------------------------------------------------------------
-| OPTIONAL STATUS FILTER
+| OPTIONAL STATUS & DATE FILTER
 |--------------------------------------------------------------------------
 */
 
@@ -371,6 +372,13 @@ if ($statusFilter !== '') {
     $where[] = "kr.status = :status";
 
     $params[':status'] = $statusFilter;
+}
+
+if ($dateFilter !== '') {
+
+    $where[] = "DATE(kr.request_date) = :request_date";
+
+    $params[':request_date'] = $dateFilter;
 }
 
 
@@ -537,28 +545,25 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <!-- PAGE HEADER -->
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="dashboard-hero">
 
-            <div>
-
-                <h4 class="mb-1">
-                    Kitchen Material Requests
-                </h4>
-
-                <div class="text-muted">
-                    Issue approved kitchen materials to Kitchen.
-                </div>
+            <div class="dashboard-heading">
 
             </div>
 
-            <a href="dashboard.php"
-               class="btn btn-outline-secondary">
+            <div class="hero-right">
 
-                <i class="fa-solid fa-arrow-left me-1"></i>
+                <a href="dashboard.php"
+                   class="btn btn-outline-primary"
+                   style="border-radius:10px; padding:10px 18px; font-size:13px;">
 
-                Dashboard
+                    <i class="fa-solid fa-arrow-left me-1"></i>
 
-            </a>
+                    Dashboard
+
+                </a>
+
+            </div>
 
         </div>
 
@@ -607,74 +612,58 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <!-- STAT CARDS -->
 
-        <div class="row g-3 mb-4">
+        <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-primary">
-                        <i class="fa-solid fa-clipboard-check"></i>
-                    </div>
-
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Chef Approved</div>
                         <div class="stat-value"><?= $chefApprovedCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">Ready to issue</div>
             </div>
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-amber">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </div>
-
+            <div class="dash-stat stat-orange">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Sent to Store</div>
                         <div class="stat-value"><?= $sentToStoreCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">Awaiting action</div>
             </div>
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-purple">
-                        <i class="fa-solid fa-truck-ramp-box"></i>
-                    </div>
-
+            <div class="dash-stat stat-purple">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Partially Issued</div>
                         <div class="stat-value"><?= $partiallyIssuedCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-truck-ramp-box"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend neutral">In progress</div>
             </div>
 
-            <div class="col-6 col-lg-3">
-
-                <div class="stat-card d-flex align-items-center gap-3">
-
-                    <div class="stat-icon stat-icon-green">
-                        <i class="fa-solid fa-circle-check"></i>
-                    </div>
-
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
                     <div>
                         <div class="stat-label">Completed</div>
                         <div class="stat-value"><?= $completedCount ?></div>
                     </div>
-
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
                 </div>
-
+                <div class="stat-trend">Fully issued</div>
             </div>
 
         </div>
@@ -682,101 +671,105 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <!-- FILTER -->
 
-        <div class="content-card mb-4">
+        <div class="quick-card">
 
-            <div class="content-card-header">
-
-                <strong>
-                    <i class="fa-solid fa-filter me-1"></i>
-                    Request Filter
-                </strong>
-
+            <div class="section-title">
+                <i class="fa-solid fa-filter"></i>
+                Request Filter
             </div>
 
-            <div class="content-card-body">
+            <form method="GET">
 
-                <form method="GET">
+                <div class="row g-3 align-items-end">
 
-                    <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
 
-                        <div class="col-md-4">
+                        <label class="form-label">
+                            Request Status
+                        </label>
 
-                            <label class="form-label">
-                                Request Status
-                            </label>
+                        <select name="status"
+                                class="form-select">
 
-                            <select name="status"
-                                    class="form-select">
+                            <option value="">
+                                All Requests
+                            </option>
 
-                                <option value="">
-                                    All Requests
-                                </option>
+                            <option value="Chef Approved"
+                                <?= $statusFilter === 'Chef Approved'
+                                    ? 'selected'
+                                    : '' ?>>
+                                Chef Approved
+                            </option>
 
-                                <option value="Chef Approved"
-                                    <?= $statusFilter === 'Chef Approved'
-                                        ? 'selected'
-                                        : '' ?>>
-                                    Chef Approved
-                                </option>
+                            <option value="Sent to Store"
+                                <?= $statusFilter === 'Sent to Store'
+                                    ? 'selected'
+                                    : '' ?>>
+                                Sent to Store
+                            </option>
 
-                                <option value="Sent to Store"
-                                    <?= $statusFilter === 'Sent to Store'
-                                        ? 'selected'
-                                        : '' ?>>
-                                    Sent to Store
-                                </option>
+                            <option value="Partially Issued"
+                                <?= $statusFilter === 'Partially Issued'
+                                    ? 'selected'
+                                    : '' ?>>
+                                Partially Issued
+                            </option>
 
-                                <option value="Partially Issued"
-                                    <?= $statusFilter === 'Partially Issued'
-                                        ? 'selected'
-                                        : '' ?>>
-                                    Partially Issued
-                                </option>
+                            <option value="Completed"
+                                <?= $statusFilter === 'Completed'
+                                    ? 'selected'
+                                    : '' ?>>
+                                Completed
+                            </option>
 
-                                <option value="Completed"
-                                    <?= $statusFilter === 'Completed'
-                                        ? 'selected'
-                                        : '' ?>>
-                                    Completed
-                                </option>
-
-                            </select>
-
-                        </div>
-
-
-                        <div class="col-md-2">
-
-                            <button
-                                type="submit"
-                                class="btn btn-primary w-100">
-
-                                <i class="fa-solid fa-filter me-1"></i>
-
-                                Filter
-
-                            </button>
-
-                        </div>
-
-
-                        <div class="col-md-2">
-
-                            <a
-                                href="kitchen_requests.php"
-                                class="btn btn-outline-secondary w-100">
-
-                                Reset
-
-                            </a>
-
-                        </div>
+                        </select>
 
                     </div>
 
-                </form>
+                    <div class="col-md-4">
+                        
+                        <label class="form-label">
+                            Request Date
+                        </label>
+                        
+                        <input type="date" 
+                               name="request_date" 
+                               class="form-control" 
+                               value="<?= htmlspecialchars($dateFilter ?? '') ?>">
+                               
+                    </div>
 
-            </div>
+                    <div class="col-md-2">
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100">
+
+                            <i class="fa-solid fa-filter me-1"></i>
+
+                            Filter
+
+                        </button>
+
+                    </div>
+
+
+                    <div class="col-md-2">
+
+                        <a
+                            href="kitchen_requests.php"
+                            class="btn btn-outline-secondary w-100">
+
+                            Reset
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </form>
 
         </div>
 
@@ -785,11 +778,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <?php if (!$requests): ?>
 
-            <div class="content-card">
+            <div class="dashboard-table">
 
-                <div class="content-card-body text-center py-5">
+                <div class="empty-state py-5">
 
-                    <i class="fa-solid fa-inbox fs-1 text-muted mb-3"></i>
+                    <i class="fa-solid fa-inbox fs-1 text-muted d-block mb-3"></i>
 
                     <h5>
                         No Kitchen Requests
@@ -815,32 +808,32 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 $badgeClass = match ($status) {
 
                     'Chef Approved' =>
-                        'bg-primary',
+                        'status-info',
 
                     'Sent to Store' =>
-                        'bg-warning text-dark',
+                        'status-warning',
 
                     'Partially Issued' =>
-                        'bg-info text-dark',
+                        'status-info',
 
                     'Completed' =>
-                        'badge-enable',
+                        'status-success',
 
                     default =>
-                        'bg-secondary'
+                        'status-neutral'
                 };
 
                 ?>
 
 
-                <div class="content-card mb-4">
+                <div class="dashboard-table mb-4">
 
 
                     <!-- REQUEST HEADER -->
 
-                    <div class="content-card-header">
+                    <div class="table-header">
 
-                        <div class="row align-items-center w-100">
+                        <div class="row align-items-center w-100 g-2">
 
                             <div class="col-md-3">
 
@@ -850,7 +843,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                 <br>
 
-                                <small class="text-muted">
+                                <span class="fs-6 fw-small">
 
                                     <?= e(
                                         date(
@@ -861,16 +854,16 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         )
                                     ) ?>
 
-                                </small>
+                                </span>
 
                             </div>
 
 
                             <div class="col-md-4">
 
-                                <small class="text-muted">
+                                <span class="fs-6 fw-small">
                                     Requested By
-                                </small>
+                                </span>
 
                                 <br>
 
@@ -880,7 +873,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                     ) ?>
                                 </strong>
 
-                                <small class="text-muted">
+                                <span class="fs-6 fw-small">
 
                                     (
                                     <?= e(
@@ -888,16 +881,16 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                     ) ?>
                                     )
 
-                                </small>
+                                </span>
 
                             </div>
 
 
                             <div class="col-md-2">
 
-                                <small class="text-muted">
+                                <span class="fs-6 fw-small">
                                     Items
-                                </small>
+                                </span>
 
                                 <br>
 
@@ -910,7 +903,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <div class="col-md-3 text-md-end">
 
-                                <span class="badge <?= $badgeClass ?>">
+                                <span class="status-pill <?= $badgeClass ?>">
 
                                     <?= e($status) ?>
 
@@ -930,11 +923,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         !empty($request['chef_remarks'])
                     ): ?>
 
-                        <div class="content-card-body border-bottom py-3">
+                        <div class="p-3 border-bottom">
 
                             <?php if (!empty($request['cook_remarks'])): ?>
 
-                                <div class="mb-2">
+                                <div class="mb-2 small">
 
                                     <strong>
                                         Cook Remarks:
@@ -951,7 +944,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <?php if (!empty($request['chef_remarks'])): ?>
 
-                                <div>
+                                <div class="small">
 
                                     <strong>
                                         Chef Remarks:
@@ -1110,9 +1103,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                         <td>
 
-                                            <div class="d-flex align-items-center gap-2">
+                                            <div class="food-cell">
 
-                                                <span class="row-avatar">
+                                                <span class="table-avatar">
                                                     <?= e($itemInitials) ?>
                                                 </span>
 
@@ -1136,7 +1129,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         <!-- UNIT -->
 
                                         <td>
-                                            <?= e($item['unit']) ?>
+
+                                            <span class="status-pill status-neutral">
+                                                <?= e($item['unit']) ?>
+                                            </span>
+
                                         </td>
 
 
@@ -1156,7 +1153,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                         <td>
 
-                                            <span class="badge bg-primary">
+                                            <span class="status-pill status-info">
 
                                                 <?= number_format(
                                                     $approved,
@@ -1187,7 +1184,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             <?php if ($remaining > 0): ?>
 
                                                 <span
-                                                    class="badge bg-warning text-dark">
+                                                    class="status-pill status-warning">
 
                                                     <?= number_format(
                                                         $remaining,
@@ -1199,7 +1196,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             <?php else: ?>
 
                                                 <span
-                                                    class="badge badge-enable">
+                                                    class="status-pill status-success">
 
                                                     Completed
 
@@ -1217,7 +1214,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             <?php if ($stock >= $remaining && $remaining > 0): ?>
 
                                                 <span
-                                                    class="badge badge-enable">
+                                                    class="status-pill status-success">
 
                                                     <?= number_format(
                                                         $stock,
@@ -1229,7 +1226,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             <?php elseif ($stock > 0): ?>
 
                                                 <span
-                                                    class="badge bg-warning text-dark">
+                                                    class="status-pill status-warning">
 
                                                     <?= number_format(
                                                         $stock,
@@ -1241,7 +1238,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             <?php else: ?>
 
                                                 <span
-                                                    class="badge badge-disabled">
+                                                    class="status-pill status-danger">
 
                                                     0.00
 
@@ -1369,7 +1366,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                         <?php if ($hasIssuableItems): ?>
 
-                            <div class="content-card-body border-top py-3">
+                            <div class="p-3 border-top">
 
                                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
 
@@ -1401,9 +1398,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                     <!-- FOOTER -->
 
-                    <div class="content-card-body border-top">
+                    <div class="p-3 border-top">
 
-                        <div class="row">
+                        <div class="row g-3">
 
                             <div class="col-md-4">
 
@@ -1454,7 +1451,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 <br>
 
                                 <span
-                                    class="badge <?= $badgeClass ?>">
+                                    class="status-pill <?= $badgeClass ?>">
 
                                     <?= e($status) ?>
 
@@ -1467,7 +1464,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                         <?php if (!empty($request['chef_remarks'])): ?>
 
-                            <div class="mt-3">
+                            <div class="mt-3 small">
 
                                 <strong>
                                     Chef Remarks:

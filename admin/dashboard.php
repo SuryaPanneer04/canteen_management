@@ -65,281 +65,325 @@ try {
 } catch(Exception $e) {}
 $roleCounts = [$todayWastage, $staffCons];
 
+$recentUsers = [];
+try {
+    $recentUsers = $con->query("
+        SELECT
+            u.employee_code,
+            u.employee_name,
+            u.email,
+            u.role_id,
+            COALESCE(r.role_name, 'User') AS role_name,
+            u.status,
+            u.created_at
+        FROM users u
+        LEFT JOIN roles r ON r.id = u.role_id
+        ORDER BY u.id DESC
+        LIMIT 5
+    ")->fetchAll();
+} catch (Throwable $e) {}
+$departmentCount = 0;
+try { $departmentCount = (int)$con->query("SELECT COUNT(DISTINCT role_id) FROM users")->fetchColumn(); } catch (Throwable $e) {}
+$groupCount = 0;
+try { $groupCount = (int)$con->query("SELECT COUNT(*) FROM roles")->fetchColumn(); } catch (Throwable $e) {}
+$systemLogs = 0;
+try { $systemLogs = (int)$con->query("SELECT COUNT(*) FROM stock_transactions")->fetchColumn(); } catch (Throwable $e) {}
+$activeSessions = !empty($_SESSION['user_id']) ? 1 : 0;
+
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="main-content">
     <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
-
     <div class="page-body">
-
-        <div class="mb-4">
-            <h4 class="fw-bold mb-1">Welcome, <?= e($_SESSION['employee_name']) ?></h4>
-            <div class="text-muted">Monitor and manage the canteen system from here.</div>
+        <div class="dashboard-hero">
+            <div class="dashboard-heading">
+                
+                
+            </div>
+            <div class="hero-right">
+                <div class="date-chip">
+                    <i class="fa-regular fa-calendar-days"></i>
+                    <div>
+                        <strong><?= date('d-m-Y') ?></strong>
+                        <span><?= date('l') ?></span>
+                    </div>
+                </div>
+                <div class="motto-chip">
+                    <i class="fa-solid fa-gears"></i>
+                    <div>
+                        <strong>Manage Control Grow</strong>
+                        <span>System at a glance</span>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div class="row g-3 mb-4">
-            
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-label">Active Staff</div>
-                            <div class="stat-value"><?= $activeUsers ?></div>
+        <div class="stats-grid">
+            <div class="dash-stat">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">
+                            Total Users
                         </div>
-                        <div class="stat-icon stat-icon-primary">
-                            <i class="fa-solid fa-users"></i>
+                        <div class="stat-value">
+                            <?= $activeUsers ?>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-label">Pending Approvals</div>
-                            <div class="stat-value"><?= $pendingInvoices ?></div>
-                        </div>
-                        <div class="stat-icon stat-icon-amber">
-                            <i class="fa-solid fa-file-invoice-dollar"></i>
-                        </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-users"></i>
                     </div>
                 </div>
-            </div>
-
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-label">Food Served Today</div>
-                            <div class="stat-value"><?= $todayServed ?></div>
-                        </div>
-                        <div class="stat-icon stat-icon-green">
-                            <i class="fa-solid fa-utensils"></i>
-                        </div>
-                    </div>
+                <div class="stat-trend">
+                    ↗ Active users
                 </div>
             </div>
-
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-label">Today's Wastage</div>
-                            <div class="stat-value"><?= $todayWastage ?></div>
+            <div class="dash-stat stat-orange">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">
+                            Departments
                         </div>
-                        <div class="stat-icon stat-icon-purple">
-                            <i class="fa-solid fa-trash-can"></i>
+                        <div class="stat-value">
+                            <?= $departmentCount ?>
                         </div>
                     </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-building"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">
+                    • Current setup
                 </div>
             </div>
-
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">
+                            Groups
+                        </div>
+                        <div class="stat-value">
+                            <?= $groupCount ?>
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">
+                    ↗ Configured roles
+                </div>
+            </div>
+            <div class="dash-stat stat-purple">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">
+                            System Logs
+                        </div>
+                        <div class="stat-value">
+                            <?= $systemLogs ?>
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-file-lines"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">
+                    ↗ Stock activity
+                </div>
+            </div>
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">
+                            Active Sessions
+                        </div>
+                        <div class="stat-value">
+                            <?= $activeSessions ?>
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-user-check"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">
+                    • Current login
+                </div>
+            </div>
         </div>
-
-        <div class="row g-3 mb-4">
-
-            <div class="col-12 col-xl-8">
-                <div class="content-card chart-card h-100">
-                    <div class="content-card-header">
-                        <div>
-                            <h6 class="fw-bold mb-1">Wastage Trend</h6>
-                            <small class="text-muted">Actual wastage quantity over the last 7 days</small>
-                        </div>
-                    </div>
-                    <div class="content-card-body">
-                        <canvas id="userGrowthChart" height="140"></canvas>
-                    </div>
-                </div>
+        <div class="quick-card">
+            <div class="section-title">
+                <i class="fa-solid fa-bolt"></i>
+                Quick Actions
             </div>
-
-            <div class="col-12 col-xl-4">
-                <div class="content-card chart-card h-100">
-                    <div class="content-card-header">
-                        <div>
-                            <h6 class="fw-bold mb-1">Wastage Breakdown</h6>
-                            <small class="text-muted">Today's Wastage vs Staff Consumption</small>
-                        </div>
-                    </div>
-                    <div class="content-card-body">
-                        <canvas id="roleChart" height="160"></canvas>
-                        <div class="chart-legend" id="roleChartLegend"></div>
-                    </div>
-                </div>
+            <div class="quick-actions">
+                <a class="quick-action primary" href="users.php">
+                    <i class="fa-solid fa-user-plus"></i>
+                    Add User
+                </a>
+                <a class="quick-action orange" href="roles.php">
+                    <i class="fa-solid fa-users-gear"></i>
+                    Manage Roles
+                </a>
+                <a class="quick-action green" href="canteen_report.php">
+                    <i class="fa-solid fa-chart-column"></i>
+                    Reports
+                </a>
+                <a class="quick-action purple" href="price_master.php">
+                    <i class="fa-solid fa-tags"></i>
+                    Price Master
+                </a>
             </div>
-
         </div>
-
-        <div class="row g-3">
-
-            <div class="col-12 col-xl-8">
-                <div class="content-card h-100">
-                    <div class="content-card-header">
-                        <div>
-                            <h6 class="fw-bold mb-1">Pending Invoice Approvals</h6>
-                            <small class="text-muted">Invoices waiting for Admin review</small>
-                        </div>
-                        <a href="invoice_approvals.php" class="btn btn-sm btn-primary">
-                            View All
-                        </a>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead>
-                            <tr>
-                                <th>Invoice No</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <?php if (!$pendingApprovals): ?>
-                                <tr>
-                                    <td colspan="3" class="text-center text-muted py-4">
-                                        No pending invoices for approval.
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
-
-                            <?php foreach ($pendingApprovals as $inv): ?>
-                                <tr>
-                                    <td>
-                                        <strong><?= e($inv['invoice_no'] ?? 'N/A') ?></strong>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Pending</span>
-                                    </td>
-                                    <td><?= date('d M Y', strtotime($inv['created_at'])) ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+        <div class="dashboard-table">
+            <div class="table-header">
+                <div class="section-title mb-0">
+                    <i class="fa-solid fa-users"></i> 
+                    Recent Users
                 </div>
+                <a href="users.php">
+                    View All ›
+                </a>
             </div>
-
-            <div class="col-12 col-xl-4">
-                <div class="content-card h-100">
-                    <div class="content-card-header">
-                        <div>
-                            <h6 class="fw-bold mb-1">Quick Actions</h6>
-                            <small class="text-muted">Administration shortcuts</small>
-                        </div>
-                    </div>
-
-                    <div class="content-card-body">
-
-                        <a href="invoice_approvals.php"
-                           class="btn btn-primary w-100 mb-2">
-                            <i class="fa-solid fa-file-invoice-dollar me-2"></i>
-                            Review Invoices
-                        </a>
-
-                        <a href="canteen_report.php"
-                           class="btn btn-outline-secondary w-100 mb-2">
-                            <i class="fa-solid fa-chart-pie me-2"></i>
-                            Canteen Report
-                        </a>
-
-                        <a href="price_master.php"
-                           class="btn btn-outline-secondary w-100">
-                            <i class="fa-solid fa-tags me-2"></i>
-                            Price Master
-                        </a>
-
-                    </div>
-                </div>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!$recentUsers): ?>
+                        <tr>
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    No users found.
+                                </div>
+                            </td>
+                        </tr>
+                        <?php else: foreach ($recentUsers as $u): 
+                            $initial=strtoupper(substr(trim((string)$u['employee_name']),0,1)); 
+                        ?>
+                        <tr>
+                            <td>
+                                <span class="table-avatar"><?= e($initial) ?></span>
+                                <strong><?= e($u['employee_name']) ?></strong>
+                            </td>
+                            <td>User</td>
+                            <td>
+                                <span class="status-pill 
+                                    <?= ($u['status']??'')==='Enable'?'status-success':'status-danger' ?>">
+                                    <?= e($u['status']??'') ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?= e(date('d-m-Y',strtotime($u['created_at']))) ?>
+                            </td>
+                            <td>
+                                <button
+                                    type="button"
+                                    class="view-btn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#reviewUserModal"
+                                    data-employee-code="<?= e($u['employee_code'] ?? '') ?>"
+                                    data-role="<?= e($u['role_name'] ?? 'User') ?>"
+                                    data-employee-name="<?= e($u['employee_name'] ?? '') ?>"
+                                    data-email="<?= e($u['email'] ?? '') ?>"
+                                >
+                                    <i class="fa-regular fa-eye"></i> View
+                                </button>
+                            </td>
+                        </tr>
+                        <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
             </div>
-
         </div>
     </div>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<!-- Review User Modal - view only, no editing -->
+<div class="modal fade review-user-modal" id="reviewUserModal" tabindex="-1" aria-labelledby="reviewUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="review-modal-header">
+                <div class="review-modal-heading">
+                    <div class="review-modal-icon"><i class="fa-solid fa-user"></i></div>
+                    <div>
+                        <h5 class="modal-title" id="reviewUserModalLabel">User Details</h5>
+                        <p>Review account information</p>
+                    </div>
+                </div>
+                <button type="button" class="review-modal-close" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="review-user-identity">
+                <div class="review-user-avatar" id="reviewUserAvatar">U</div>
+                <div>
+                    <div class="review-user-name" id="reviewUserName">User</div>
+                    <div class="review-user-role" id="reviewUserRole">User</div>
+                </div>
+            </div>
+
+            <div class="review-user-body">
+                <div class="review-section-title"><i class="fa-solid fa-circle-info"></i> ACCOUNT DETAILS</div>
+                <div class="review-details-grid">
+                    <div class="review-detail-card">
+                        <span class="review-detail-label">Employee Code</span>
+                        <strong id="reviewEmployeeCode">-</strong>
+                    </div>
+                    <div class="review-detail-card">
+                        <span class="review-detail-label">Role</span>
+                        <strong id="reviewRole">-</strong>
+                    </div>
+                    <div class="review-detail-card">
+                        <span class="review-detail-label">Employee Name</span>
+                        <strong id="reviewEmployeeName">-</strong>
+                    </div>
+                    <div class="review-detail-card">
+                        <span class="review-detail-label">Email ID</span>
+                        <strong id="reviewEmail">-</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="review-modal-footer">
+                <button type="button" class="review-close-btn" data-bs-dismiss="modal">
+                    <i class="fa-solid fa-xmark"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-(function () {
-    var css = getComputedStyle(document.documentElement);
-    var primary = css.getPropertyValue('--primary').trim() || '#0e3b2e';
-    var accent = css.getPropertyValue('--accent').trim() || '#f59e0b';
-    var border = css.getPropertyValue('--border').trim() || '#e1e6e3';
-    var muted = css.getPropertyValue('--muted').trim() || '#6b746f';
+document.addEventListener('DOMContentLoaded', function () {
+    const reviewModal = document.getElementById('reviewUserModal');
+    if (!reviewModal) return;
 
-    var palette = [primary, accent, '#2563eb', '#7c3aed', '#dc2626', '#0891b2'];
+    reviewModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return;
 
-    // User growth line chart
-    var growthCtx = document.getElementById('userGrowthChart');
-    new Chart(growthCtx, {
-        type: 'line',
-        data: {
-            labels: <?= json_encode($growthLabels) ?>,
-            datasets: [{
-                label: 'Wastage Qty',
-                data: <?= json_encode($growthCounts) ?>,
-                borderColor: primary,
-                backgroundColor: primary + '22',
-                fill: true,
-                tension: 0.35,
-                pointRadius: 4,
-                pointBackgroundColor: primary,
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { precision: 0, color: muted },
-                    grid: { color: border }
-                },
-                x: {
-                    ticks: { color: muted },
-                    grid: { display: false }
-                }
-            }
-        }
+        const employeeCode = button.getAttribute('data-employee-code') || '-';
+        const role = button.getAttribute('data-role') || '-';
+        const employeeName = button.getAttribute('data-employee-name') || '-';
+        const email = button.getAttribute('data-email') || '-';
+
+        document.getElementById('reviewEmployeeCode').textContent = employeeCode;
+        document.getElementById('reviewRole').textContent = role;
+        document.getElementById('reviewEmployeeName').textContent = employeeName;
+        document.getElementById('reviewEmail').textContent = email;
+        document.getElementById('reviewUserName').textContent = employeeName;
+        document.getElementById('reviewUserRole').textContent = role;
+        document.getElementById('reviewUserAvatar').textContent = employeeName.trim().charAt(0).toUpperCase() || 'U';
     });
-
-    // Users by role pie chart
-    var roleLabels = <?= json_encode($roleLabels) ?>;
-    var roleCounts = <?= json_encode($roleCounts) ?>;
-    var roleColors = roleLabels.map(function (_, i) { return palette[i % palette.length]; });
-
-    var roleCtx = document.getElementById('roleChart');
-    new Chart(roleCtx, {
-        type: 'doughnut',
-        data: {
-            labels: roleLabels,
-            datasets: [{
-                data: roleCounts,
-                backgroundColor: roleColors,
-                borderColor: '#fff',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            cutout: '65%',
-            plugins: { legend: { display: false } }
-        }
-    });
-
-    var legend = document.getElementById('roleChartLegend');
-    roleLabels.forEach(function (label, i) {
-        var item = document.createElement('div');
-        item.className = 'chart-legend-item';
-        item.innerHTML =
-            '<span class="chart-legend-dot" style="background:' + roleColors[i] + '"></span>' +
-            '<span>' + label + '</span>' +
-            '<span class="chart-legend-value">' + roleCounts[i] + '</span>';
-        legend.appendChild(item);
-    });
-})();
+});
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

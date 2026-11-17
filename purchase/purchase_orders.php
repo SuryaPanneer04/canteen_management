@@ -425,7 +425,7 @@ require_once __DIR__ . '/../includes/header.php';
 
     <?php require_once __DIR__ . '/../includes/sidebar.php'; ?>
 
-    <main class="main-content flex-grow-1">
+    <main class="main-content flex-grow-1 purchase-orders-page">
 
         <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
@@ -437,15 +437,11 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <div>
                     <h4 class="mb-1">
-                        <i class="fa-solid fa-file-invoice me-2"></i>
-                        Purchase Orders
+                       
                     </h4>
-
-                    <p class="text-muted mb-0">
-                        Create and manage purchase orders.
-                    </p>
                 </div>
 
+                <?php if (($_SESSION['role_name'] ?? '') !== 'Super Admin'): ?>
                 <button
                     type="button"
                     class="btn btn-primary"
@@ -455,6 +451,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <i class="fa-solid fa-plus me-2"></i>
                     Create Purchase Order
                 </button>
+                <?php endif; ?>
 
             </div>
 

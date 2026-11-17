@@ -395,6 +395,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $quantities =
                 $_POST['quantity_per_plate'] ?? [];
+                
+            $recipeUnits = 
+                $_POST['recipe_unit'] ?? []; // Catch the unit selected in UI
 
 
             if ($foodId <= 0) {
@@ -450,6 +453,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $quantities[$index]
                         ?? 0
                     );
+                    
+                $unitSelected = 
+                    trim(strtoupper($recipeUnits[$index] ?? ''));
 
 
                 if (
@@ -457,6 +463,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $quantity <= 0
                 ) {
                     continue;
+                }
+                
+                // UNIT CONVERSION LOGIC
+                // If user selected GRAM or ML, convert it to Base Unit (KG or LTR)
+                // 10 Grams / 1000 = 0.01 KG
+                if ($unitSelected === 'GRAM' || $unitSelected === 'ML') {
+                    $quantity = $quantity / 1000;
                 }
 
 
@@ -705,6 +718,28 @@ $recipeFoods =
 
 /*
 |--------------------------------------------------------------------------
+| SUMMARY COUNTS (for the stat cards)
+|--------------------------------------------------------------------------
+*/
+
+$totalFoods = count($recipeFoods);
+$recipeReadyCount = 0;
+$recipeMissingCount = 0;
+
+foreach ($recipeFoods as $recipeFood) {
+
+    if ((int)$recipeFood['material_count'] > 0) {
+        $recipeReadyCount++;
+    } else {
+        $recipeMissingCount++;
+    }
+}
+
+$totalMaterialsCount = count($materials);
+
+
+/*
+|--------------------------------------------------------------------------
 | EDIT RECIPE DATA
 |--------------------------------------------------------------------------
 */
@@ -763,11 +798,16 @@ require_once __DIR__ . '/../includes/header.php';
 
 require_once __DIR__ . '/../includes/sidebar.php';
 
-require_once __DIR__ . '/../includes/topbar.php';
+
 
 ?>
 
-<div class="main-content">
+
+<div class="main-content food-recipe-page">
+<?php
+require_once __DIR__ . '/../includes/topbar.php';
+
+?>
 
     <div class="page-body">
 
@@ -775,18 +815,26 @@ require_once __DIR__ . '/../includes/topbar.php';
              PAGE HEADER
         ====================================================== -->
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="dashboard-hero">
 
-            <div>
+            <div class="dashboard-heading">
 
-                <h4 class="mb-1">
-                    Food Menu & Recipe
-                </h4>
+                
 
-                <p class="text-muted mb-0">
-                    Create food menus and define the material
-                    required for one plate.
-                </p>
+            </div>
+
+            <div class="hero-right">
+
+                <button
+                    type="button"
+                    class="btn btn-kitchen"
+                    style="padding:10px 18px; font-size:13px;"
+                    data-bs-toggle="modal"
+                    data-bs-target="#addMaterialModalFood"
+                >
+                    <i class="fa-solid fa-plus me-1"></i>
+                    Add New Material
+                </button>
 
             </div>
 
@@ -799,10 +847,12 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <?php if ($success !== ''): ?>
 
-            <div class="alert alert-success">
+            <div class="alert alert-success alert-dismissible fade show">
                 <i class="fa-solid fa-circle-check me-2"></i>
 
                 <?= htmlspecialchars($success) ?>
+
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
 
         <?php endif; ?>
@@ -810,13 +860,76 @@ require_once __DIR__ . '/../includes/topbar.php';
 
         <?php if ($error !== ''): ?>
 
-            <div class="alert alert-danger">
+            <div class="alert alert-danger alert-dismissible fade show">
                 <i class="fa-solid fa-circle-exclamation me-2"></i>
 
                 <?= htmlspecialchars($error) ?>
+
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
 
         <?php endif; ?>
+
+
+        <!-- =====================================================
+             STAT CARDS
+        ====================================================== -->
+
+        <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+
+            <div class="dash-stat stat-brown">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Food Menus</div>
+                        <div class="stat-value"><?= $totalFoods ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">Enabled items</div>
+            </div>
+
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Recipe Ready</div>
+                        <div class="stat-value"><?= $recipeReadyCount ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">Materials assigned</div>
+            </div>
+
+            <div class="dash-stat stat-orange">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Recipe Not Set</div>
+                        <div class="stat-value"><?= $recipeMissingCount ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+                <div class="stat-trend down">Needs attention</div>
+            </div>
+
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Available Materials</div>
+                        <div class="stat-value"><?= $totalMaterialsCount ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">In material master</div>
+            </div>
+
+        </div>
 
 
         <div class="row g-4">
@@ -827,19 +940,18 @@ require_once __DIR__ . '/../includes/topbar.php';
 
             <div class="col-xl-4">
 
-                <div class="card shadow-sm">
+                <div class="dashboard-table h-100">
 
-                    <div class="card-header">
+                    <div class="table-header">
 
-                        <h5 class="mb-0">
+                        <strong>
                             <i class="fa-solid fa-utensils me-2"></i>
-
                             Create Food Menu
-                        </h5>
+                        </strong>
 
                     </div>
 
-                    <div class="card-body">
+                    <div class="card-section">
 
                         <form method="POST">
 
@@ -915,7 +1027,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                             <button
                                 type="submit"
-                                class="btn btn-primary w-100"
+                                class="btn btn-kitchen w-100"
                             >
 
                                 <i class="fa-solid fa-plus me-1"></i>
@@ -939,36 +1051,29 @@ require_once __DIR__ . '/../includes/topbar.php';
 
             <div class="col-xl-8">
 
-                <div class="card shadow-sm">
+                <div class="dashboard-table h-100">
 
-                    <div class="card-header">
+                    <div class="table-header">
 
-                        <div class="d-flex justify-content-between align-items-center gap-2">
+                        <strong>
+                            <i class="fa-solid fa-list-check me-2"></i>
+                            Assign Materials Per Plate
+                        </strong>
 
-                            <h5 class="mb-0">
-
-                                <i class="fa-solid fa-list-check me-2"></i>
-
-                                Assign Materials Per Plate
-
-                            </h5>
-
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-outline-success"
-                                data-bs-toggle="modal"
-                                data-bs-target="#addMaterialModal"
-                            >
-                                <i class="fa-solid fa-plus me-1"></i>
-                                Add New Material
-                            </button>
-
-                        </div>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-kitchen-outline"
+                            data-bs-toggle="modal"
+                            data-bs-target="#addMaterialModalFood"
+                        >
+                            <i class="fa-solid fa-plus me-1"></i>
+                            Add New Material
+                        </button>
 
                     </div>
 
 
-                    <div class="card-body">
+                    <div class="card-section">
 
                         <form method="POST">
 
@@ -1030,7 +1135,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                         value="<?= (int)$editRecipeFood['id'] ?>"
                                     >
 
-                                    <div class="alert alert-info py-2 mt-2 mb-0">
+                                    <div class="alert food-edit-alert py-2 mt-2 mb-0">
                                         <i class="fa-solid fa-pen-to-square me-1"></i>
                                         Editing recipe for
                                         <strong><?= htmlspecialchars($editRecipeFood['food_name']) ?></strong>.
@@ -1044,7 +1149,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                             <div class="table-responsive">
 
                                 <table
-                                    class="table table-bordered align-middle"
+                                    class="table table-bordered align-middle food-recipe-table"
                                     id="recipeTable"
                                 >
 
@@ -1057,7 +1162,7 @@ require_once __DIR__ . '/../includes/topbar.php';
                                             </th>
 
                                             <th style="width:25%;">
-                                                Quantity / Plate
+                                                Per person / plate
                                             </th>
 
                                             <th style="width:20%;">
@@ -1263,12 +1368,12 @@ require_once __DIR__ . '/../includes/topbar.php';
                             </div>
 
 
-                            <div class="d-flex justify-content-between mt-3">
+                            <div class="d-flex justify-content-between mt-3 flex-wrap gap-2">
 
                                 <button
                                     type="button"
                                     id="addMaterial"
-                                    class="btn btn-outline-primary"
+                                    class="btn btn-kitchen-outline"
                                 >
 
                                     <i class="fa-solid fa-plus me-1"></i>
@@ -1294,7 +1399,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                                     <button
                                         type="submit"
-                                        class="btn btn-success"
+                                        class="btn btn-kitchen"
                                     >
 
                                         <i class="fa-solid fa-<?= $editRecipeFood ? 'pen-to-square' : 'floppy-disk' ?> me-1"></i>
@@ -1322,155 +1427,174 @@ require_once __DIR__ . '/../includes/topbar.php';
              EXISTING RECIPES
         ====================================================== -->
 
-        <div class="card shadow-sm mt-4">
+        <div class="dashboard-table mt-4">
 
-            <div class="card-header">
+            <div class="table-header">
 
-                <h5 class="mb-0">
-
+                <strong>
                     <i class="fa-solid fa-book-open me-2"></i>
-
                     Food Recipes
+                </strong>
 
-                </h5>
+                <span class="fs-6 fw-medium"><?= count($recipeFoods) ?> food menu(s)</span>
 
             </div>
 
 
-            <div class="card-body">
+            <div class="table-responsive">
 
-                <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
 
-                    <table class="table table-hover align-middle">
+                    <thead>
 
-                        <thead>
+                        <tr>
+
+                            <th>#</th>
+
+                            <th>Food</th>
+
+                            <th>Unit</th>
+
+                            <th>Materials</th>
+
+                            <th>Status</th>
+
+                            <th class="text-center">
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        <?php if (!$recipeFoods): ?>
 
                             <tr>
 
-                                <th>#</th>
+                                <td
+                                    colspan="6"
+                                    class="empty-state"
+                                >
 
-                                <th>Food Code</th>
+                                    <i class="fa-solid fa-utensils fs-2 d-block mb-2"></i>
 
-                                <th>Food Name</th>
+                                    No food menus found.
 
-                                <th>Unit</th>
-
-                                <th>Materials</th>
-
-                                <th>Status</th>
-
-                                <th class="text-center">
-                                    Action
-                                </th>
+                                </td>
 
                             </tr>
 
-                        </thead>
+                        <?php else: ?>
 
-
-                        <tbody>
-
-                            <?php if (!$recipeFoods): ?>
+                            <?php foreach ($recipeFoods as $index => $food): ?>
 
                                 <tr>
 
-                                    <td
-                                        colspan="7"
-                                        class="text-center text-muted py-4"
-                                    >
+                                    <td>
+                                        <?= $index + 1 ?>
+                                    </td>
 
-                                        No food menus found.
+                                    <td>
+
+                                        <div class="food-cell">
+
+                                            <span class="table-avatar">
+                                                <?= htmlspecialchars(
+                                                    strtoupper(
+                                                        substr(
+                                                            (string)$food['food_name'],
+                                                            0,
+                                                            1
+                                                        )
+                                                    )
+                                                ) ?>
+                                            </span>
+
+                                            <div>
+
+                                                <div class="fw-semibold">
+                                                    <?= htmlspecialchars(
+                                                        $food['food_name']
+                                                    ) ?>
+                                                </div>
+
+                                                <div class="text-muted small">
+                                                    <?= htmlspecialchars(
+                                                        $food['food_code']
+                                                    ) ?>
+                                                </div>
+
+                                            </div>
+
+                                        </div>
+
+                                    </td>
+
+                                    <td>
+
+                                        <span class="status-pill status-neutral">
+                                            <?= htmlspecialchars(
+                                                $food['unit']
+                                            ) ?>
+                                        </span>
+
+                                    </td>
+
+                                    <td>
+
+                                        <span class="status-pill status-brown">
+
+                                            <?= (int)$food['material_count'] ?>
+
+                                            &nbsp;Material(s)
+
+                                        </span>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?php if ((int)$food['material_count'] > 0): ?>
+
+                                            <span class="status-pill status-success">
+                                                Recipe Ready
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="status-pill status-warning">
+                                                Recipe Not Set
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+                                    <td class="text-center">
+
+                                        <a
+                                            href="?edit_recipe=<?= (int)$food['food_id'] ?>"
+                                            class="btn btn-sm btn-kitchen-outline"
+                                            title="Edit Recipe"
+                                        >
+                                            <i class="fa-solid fa-pen-to-square me-1"></i>
+                                            Edit
+                                        </a>
 
                                     </td>
 
                                 </tr>
 
-                            <?php else: ?>
+                            <?php endforeach; ?>
 
-                                <?php foreach ($recipeFoods as $index => $food): ?>
+                        <?php endif; ?>
 
-                                    <tr>
+                    </tbody>
 
-                                        <td>
-                                            <?= $index + 1 ?>
-                                        </td>
-
-                                        <td>
-                                            <?= htmlspecialchars(
-                                                $food['food_code']
-                                            ) ?>
-                                        </td>
-
-                                        <td>
-
-                                            <strong>
-                                                <?= htmlspecialchars(
-                                                    $food['food_name']
-                                                ) ?>
-                                            </strong>
-
-                                        </td>
-
-                                        <td>
-                                            <?= htmlspecialchars(
-                                                $food['unit']
-                                            ) ?>
-                                        </td>
-
-                                        <td>
-
-                                            <span class="badge bg-primary">
-
-                                                <?= (int)$food['material_count'] ?>
-
-                                                Material(s)
-
-                                            </span>
-
-                                        </td>
-
-                                        <td>
-
-                                            <?php if ((int)$food['material_count'] > 0): ?>
-
-                                                <span class="badge bg-success">
-                                                    Recipe Ready
-                                                </span>
-
-                                            <?php else: ?>
-
-                                                <span class="badge bg-warning text-dark">
-                                                    Recipe Not Set
-                                                </span>
-
-                                            <?php endif; ?>
-
-                                        </td>
-
-                                        <td class="text-center">
-
-                                            <a
-                                                href="?edit_recipe=<?= (int)$food['food_id'] ?>"
-                                                class="btn btn-sm btn-outline-primary"
-                                                title="Edit Recipe"
-                                            >
-                                                <i class="fa-solid fa-pen-to-square me-1"></i>
-                                                Edit
-                                            </a>
-
-                                        </td>
-
-                                    </tr>
-
-                                <?php endforeach; ?>
-
-                            <?php endif; ?>
-
-                        </tbody>
-
-                    </table>
-
-                </div>
+                </table>
 
             </div>
 
@@ -1486,8 +1610,8 @@ require_once __DIR__ . '/../includes/topbar.php';
 ========================================================== -->
 
 <div
-    class="modal fade edit-user-modal"
-    id="addMaterialModal"
+    class="modal fade app-modal food-recipe-page-modal"
+    id="addMaterialModalFood"
     tabindex="-1"
     aria-hidden="true">
 
@@ -1507,7 +1631,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                     <div>
 
-                        <div class="modal-title-text">
+                        <div class="modal-title">
 
                             <i class="fa-solid fa-plus me-1"></i>
 
@@ -1708,7 +1832,7 @@ require_once __DIR__ . '/../includes/topbar.php';
 
                     <button
                         type="submit"
-                        class="btn btn-primary">
+                        class="btn btn-kitchen">
 
                         <i class="fa-solid fa-save me-1"></i>
 
@@ -1736,22 +1860,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const addMaterial =
         document.getElementById('addMaterial');
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE MATERIAL UNIT
-    |--------------------------------------------------------------------------
-    */
-
-    
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | MATERIAL SELECT CHANGE
-    |--------------------------------------------------------------------------
-    */
 
 
     /*

@@ -183,10 +183,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     /*
-                    | Skip zero quantity.
+                    | IF ZERO QTY (NOT RECEIVED) - UPDATE TO 0 TO AVOID BILLING
                     */
 
                     if ($receivedQty == 0) {
+                        $zeroStmt = $con->prepare("
+                            UPDATE purchase_order_items 
+                            SET ordered_qty = 0, total_amount = 0 
+                            WHERE id = ?
+                        ");
+                        $zeroStmt->execute([$itemId]);
                         continue;
                     }
 
@@ -276,6 +282,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $unitRate = (float)(
                         $rateStmt->fetchColumn() ?? 0
                     );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SHORT CLOSE (AUTO ADJUST QTY & TOTAL AMOUNT)
+                    |--------------------------------------------------------------------------
+                    */
+                    
+                    if ($receivedQty < $orderedQty) {
+                        $newTotalAmount = $receivedQty * $unitRate;
+                        
+                        $adjustStmt = $con->prepare("
+                            UPDATE purchase_order_items
+                            SET ordered_qty = ?, total_amount = ?
+                            WHERE id = ?
+                        ");
+                        $adjustStmt->execute([
+                            $receivedQty,
+                            $newTotalAmount,
+                            $itemId
+                        ]);
+                    }
 
                     /*
                     |--------------------------------------------------------------------------
@@ -480,14 +507,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <!-- HEADER -->
 
-        <div class="mb-4">
+        <div class="dashboard-hero">
 
-            <h4 class="mb-1">
-                Purchase Order Receiving
-            </h4>
+            <div class="dashboard-heading">
 
-            <div class="text-muted">
-                Receive purchased materials and update stock.
+
             </div>
 
         </div>
@@ -535,9 +559,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <!-- ORDERED PO LIST -->
 
-        <div class="content-card mb-4">
+        <div class="dashboard-table mb-4">
 
-            <div class="content-card-header">
+            <div class="table-header">
 
                 <strong>
 
@@ -546,6 +570,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     Orders Waiting for Receiving
 
                 </strong>
+
+                <span class="fs-6 fw-small"><?= count($orderedPOs) ?> order(s)</span>
 
             </div>
 
@@ -585,7 +611,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <td
                                 colspan="7"
-                                class="text-center text-muted py-5"
+                                class="empty-state"
                             >
 
                                 <i class="fa-solid fa-box-open fs-2 d-block mb-2"></i>
@@ -619,7 +645,27 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 </td>
 
                                 <td>
-                                    <?= e($po['supplier_name']) ?>
+
+                                    <div class="food-cell">
+
+                                        <span class="table-avatar">
+                                            <?= e(
+                                                strtoupper(
+                                                    substr(
+                                                        (string)$po['supplier_name'],
+                                                        0,
+                                                        1
+                                                    )
+                                                )
+                                            ) ?>
+                                        </span>
+
+                                        <span>
+                                            <?= e($po['supplier_name']) ?>
+                                        </span>
+
+                                    </div>
+
                                 </td>
 
                                 <td>
@@ -668,41 +714,37 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         <?php if ($selectedPO): ?>
 
-            <div class="content-card">
+            <div class="dashboard-table">
 
-                <div class="content-card-header">
+                <div class="table-header">
 
-                    <div class="d-flex justify-content-between align-items-center w-100">
+                    <div>
 
-                        <div>
+                        <strong>
 
-                            <strong>
+                            Receive:
+                            <?= e($selectedPO['po_no']) ?>
 
-                                Receive:
-                                <?= e($selectedPO['po_no']) ?>
+                        </strong>
 
-                            </strong>
+                        <div class="small text-muted">
 
-                            <div class="small text-muted">
-
-                                <?= e($selectedPO['supplier_name']) ?>
-
-                            </div>
+                            <?= e($selectedPO['supplier_name']) ?>
 
                         </div>
 
-                        <span class="badge bg-primary">
-
-                            <?= e($selectedPO['status']) ?>
-
-                        </span>
-
                     </div>
+
+                    <span class="status-pill status-info">
+
+                        <?= e($selectedPO['status']) ?>
+
+                    </span>
 
                 </div>
 
 
-                <div class="content-card-body">
+                <div class="p-3">
 
                     <?php if ($selectedPO['status'] !== 'Ordered'): ?>
 
@@ -775,9 +817,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                             <div class="table-responsive">
 
-                                <table class="table table-bordered align-middle">
+                                <table class="table table-hover align-middle">
 
-                                    <thead class="table-light">
+                                    <thead>
 
                                         <tr>
 
@@ -828,9 +870,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                             <td>
 
-                                                <div class="d-flex align-items-center gap-2">
+                                                <div class="food-cell">
 
-                                                    <span class="row-avatar">
+                                                    <span class="table-avatar">
                                                         <?= e($rowInitials) ?>
                                                     </span>
 
@@ -851,7 +893,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             </td>
 
                                             <td>
-                                                <?= e($item['unit']) ?>
+
+                                                <span class="status-pill status-neutral">
+                                                    <?= e($item['unit']) ?>
+                                                </span>
+
                                             </td>
 
                                             <td class="text-end">
@@ -874,7 +920,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                             <td class="text-end">
 
-                                                <span class="badge bg-light text-dark border">
+                                                <span class="status-pill status-neutral">
 
                                                     <?= number_format(
                                                         (float)$item['current_stock'],
@@ -896,7 +942,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                                 <input
                                                     type="number"
                                                     name="received_qty[<?= (int)$item['id'] ?>]"
-                                                    class="form-control"
+                                                    class="form-control form-control-sm"
                                                     min="0"
                                                     max="<?= e((string)$item['ordered_qty']) ?>"
                                                     step="0.01"
@@ -947,7 +993,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     <i class="fa-solid fa-box-open me-1"></i>
 
-                                    Receive & Update Stock
+                                    Receive &amp; Update Stock
 
                                 </button>
 

@@ -14,5 +14,9 @@ $pageTitle = $pageTitle ?? 'Canteen';
 
     <link href="../assets/css/app.css" rel="stylesheet">
 </head>
-<body>
+<?php
+$uiRole = strtolower((string)($_SESSION['role_name'] ?? 'guest'));
+$uiRoleClass = preg_replace('/[^a-z0-9_-]+/i', '-', $uiRole);
+?>
+<body class="role-<?= e($uiRoleClass) ?>">
 <div class="app-shell">

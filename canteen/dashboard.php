@@ -191,588 +191,192 @@ $recentWastage = $stmt->fetchAll(PDO::FETCH_ASSOC);
 | Page Includes
 |--------------------------------------------------------------------------
 */
+$todayMeals = count($todayFoodDetails);
+$foodPrepared = $todayReceived;
+$servedToday = $todayServed;
+
 require_once '../includes/header.php';
 require_once '../includes/sidebar.php';
-require_once '../includes/topbar.php';
-
 ?>
-
-<div class="main-content">
-
+<main class="main-content">
+<?php require_once '../includes/topbar.php'; ?>
 <div class="page-body">
-
-    <!-- ======================================================
-         PAGE HEADER
-    ======================================================= -->
-
-    <div class="page-header">
-
-        <div>
-
-            <h4 class="page-header-title">
-                <i class="fa-solid fa-gauge-high me-2"></i>
-                Canteen Dashboard
-            </h4>
-
-            <p class="page-header-subtitle">
-                Daily food receiving, serving and wastage summary.
-            </p>
-
+    <div class="dashboard-hero">
+        <div class="dashboard-heading">
+            
+            
         </div>
-
-        <div>
-
-            <span class="badge badge-count p-2">
-
-                <i class="fa-solid fa-calendar-days me-1"></i>
-
-                <?= date('d-m-Y') ?>
-
-            </span>
-
-        </div>
-
-    </div>
-
-
-    <!-- ======================================================
-         SUMMARY CARDS
-    ======================================================= -->
-
-    <div class="row g-3 mb-4">
-
-        <!-- Received -->
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-primary">
-                    <i class="fa-solid fa-truck"></i>
-                </div>
-
+        <div class="hero-right">
+            <div class="date-chip">
+                <i class="fa-regular fa-calendar-days"></i>
                 <div>
-                    <div class="stat-label">Today's Received</div>
-                    <div class="stat-value">
-                        <?= number_format($todayReceived, 2) ?>
-                    </div>
+                    <strong><?= date('d-m-Y') ?></strong>
+                    <span><?= date('l') ?></span>
                 </div>
-
             </div>
-
+            <div class="motto-chip">
+                <i class="fa-solid fa-heart"></i>
+                <div>
+                    <strong>Healthy Food</strong>
+                    <span>Healthy You</span>
+                </div>
+            </div>
         </div>
-
-
-        <!-- Served -->
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-green">
+    </div>
+    <div class="stats-grid">
+        <div class="dash-stat">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-label">Today's Meals</div>
+                    <div class="stat-value"><?= $todayMeals ?></div>
+                </div>
+                <div class="stat-icon">
                     <i class="fa-solid fa-utensils"></i>
                 </div>
-
-                <div>
-                    <div class="stat-label">Today's Served</div>
-                    <div class="stat-value">
-                        <?= number_format($todayServed, 2) ?>
-                    </div>
-                </div>
-
             </div>
-
+            <div class="stat-trend">↗ Food received</div>
         </div>
-
-
-        <!-- Remaining -->
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-amber">
-                    <i class="fa-solid fa-box-open"></i>
+    <div class="dash-stat stat-red">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Food Prepared</div>
+                <div class="stat-value">
+                    <?= number_format($foodPrepared,0) ?>
                 </div>
-
-                <div>
-                    <div class="stat-label">Today's Remaining</div>
-                    <div class="stat-value">
-                        <?= number_format($todayRemaining, 2) ?>
-                    </div>
-                </div>
-
             </div>
-
-        </div>
-
-
-        <!-- Wastage -->
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-red">
-                    <i class="fa-solid fa-trash-can"></i>
-                </div>
-
-                <div>
-                    <div class="stat-label">Today's Wastage</div>
-                    <div class="stat-value">
-                        <?= number_format($todayWastage, 2) ?>
-                    </div>
-                </div>
-
+            <div class="stat-icon">
+                <i class="fa-solid fa-kitchen-set"></i>
             </div>
-
         </div>
-
+        <div class="stat-trend down">↘ Today's quantity</div>
     </div>
-
-
-    <!-- ======================================================
-         SECONDARY SUMMARY
-    ======================================================= -->
-
-    <div class="row g-3 mb-4">
-
-        <!-- Pax -->
-        <div class="col-md-4">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-purple">
-                    <i class="fa-solid fa-users"></i>
+    <div class="dash-stat stat-cyan">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Pending Issue</div>
+                <div class="stat-value">
+                    <?= $pendingReceiving ?>
                 </div>
-
-                <div>
-                    <div class="stat-label">Today's Pax</div>
-                    <div class="stat-value">
-                        <?= number_format($todayPax) ?>
-                    </div>
-                </div>
-
             </div>
-
-        </div>
-
-
-        <!-- Pending Receiving -->
-        <div class="col-md-4">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-primary">
-                    <i class="fa-solid fa-inbox"></i>
-                </div>
-
-                <div>
-                    <div class="stat-label">Pending Food Receiving</div>
-                    <div class="stat-value">
-                        <?= number_format($pendingReceiving) ?>
-                    </div>
-                </div>
-
+            <div class="stat-icon">
+                <i class="fa-solid fa-clock"></i>
             </div>
-
         </div>
-
-
-        <!-- Date -->
-        <div class="col-md-4">
-
-            <div class="stat-card d-flex align-items-center gap-3">
-
-                <div class="stat-icon stat-icon-amber">
-                    <i class="fa-solid fa-calendar-day"></i>
-                </div>
-
-                <div>
-                    <div class="stat-label">Working Date</div>
-                    <div class="stat-value" style="font-size: 20px;">
-                        <?= date('d M Y') ?>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-
+        <div class="stat-trend down">↘ Awaiting receiving</div>
     </div>
-
-
-    <!-- ======================================================
-         TODAY FOOD DETAILS
-    ======================================================= -->
-
-    <div class="content-card mb-4">
-
-        <div class="content-card-header">
-
-            <h5 class="mb-0">
-
-                <i class="fa-solid fa-utensils me-2"></i>
-
-                Today's Food Details
-
-            </h5>
-
-        </div>
-
-        <div class="content-card-body p-0">
-
-            <div class="table-responsive">
-
-                <table class="table table-hover align-middle mb-0">
-
-                    <thead class="table-light">
-
-                        <tr>
-
-                            <th>#</th>
-
-                            <th>Food</th>
-
-                            <th>Received</th>
-
-                            <th>Served</th>
-
-                            <th>Remaining</th>
-
-                            <th>Wastage</th>
-
-                            <th>Pax</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                    <?php if (empty($todayFoodDetails)): ?>
-
-                        <tr>
-
-                            <td colspan="7"
-                                class="text-center text-muted py-4">
-
-                                No food received today.
-
-                            </td>
-
-                        </tr>
-
-                    <?php else: ?>
-
-                        <?php $sl = 1; ?>
-
-                        <?php foreach ($todayFoodDetails as $row): ?>
-
-                            <?php
-
-                            $remainingAfterWastage =
-                                (float)$row['remaining_qty']
-                                - (float)$row['wastage_qty'];
-
-                            if ($remainingAfterWastage < 0) {
-                                $remainingAfterWastage = 0;
-                            }
-
-                            ?>
-
-                            <tr>
-
-                                <td>
-                                    <?= $sl++ ?>
-                                </td>
-
-                                <td>
-
-                                    <div class="food-cell">
-
-                                        <span class="food-icon">
-                                            <i class="fa-solid fa-utensils"></i>
-                                        </span>
-
-                                        <div>
-
-                                            <strong>
-                                                <?= e($row['food_name']) ?>
-                                            </strong>
-
-                                            <br>
-
-                                            <small class="text-muted">
-                                                <?= e($row['food_code']) ?>
-                                            </small>
-
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-                                <td>
-
-                                    <?= number_format(
-                                        (float)$row['received_qty'],
-                                        2
-                                    ) ?>
-
-                                    <?= e($row['unit']) ?>
-
-                                </td>
-
-                                <td>
-
-                                    <?= number_format(
-                                        (float)$row['served_qty'],
-                                        2
-                                    ) ?>
-
-                                </td>
-
-                                <td>
-
-                                    <span class="badge remaining-pill">
-
-                                        <?= number_format(
-                                            $remainingAfterWastage,
-                                            2
-                                        ) ?>
-
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    <?php if ((float)$row['wastage_qty'] > 0): ?>
-
-                                        <span class="badge badge-disabled">
-
-                                            <?= number_format(
-                                                (float)$row['wastage_qty'],
-                                                2
-                                            ) ?>
-
-                                        </span>
-
-                                    <?php else: ?>
-
-                                        <span class="badge badge-enable">
-                                            0.00
-                                        </span>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                                <td>
-
-                                    <span class="badge badge-count">
-
-                                        <?= number_format((int)$row['pax']) ?>
-
-                                    </span>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-                    <?php endif; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ======================================================
-         RECENT WASTAGE
-    ======================================================= -->
-
-    <div class="content-card mb-4">
-
-        <div class="content-card-header">
-
-            <h5 class="mb-0">
-
-                <i class="fa-solid fa-trash-can me-2"></i>
-
-                Recent Wastage
-
-            </h5>
-
-        </div>
-
-        <div class="content-card-body p-0">
-
-            <div class="table-responsive">
-
-                <table class="table table-hover align-middle mb-0">
-
-                    <thead class="table-light">
-
-                        <tr>
-
-                            <th>#</th>
-
-                            <th>Date</th>
-
-                            <th>Food</th>
-
-                            <th>Quantity</th>
-
-                            <th>Reason</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                    <?php if (empty($recentWastage)): ?>
-
-                        <tr>
-
-                            <td colspan="5"
-                                class="text-center text-muted py-4">
-
-                                No wastage records found.
-
-                            </td>
-
-                        </tr>
-
-                    <?php else: ?>
-
-                        <?php $sl = 1; ?>
-
-                        <?php foreach ($recentWastage as $row): ?>
-
-                            <tr>
-
-                                <td>
-                                    <?= $sl++ ?>
-                                </td>
-
-                                <td>
-                                    <?= e($row['wastage_date']) ?>
-                                </td>
-
-                                <td>
-                                    <?= e($row['food_name']) ?>
-                                </td>
-
-                                <td>
-
-                                    <span class="badge badge-disabled">
-
-                                        <?= number_format(
-                                            (float)$row['wastage_qty'],
-                                            2
-                                        ) ?>
-
-                                        <?= e($row['unit']) ?>
-
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    <?= e($row['reason'] ?: '-') ?>
-
-                                </td>
-
-                            </tr>
-
-                        <?php endforeach; ?>
-
-                    <?php endif; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ======================================================
-         QUICK ACTIONS
-    ======================================================= -->
-
-    <div class="row g-3 mb-4">
-
-        <div class="col-md-4">
-
-            <a href="food_receiving.php" class="stat-card quick-action-card">
-
-                <div class="stat-icon stat-icon-primary">
-                    <i class="fa-solid fa-truck"></i>
+    <div class="dash-stat stat-green">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Served Today</div>
+                <div class="stat-value">
+                    <?= number_format($servedToday,0) ?>
                 </div>
-
-                <div>
-                    <div class="quick-action-label">Food Receiving</div>
-                    <div class="quick-action-sub">Receive from Kitchen</div>
+            </div>
+            <div class="stat-icon">
+                <i class="fa-solid fa-bowl-food"></i>
+            </div>
+        </div>
+        <div class="stat-trend">↗ Meals served</div>
+    </div>
+    <div class="dash-stat stat-purple">
+        <div class="stat-top">
+            <div>
+                <div class="stat-label">Customers</div>
+                <div class="stat-value">
+                    <?= number_format($todayPax) ?>
                 </div>
-
+            </div>
+            <div class="stat-icon">
+                <i class="fa-solid fa-users"></i>
+            </div>
+        </div>
+        <div class="stat-trend">↗ Today's pax</div>
+    </div>
+ </div>
+ <div class="quick-card">
+    <div class="section-title">
+        <i class="fa-solid fa-bolt"></i> 
+        Quick Actions
+    </div>
+    <div class="quick-actions">
+        <a class="quick-action primary" href="food_receiving.php">
+            <i class="fa-solid fa-truck"></i>
+            Meal Plan
+        </a>
+        <a class="quick-action orange" href="food_serving.php">
+            <i class="fa-solid fa-utensils"></i>
+            Food Preparation
+        </a>
+            <a class="quick-action green" href="food_serving.php">
+                <i class="fa-solid fa-arrow-right"></i>
+                Issue to Kitchen
             </a>
-
-        </div>
-
-        <div class="col-md-4">
-
-            <a href="food_serving.php" class="stat-card quick-action-card">
-
-                <div class="stat-icon stat-icon-green">
-                    <i class="fa-solid fa-utensils"></i>
-                </div>
-
-                <div>
-                    <div class="quick-action-label">Food Serving</div>
-                    <div class="quick-action-sub">Update served qty &amp; pax</div>
-                </div>
-
+            <a class="quick-action purple" href="wastage.php">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Service History
             </a>
-
         </div>
-
-        <div class="col-md-4">
-
-            <a href="wastage.php" class="stat-card quick-action-card">
-
-                <div class="stat-icon stat-icon-red">
-                    <i class="fa-solid fa-trash-can"></i>
-                </div>
-
-                <div>
-                    <div class="quick-action-label">Record Wastage</div>
-                    <div class="quick-action-sub">Log food wastage</div>
-                </div>
-
-            </a>
-
-        </div>
-
     </div>
-
+ <div class="dashboard-table">
+    <div class="table-header">
+        <div class="section-title mb-0">
+            <i class="fa-solid fa-utensils"></i> 
+            Today's Menu
+        </div>
+        <a href="food_receiving.php">View All ›</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Meal</th>
+                    <th>Food Items</th>
+                    <th>Quantity</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (!$todayFoodDetails): ?>
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">No food received today.</div>
+                        </td>
+                    </tr>
+                <?php else: $shown=0; 
+                    foreach ($todayFoodDetails as $row): 
+                    if($shown++>=5) 
+                    break; 
+                ?>
+                    <tr>
+                        <td>
+                            <span class="meal-pill meal-lunch">Meal</span>
+                        </td>
+                        <td>
+                            <strong><?= e($row['food_name']) ?></strong>
+                        </td>
+                        <td>
+                            <?= number_format((float)$row['received_qty'],0) ?> 
+                            <?= e($row['unit']) ?>
+                        </td>
+                        <td>
+                            <span class="status-pill 
+                                <?= (float)$row['served_qty']>0?'status-success':'status-warning' ?>">
+                                <?= (float)$row['served_qty']>0?'Served':'Pending' ?>
+                            </span>
+                        </td>
+                        <td>
+                            <a class="view-btn" href="food_serving.php">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    <?php endforeach; endif; ?>
+ 
+            </tbody>
+        </table>
+    </div>
 </div>
-
 </div>
-
-
-<?php
-
-require_once '../includes/footer.php';
-
-?>
+</main>
+<?php require_once '../includes/footer.php'; ?>

@@ -122,6 +122,19 @@ if (isset($_GET['edit'])) {
     }
 }
 
+/* SUMMARY COUNTS (for the stat cards) */
+$totalCategories = count($categories);
+$enabledCategoryCount = 0;
+$disabledCategoryCount = 0;
+
+foreach ($categories as $c) {
+    if ($c['status'] === 'Enable') {
+        $enabledCategoryCount++;
+    } else {
+        $disabledCategoryCount++;
+    }
+}
+
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 ?>
@@ -130,14 +143,22 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <?php require_once __DIR__ . '/../includes/topbar.php'; ?>
 
     <div class="page-body">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h4 class="mb-1">Material Categories</h4>
-                <div class="text-muted">Manage categories used in Material Master.</div>
+
+        <!-- PAGE HEADER -->
+        <div class="dashboard-hero">
+
+            <div class="dashboard-heading">
+
             </div>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-                <i class="fa-solid fa-plus me-1"></i> Add Category
-            </button>
+
+            <div class="hero-right">
+
+                <button type="button" class="btn btn-primary split-login-btn" style="border-radius:10px; padding:10px 18px; font-size:13px;" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <i class="fa-solid fa-plus me-1"></i> Add Category
+                </button>
+
+            </div>
+
         </div>
 
         <?php if ($message !== ''): ?>
@@ -147,73 +168,131 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         <?php endif; ?>
 
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+        <!-- STAT CARDS -->
+        <div class="stats-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+
+            <div class="dash-stat stat-cyan">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Total Categories</div>
+                        <div class="stat-value"><?= $totalCategories ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-tags"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">All categories</div>
+            </div>
+
+            <div class="dash-stat stat-green">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Enabled</div>
+                        <div class="stat-value"><?= $enabledCategoryCount ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="stat-trend">Available for materials</div>
+            </div>
+
+            <div class="dash-stat stat-purple">
+                <div class="stat-top">
+                    <div>
+                        <div class="stat-label">Disabled</div>
+                        <div class="stat-value"><?= $disabledCategoryCount ?></div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-ban"></i>
+                    </div>
+                </div>
+                <div class="stat-trend neutral">Not in use</div>
+            </div>
+
+        </div>
+
+        <div class="dashboard-table">
+
+            <div class="table-header">
+                <strong>
+                    <i class="fa-solid fa-tags me-1"></i>
+                    Categories
+                </strong>
+                <span class="fs-6 fw-medium"><?= count($categories) ?> categor<?= count($categories) === 1 ? 'y' : 'ies' ?></span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Category Name</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (!$categories): ?>
+                        <tr>
+                            <td colspan="5" class="empty-state">No categories found.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($categories as $index => $category): ?>
                             <tr>
-                                <th class="ps-4">#</th>
-                                <th>Category Name</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th class="text-center pe-4">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php if (!$categories): ?>
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-5">No categories found.</td>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach ($categories as $index => $category): ?>
-                                <tr>
-                                    <td class="ps-4"><?= $index + 1 ?></td>
-                                    <td><strong><?= htmlspecialchars($category['category_name']) ?></strong></td>
-                                    <td>
-                                        <?php if ($category['status'] === 'Enable'): ?>
-                                            <span class="badge bg-success">Enable</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-secondary">Disabled</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?= htmlspecialchars(date('d-m-Y H:i', strtotime($category['created_at']))) ?></td>
-                                    <td class="text-center pe-4">
-                                        <a href="categories.php?edit=<?= (int)$category['id'] ?>" class="btn btn-sm btn-outline-primary">
-                                            <i class="fa-solid fa-pen"></i> Edit
+                                <td><?= $index + 1 ?></td>
+                                <td>
+                                    <div class="food-cell">
+                                        <span class="table-avatar"><?= htmlspecialchars(strtoupper(substr($category['category_name'], 0, 1))) ?></span>
+                                        <strong><?= htmlspecialchars($category['category_name']) ?></strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <?php if ($category['status'] === 'Enable'): ?>
+                                        <span class="status-pill status-success">Enable</span>
+                                    <?php else: ?>
+                                        <span class="status-pill status-neutral">Disabled</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= htmlspecialchars(date('d-m-Y H:i', strtotime($category['created_at']))) ?></td>
+                                <td class="text-center">
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <a href="categories.php?edit=<?= (int)$category['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit">
+                                            <i class="fa-solid fa-pen"></i>
                                         </a>
 
                                         <?php if ($category['status'] === 'Enable'): ?>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Disable this category?');">
                                                 <input type="hidden" name="action" value="disable_category">
                                                 <input type="hidden" name="category_id" value="<?= (int)$category['id'] ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                    <i class="fa-solid fa-ban"></i> Disable
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Disable">
+                                                    <i class="fa-solid fa-ban"></i>
                                                 </button>
                                             </form>
                                         <?php else: ?>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Enable this category?');">
                                                 <input type="hidden" name="action" value="enable_category">
                                                 <input type="hidden" name="category_id" value="<?= (int)$category['id'] ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-success">
-                                                    <i class="fa-solid fa-check"></i> Enable
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Enable">
+                                                    <i class="fa-solid fa-check"></i>
                                                 </button>
                                             </form>
                                         <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </main>
 
 <!-- ADD CATEGORY MODAL -->
-<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade app-modal" id="addCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST">
@@ -237,7 +316,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
 <!-- EDIT CATEGORY MODAL -->
 <?php if ($editCategory): ?>
-<div class="modal fade" id="editCategoryModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade app-modal" id="editCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST">

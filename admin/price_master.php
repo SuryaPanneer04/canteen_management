@@ -75,10 +75,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
     <div class="page-body">
         
-        <div class="mb-4">
-            <h4 class="mb-1">Price Master</h4>
-            <div class="text-muted">Manage standard rates for all cooking materials.</div>
-        </div>
+        
 
         <?php if ($success): ?>
             <div class="alert alert-success alert-dismissible fade show">
